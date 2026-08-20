@@ -3,7 +3,7 @@
 ### Decomposição da vantagem preditiva de mecanismos de *gating* frente à seleção de variáveis clássica em quimiometria
 
 ![Status](https://img.shields.io/badge/status-em%20andamento-yellow)
-![Python](https://img.shields.io/badge/python-3.14-blue)
+![Python](https://img.shields.io/badge/python-3.12-blue)
 ![Área](https://img.shields.io/badge/área-quimiometria%20%7C%20ML-purple)
 ![Licença](https://img.shields.io/badge/uso-acadêmico-lightgrey)
 
@@ -102,3 +102,17 @@ tcc_rodrigo/
 
 ---
 
+## ✅ Progresso
+
+- [x] 🏗️ Estrutura do projeto
+- [ ] 0️⃣ Protocolo de avaliação único
+- [ ] 1️⃣ Camada de dados
+- [ ] 2️⃣ Braços clássicos *(iPLS, CARS, GA-PLS, VIP)*
+- [ ] 3️⃣ Braços neurais *(B1–B4)*
+- [ ] 4️⃣ Camada de seleção
+- [ ] 5️⃣ Executor da grade
+- [ ] 6️⃣ Métricas
+- [ ] 7️⃣ Decomposição + TOST
+- [ ] 8️⃣ Figuras e manuscrito
+
+📌 Progresso detalhado em [`docs/DIARIO.md`](docs/DIARIO.md)
