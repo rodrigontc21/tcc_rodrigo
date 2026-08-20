@@ -1,0 +1,13 @@
+# Notebooks Jupyter: evita diffs ilegiveis por causa dos outputs embutidos
+*.ipynb linguist-language=Python
+*.ipynb -diff
+
+# Normaliza quebras de linha (evita ruido entre Windows e Linux)
+* text=auto
+
+# Arquivos binarios: nunca tentar fazer diff nem normalizar
+*.pdf binary
+*.png binary
+*.jpg binary
+*.npy binary
+*.npz binary
