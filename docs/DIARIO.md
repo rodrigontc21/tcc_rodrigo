@@ -33,3 +33,84 @@ candidato a ADR sobre proveniência dos dados.
 **Próximo**
 Estágio 0 — protocolo de avaliação único, interface `Arm`, contrato `Result`,
 dois eixos de semente.
+
+## 2026-08-24
+
+**Feito**
+- pytest 9.1.1 instalado, `requirements.txt` regravado
+- Estágio 0 implementado: `src/tcc/data.py`, `src/tcc/protocol.py`,
+  `src/tcc/arms/base.py`, `src/tcc/arms/mean.py`, `tests/test_protocol.py`,
+  `pytest.ini`
+- Os dois critérios de aceitação do pipeline passando (braço trivial
+  atravessa `evaluate` e produz `Result` válido; dois braços com a mesma
+  `seed_split` recebem a mesma partição), mais um terceiro teste
+
+**Decisões de projeto**
+- As folds da CV interna derivam de `seed_split`, não de `seed_algo`. Assim
+  variar `seed_algo` mede instabilidade algorítmica pura, sem misturar com
+  mudança de folds — e todos os braços ensaiam sobre exatamente as mesmas
+  folds, que é o que torna a comparação entre eles legítima.
+- `Arm.fit()` não recebe `X_test` nem `seed_split`. Vazamento do teste
+  externo deixa de ser questão de disciplina do programador e vira
+  impossibilidade de tipo: o braço não tem como enxergar o que não lhe é
+  passado. Mesma lógica para `seed_split` — só `evaluate` conhece essa
+  semente, e é ela quem deriva as folds e as injeta.
+- Nenhum RNG global. `SeedSequence(seed_split).spawn(2)` gera dois streams
+  independentes, um para a partição e outro para as folds, sem que o avanço
+  de um mexa no outro. `seed_algo` alimenta um terceiro gerador, separado.
+- `rmse_cv` virou propriedade de `FittedArm`, não cálculo de `evaluate`. Só
+  o braço sabe o erro da própria CV interna — o protocolo não tem como
+  recalculá-lo sem replicar a busca de hiperparâmetro de cada método.
+- `IdentityPreprocessor` como placeholder, mas já com `fit`/`transform`
+  separados e ajustado só no treino. O ponto de encaixe fica no lugar certo
+  desde agora, para que trocar pela transformação real no Estágio 1 não
+  exija mexer em `evaluate`.
+
+**Próximo**
+Auditoria do que foi escrito, antes de seguir para o Estágio 1.
+
+## 2026-08-25
+
+**Feito**
+- Auditoria do Estágio 0 contra os documentos de `docs/`
+- Achado crítico corrigido e verificado
+
+**O achado crítico**
+`test_deterministic_arm_is_invariant_to_seed_algo` usava o `MeanArm`, que
+ignora `rng_algo` por completo. O teste passava por construção: não havia
+aleatoriedade nenhuma para o `seed_algo` perturbar, então a invariância era
+trivial e o invariante que o nome promete proteger ficava desprotegido. Na
+prática, se `evaluate` passasse `cv_rng` no lugar de `algo_rng` para
+`arm.fit`, a suíte inteira continuaria verde e os dois eixos de semente
+ficariam entrelaçados sem nenhuma detecção.
+
+Correção: braço-sonda estocástico (`RandomArm`) em `tests/`, cobrindo três
+invariantes — reprodutibilidade com as mesmas sementes; `seed_algo`
+diferente muda `y_pred` mantendo `test_idx`; `seed_split` diferente muda a
+partição.
+
+Verificação por mutação: com `algo_rng` trocado por `cv_rng`, o resultado
+foi `1 failed, 5 passed` — falhou exatamente o teste novo, e os dois
+`y_pred` saíram idênticos apesar de `seed_algo` diferente. Desfeita a
+mutação, `6 passed`. Confirmação empírica de que a suíte anterior era cega
+ao bug.
+
+**Pendências abertas** (para o protocolo congelado, semana 11)
+- `test_size` está em 25%; o paper de referência usou 20%. Com o Gasoline
+  (n=60), 25% deixa só 15 amostras de teste e o R² fica instável.
+- A partição não é estratificada por quantil de `y`. Sem isso, uma partição
+  azarada pode deixar o teste com faixa estreita do alvo.
+
+**Achados não-críticos da auditoria**
+
+| Achado | Volta em |
+|---|---|
+| Pré-processador ajustado fora das folds internas — vaza se for entre-amostras | Estágio 1 |
+| Folds injetadas mas não auditáveis; braço pode usar CV própria sem detecção | Estágio 2 |
+| `n_fits` autodeclarado pelo braço — orçamento é sistema de honra | Estágio 2 |
+| `predict` vê `X_test`; `load()` pública permite reconstruir `y_test` | limitação conhecida |
+| `PROTOCOLO.md` vazio porém citado como norma no código | semana 11 |
+| Variante do Tecator congelada sobre pendência aberta | pergunta nº 5 |
+
+**Próximo**
+Estágio 1 — camada de dados e pré-processamento real. Começa em 01/09.
