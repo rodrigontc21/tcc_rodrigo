@@ -105,7 +105,7 @@ tcc_rodrigo/
 ## ✅ Progresso
 
 - [x] 🏗️ Estrutura do projeto
-- [ ] 0️⃣ Protocolo de avaliação único
+- [x] 0️⃣ Protocolo de avaliação único
 - [ ] 1️⃣ Camada de dados
 - [ ] 2️⃣ Braços clássicos *(iPLS, CARS, GA-PLS, VIP)*
 - [ ] 3️⃣ Braços neurais *(B1–B4)*
