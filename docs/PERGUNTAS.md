@@ -88,6 +88,38 @@ dos pacotes R via `rpy2` nos braços clássicos?
 
 ---
 
+### 7. Cálculo do prior dentro da validação cruzada interna — [trava o Estágio 3]
+Aberta em: 2026-08-25
+
+O pipeline é categórico ao exigir que a seleção de variáveis clássica
+aconteça dentro da validação cruzada interna, nunca antes dela, sob pena de
+vazamento. O prior que inicializa a porta (B4) usa os rótulos de treino para
+estimar relevância de banda — conceitualmente a mesma operação.
+
+Se o CARS seleciona dentro da CV enquanto o prior da porta é calculado sobre
+o treino inteiro, a comparação fica enviesada a favor da porta. O prior deve
+ser recalculado dentro de cada fold, como os selecionadores clássicos?
+
+**Resposta:**
+
+---
+
+### 8. Semente algorítmica na grade principal — [trava o Estágio 5]
+Aberta em: 2026-08-25
+
+Os termos Δ são pareados por (conjunto, `seed_split`), mas os braços B1–B4
+são estocásticos, então cada célula da grade tem também um `seed_algo`. Duas
+opções: uma semente por célula (diagonal), mais barata; ou média sobre 3 a 10
+sementes, que estreita o intervalo de confiança ao custo de 3× a 10× no tempo
+de execução dos braços neurais.
+
+Os testes de equivalência de H2–H4 só concluem com intervalo estreito dentro
+da margem. Qual das duas o senhor prefere para a grade principal?
+
+**Resposta:**
+
+---
+
 ## Respondidas
 
 (nenhuma ainda)
