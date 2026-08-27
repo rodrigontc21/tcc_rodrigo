@@ -2,7 +2,11 @@ venv/
 __pycache__/
 *.pyc
 .ipynb_checkpoints/
-results/
+# results/ inteiro seria ignorado, mas "!" não reabre nada dentro de
+# diretório ignorado — por isso o padrão é results/* com exceção explícita
+results/*
+!results/mean_baseline_tecator.csv
+!results/mean_baseline_tecator.md
 .vscode/
 .DS_Store
 docs/PERGUNTAS.md
