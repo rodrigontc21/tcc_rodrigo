@@ -7,6 +7,8 @@ __pycache__/
 results/*
 !results/mean_baseline_tecator.csv
 !results/mean_baseline_tecator.md
+!results/permuted_y_tecator.csv
+!results/permuted_y_tecator.md
 .vscode/
 .DS_Store
 docs/PERGUNTAS.md
