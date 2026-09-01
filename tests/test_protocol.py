@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 from dataclasses import dataclass
 
 import numpy as np
@@ -89,6 +90,18 @@ class RandomArm:
     ) -> _FittedRandomArm:
         budget.increment()
         return _FittedRandomArm(_offset=float(rng_algo.normal()))
+
+
+def _result_key(result) -> str:
+    """Chave estável de um Result para o teste anti-réplica.
+
+    Deriva de y_pred e test_idx: juntos eles determinam partição e saída
+    do braço. Réplicas com a mesma chave indicam propagação de semente
+    quebrada (ver checklist do pipeline, Estágio 5)."""
+    h = hashlib.sha256()
+    h.update(np.ascontiguousarray(result.test_idx).tobytes())
+    h.update(np.ascontiguousarray(result.y_pred).tobytes())
+    return h.hexdigest()
 
 
 @pytest.fixture(scope="module")
@@ -260,3 +273,50 @@ def test_permuted_y_wrapping_mean_arm_keeps_r2_near_zero(tecator):
     assert r_permuted.arm_name == "permuted_y(mean)"
     assert abs(r_permuted.r2) < 0.2
     np.testing.assert_allclose(r_permuted.y_pred, r_plain.y_pred)
+
+
+def test_no_identical_replicas_across_seed_split(tecator):
+    """Anti-réplica no eixo seed_split (checklist do pipeline, Estágio 5).
+
+    Partições diferentes têm que produzir resultados diferentes, para
+    qualquer braço — inclusive os determinísticos, porque o que varia é o
+    dado, não o algoritmo. Chave repetida entre seed_split distintos
+    indica propagação de semente quebrada (ex.: partição congelada num
+    valor fixo), que de outro modo passaria silenciosa."""
+    keys = [
+        _result_key(evaluate(MeanArm(), tecator, seed_split=s, seed_algo=0))
+        for s in range(10)
+    ]
+
+    assert len(set(keys)) == len(keys)
+
+
+def test_deterministic_arm_replicas_across_seed_algo_are_identical(tecator):
+    """Exceção declarada do anti-réplica: braço determinístico no eixo
+    seed_algo.
+
+    PLS, iPLS e limiarização de VIP são determinísticos dado o conjunto
+    de treino; o MeanArm representa essa classe aqui. Para eles, variar
+    seed_algo com seed_split fixo NÃO muda nada — resultados idênticos
+    são o comportamento correto, não réplica quebrada. O pipeline exige
+    que essa exceção seja declarada, e este teste é a declaração em
+    código, para não virar conhecimento tácito."""
+    keys = {
+        _result_key(evaluate(MeanArm(), tecator, seed_split=0, seed_algo=a))
+        for a in (0, 1, 999)
+    }
+
+    assert len(keys) == 1
+
+
+def test_stochastic_arm_replicas_across_seed_algo_are_distinct(tecator):
+    """Contraparte estocástica da exceção acima: para braço que usa
+    rng_algo, variar seed_algo TEM que mudar o resultado. Sem isto, a
+    exceção dos determinísticos viraria desculpa para mascarar propagação
+    quebrada de seed_algo em braços estocásticos."""
+    keys = {
+        _result_key(evaluate(RandomArm(), tecator, seed_split=0, seed_algo=a))
+        for a in (0, 1, 999)
+    }
+
+    assert len(keys) == 3
