@@ -9,6 +9,7 @@ Marcar com [x] quando respondida e anotar a resposta.
 
 ### 1. Eixo de semente e a H5 — [prioridade alta, trava o protocolo]
 Aberta em: 2026-08-20
+Enviada em: 2026-08-28 (sem resposta direta até o momento)
 
 O Estágio 0 do pipeline observa que PLS, iPLS e limiarização de VIP são
 determinísticos dado o conjunto de treino: com `seed_split` fixo, o Jaccard
@@ -69,8 +70,6 @@ bandas. O paper descreve a faixa como 7% a 76%.
 Como o Tecator circula em variantes distintas (215 e 240 amostras, com e sem
 pré-processamento), quero confirmar qual fonte exata foi usada no artigo antes
 de fixar a camada de dados.
-
-Obs.: investigar as variantes por conta própria antes de enviar esta pergunta.
 
 **Resposta:**
 
