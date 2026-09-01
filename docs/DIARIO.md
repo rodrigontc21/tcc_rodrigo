@@ -114,3 +114,115 @@ ao bug.
 
 **Próximo**
 Estágio 1 — camada de dados e pré-processamento real. Começa em 01/09.
+
+## 2026-08-27
+
+**Feito**
+- Vistoria completa do repositório em sessão nova, sem o histórico de quem
+  escreveu o código
+- Verificação por mutação do achado crítico refeita de forma independente,
+  com o mesmo resultado registrado em 25/08
+- Quatro achados novos, nenhum crítico:
+  - `docs/ADR/` não existia, embora o README o listasse — resolvido
+  - `requirements.txt` gravado em UTF-16 pelo `pip freeze >` do PowerShell;
+    o GitHub tratava como binário e não mostrava diff — regravado em UTF-8
+  - `assert abs(r2) < 0.2` com limiar arbitrário; funciona hoje por a
+    `seed_split=0` ser benigna, mas quebraria sob mudança de `test_size` —
+    anotado
+  - O histórico git não sustenta a narrativa da auditoria: o commit de
+    código já contém o `RandomArm`, então o estado pré-correção nunca
+    existiu no repositório e a mutação não é reconstruível a partir do
+    histórico
+- Três ADRs escritos: 001 folds derivando de `seed_split`, 002 `rmse_cv`
+  como propriedade de `FittedArm`, 003 omissão do campo `rmse`
+- `docs/` reorganizado: material de estudo movido para `docs/estudo_rodrigo/`
+- `CONCEITOS.md` escrito — treino/teste, semente, validação cruzada, como
+  material de consulta
+- A pedido da orientação, `scripts/run_mean_baseline.py` criado e o
+  `MeanArm` rodado no Tecator em 10 `seed_split`
+
+**Resposta da orientação (27/08)** — quatro critérios de avaliação, com
+quatro pedidos derivados:
+
+1. Aderência ao protocolo único — verificar se o pré-processamento é
+   ajustado só no treino e se `evaluate` não fixa hiperparâmetros que o
+   braço deveria escolher. Ambos confirmados no código.
+2. Justiça dos braços clássicos — Estágio 2. Mas surge uma decisão de
+   arquitetura antecipada: validar CARS e GA-PLS contra valores publicados
+   exige reproduzir o protocolo daqueles artigos, que no Tecator costuma
+   ser a divisão padrão do conjunto, não partição aleatória repetida.
+   Serão necessários dois modos na `evaluate()`: o protocolo único, para a
+   decomposição, e um modo "protocolo da literatura", usado exclusivamente
+   no portão de validação e nunca na grade.
+3. Separação dos eixos — correto, mas falta o teste anti-réplica do
+   checklist.
+4. Resultados brutos — diagnóstico específico: o R² tem que ser
+   ligeiramente negativo, nunca 0,000. Se der zero exato, a média está
+   sendo calculada no teste, e isso é vazamento na métrica. O RMSE deve
+   ficar próximo do desvio-padrão de `y`.
+
+**Correção conceitual recebida**
+A H5 é sobre reprodutibilidade da seleção de bandas, medida por Jaccard,
+não sobre variabilidade do erro entre partições. São grandezas diferentes,
+e a confusão apareceria no manuscrito.
+
+## 2026-08-28
+
+**Feito** — três das quatro tarefas da orientação:
+
+**Piso de ruído de partição.** Baseline da média rodado no Tecator com 100
+`seed_split` (com 10, a estimativa da própria dispersão é instável).
+Resultados: RMSEP com média 12,6858 e desvio-padrão 0,9761; R² com média
+-0,0291 e desvio-padrão 0,0382; R² negativo em todas as 100 partições,
+máximo -0,0000 — o diagnóstico de vazamento na métrica passa. A média do
+RMSEP bate com o desvio-padrão da gordura no Tecator (~12,7), como
+esperado de um preditor de média. O desvio-padrão do R² (0,0382) é a
+âncora empírica da margem δ do TOST, que até aqui não tinha critério
+objetivo: nenhum efeito da decomposição menor que esse piso é
+interpretável. Pendência: repetir nos outros três conjuntos quando
+entrarem — Gasoline é do Estágio 1, e Mango e bioprocesso dependem da
+pergunta nº 4.
+
+**Sonda de vazamento com y permutado.** `PermutedYArm` implementado como
+decorador de qualquer braço: embaralha `y_train` com `rng_algo`, deixa
+`X_train` intacto, delega o resto ao braço interno. Com o alvo permutado
+não existe relação X→y, então R² apreciavelmente acima de zero denunciaria
+vazamento no caminho de X — o que o baseline da média não detecta, por
+nunca tocar em X.
+
+Os resultados saíram idênticos aos do `MeanArm`, o que levantou a suspeita
+de a permutação não estar acontecendo. Verificado: era a matemática, não
+bug. A média é invariante a permutação, então o `MeanArm` é
+estruturalmente cego ao decorador. A prova veio em três partes — um
+`SpyArm` capturando o `y_train` entregue (mesma multiset, ordem
+diferente); um `FirstYArm` sensível à ordem, cuja saída muda sob
+permutação; e verificação por mutação (permutação desativada → os dois
+testes novos falham, `2 failed, 7 passed`; revertida → `9 passed`). O
+teste antigo continuou verde sob a mutação, corretamente: pela mesma
+invariância, ele é cego a esse ponto — os dois novos cobrem o ponto cego.
+
+**Teste anti-réplica.** Item do checklist do pipeline. `_result_key`
+deriva um SHA-256 de `test_idx` + `y_pred`. Três testes: chaves distintas
+entre 10 `seed_split` para qualquer braço; chaves idênticas ao variar
+`seed_algo` em braço determinístico, com o motivo no docstring — exceção
+declarada em código, não conhecimento tácito; e chaves distintas ao variar
+`seed_algo` no `RandomArm`, para que a exceção não mascare propagação
+quebrada em braços estocásticos.
+
+Verificação por mutação: com `evaluate` ignorando `seed_split`,
+`2 failed, 10 passed` — o teste novo e o
+`test_seed_split_varies_partition_with_fixed_seed_algo`, dupla detecção do
+mesmo defeito por mecanismos diferentes. Revertido, `12 passed`.
+
+**Padrão que se repete**: um invariante testado apenas com braço
+insensível ao mecanismo é proteção ilusória. Ocorreu no achado crítico de
+25/08 e de novo na sonda de permutação.
+
+**Pendente**: a quarta tarefa — dois modos de protocolo na `evaluate()`. É
+decisão de arquitetura que muda a assinatura da função e precisa ser
+desenhada antes do Estágio 2.
+
+**Próximo**
+Estágio 1 em 01/09 — escolher o pré-processamento. A escolha determina se
+o contrato muda: SNV é por espectro e não vaza; métodos entre-amostras
+vazam para a CV interna com o ajuste na posição atual.
