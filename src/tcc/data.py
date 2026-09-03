@@ -18,11 +18,11 @@ class Dataset:
     de objeto é suficiente.
     """
 
-    X: np.ndarray
-    y: np.ndarray
-    axis: np.ndarray
-    unit: Unit
-    name: str
+    X: np.ndarray # a matriz de espectros, (215, 100)
+    y: np.ndarray # o alvo, (215,).
+    axis: np.ndarray # o eixo espectral, (100,).
+    unit: Unit # a unidade do eixo
+    name: str 
 
 
 def load(name: str) -> Dataset:
