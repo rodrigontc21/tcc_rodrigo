@@ -226,3 +226,62 @@ desenhada antes do Estágio 2.
 Estágio 1 em 01/09 — escolher o pré-processamento. A escolha determina se
 o contrato muda: SNV é por espectro e não vaza; métodos entre-amostras
 vazam para a CV interna com o ajuste na posição atual.
+
+## 2026-09-01
+
+**Reunião de orientação — respostas obtidas**
+- Pré-processamento: SNV costuma dar resultados melhores, mas testar os
+  dois (SNV e derivada) e escolher empiricamente. Se a combinação SNV
+  seguido de derivada for melhor, pode usar. Isso muda o Estágio 1 de
+  "escolher um e registrar" para "comparar e decidir com evidência".
+- Tarefa D (dois modos de protocolo): desenho aprovado — segunda função em
+  arquivo separado, com tipo de retorno distinto, núcleo compartilhado.
+- Divisão fixa: usar a mesma divisão do paper (172/43) para todos os
+  braços validados contra a literatura.
+- Faixa de gordura: sem confirmação, mas suspeita de que o pacote R seja a
+  causa. Orientação para investigar.
+
+**Pendente**
+A pergunta sobre o pré-processamento do B4 (Z-score do paper versus o
+escolhido para os demais braços) não foi feita. Fica para o Estágio 3.
+
+## 2026-09-03
+
+**Investigação da proveniência do Tecator**
+
+`PLSArm` implementado (`src/tcc/arms/pls.py`), cumprindo o contrato `Arm`,
+com busca de componentes por CV interna ou `n_components` fixo.
+
+**Tentativa de reproduzir o resultado publicado.** Script
+`scripts/validate_against_paper.py` com o protocolo do paper (172/43
+sequencial, H=10, Z-score no treino): obtido R² = 0,9604 contra 0,919
+publicado, RMSE normalizado 0,2041 contra 0,296. Sensibilidade em 200
+partições aleatórias: R² = 0,9491 ± 0,0144, com o valor do paper caindo
+no percentil 5. O resultado publicado é alcançável nesta fonte apenas
+numa partição atipicamente desfavorável.
+
+**Verificação da coluna de alvo** (`scripts/check_targets.py`): as três
+colunas somam 99,03% em média; gordura × água têm correlação -0,9881;
+`as_frame=True` nomeia as colunas explicitamente como
+`['fat', 'water', 'protein']`. A coluna 0 é gordura de fato.
+
+**Verificação independente no R.** R instalado no WSL (exigiu
+`libcurl4-openssl-dev`, `libssl-dev`, `libxml2-dev` para o `RCurl`
+compilar). `fda.usc` carregado direto, sem passar pelo Python: Fat
+0,90–49,10, Water 39,30–76,60, Protein 11,00–21,80 — idêntico ao que o
+`scikit-fda` entrega. A ponte Python→R é fiel.
+
+**Achado sobre a fonte citada no paper.** O manual oficial do pacote R
+`pls` lista quatro datasets embutidos — yarn, oliveoil, gasoline e
+mayonnaise. Tecator não está entre eles, embora o Data Availability do
+paper o cite como fonte.
+
+**Conclusão da investigação.** A divergência não vem de coluna trocada,
+nem de transformação na ponte Python→R. O máximo que o paper reporta para
+gordura (76) coincide quase exatamente com o máximo da água nesta fonte
+(76,6), o que sugere imprecisão na descrição do dataset no paper. Enviado
+à orientação com as evidências.
+
+**Próximo**
+Estágio 1 — comparar SNV, derivada e a combinação dos dois, usando o
+`PLSArm` como avaliador.

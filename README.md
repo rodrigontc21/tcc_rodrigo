@@ -64,13 +64,14 @@ tcc_rodrigo/
 ├── 📁 docs/
 │   ├── fontes/          proposta, pipeline e paper de referência
 │   ├── ADR/             decisões de projeto registradas
+│   ├── estudo_rodrigo/  material de estudo pessoal, inclui PERGUNTAS.md
 │   ├── DIARIO.md        progresso dia a dia
-│   ├── PERGUNTAS.md     fila de dúvidas para a orientação
 │   └── PROTOCOLO.md     protocolo pré-registrado (congela na semana 11)
 ├── 📁 src/tcc/          código do pipeline, um módulo por estágio
 ├── 📁 tests/            testes automatizados
+├── 📁 scripts/          execuções avulsas (baselines, validações)
 ├── 📁 notebooks/        exploração livre (não é entregável)
-└── 📁 results/          saída das execuções (não versionado)
+└── 📁 results/          saída das execuções (só baselines versionados)
 ```
 
 ---
