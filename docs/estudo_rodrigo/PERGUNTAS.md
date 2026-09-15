@@ -60,21 +60,6 @@ Raman de bioprocesso o grupo já possui, ou preciso localizar?
 
 ---
 
-### 5. Proveniência do Tecator — faixa do alvo divergente
-Aberta em: 2026-08-20
-
-Carreguei o Tecator via `scikit-fda` (que o obtém do pacote R `fda.usc`) e
-obtive teor de gordura variando de 0.9% a 49.1%, com 215 amostras e 100
-bandas. O paper descreve a faixa como 7% a 76%.
-
-Como o Tecator circula em variantes distintas (215 e 240 amostras, com e sem
-pré-processamento), quero confirmar qual fonte exata foi usada no artigo antes
-de fixar a camada de dados.
-
-**Resposta:**
-
----
-
 ### 6. Linguagem dos braços clássicos
 Aberta em: 2026-08-20
 
@@ -121,4 +106,26 @@ da margem. Qual das duas o senhor prefere para a grade principal?
 
 ## Respondidas
 
-(nenhuma ainda)
+### [x] 5. Proveniência do Tecator — faixa do alvo divergente
+Aberta em: 2026-08-20
+Respondida em: 2026-09-03
+
+Carreguei o Tecator via `scikit-fda` (que o obtém do pacote R `fda.usc`) e
+obtive teor de gordura variando de 0.9% a 49.1%, com 215 amostras e 100
+bandas. O paper descreve a faixa como 7% a 76%.
+
+Como o Tecator circula em variantes distintas (215 e 240 amostras, com e sem
+pré-processamento), quero confirmar qual fonte exata foi usada no artigo antes
+de fixar a camada de dados.
+
+**Resposta:** as fontes são equivalentes. O orientador verificou o código
+de ingestão do grupo (pgsg_1): os dados do paper vieram do OpenML (base
+505), e o `y` bruto de lá (min 0,9, max 49,1, média 18,14) bate exatamente
+com o que o `fda.usc` entrega. A faixa "7–76%" do paper é erro de prosa —
+no `summary()` do R, 7,30 é o 1º quartil da gordura e 76,60 é o máximo da
+água. Nenhum resultado do paper está comprometido. Decisão registrada no
+[ADR 004](../ADR/004-proveniencia-do-tecator.md): Tecator canônico via
+`skfda`/`fda.usc`, alvo fat selecionado por nome, com hash do arquivo
+carregado — e a ressalva de que o loader inspecionado é o da rodada de
+revisão (`revision_pgsg_0_r1`); a submissão original permanece não
+verificada.

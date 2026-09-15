@@ -1,13 +1,14 @@
-"""Linha de base trivial: MeanArm no Tecator, muitas seed_split.
+"""Linha de base trivial: MeanArm em qualquer conjunto, muitas seed_split.
 
-Gera dois arquivos versionados em results/ (para envio à orientação):
+Gera, por conjunto, dois arquivos versionados em results/ (para envio à
+orientação):
 
-- mean_baseline_tecator.csv  uma linha por execução de `evaluate`
-- mean_baseline_tecator.md   estatísticas descritivas + tabela completa
+- mean_baseline_<dataset>.csv  uma linha por execução de `evaluate`
+- mean_baseline_<dataset>.md   estatísticas descritivas + tabela completa
 
-O MeanArm ignora X por completo, então a dispersão do RMSEP entre partições
-é o piso de ruído de partição do conjunto: variação que existe antes de
-qualquer modelo entrar em cena.
+O MeanArm ignora X por completo, então a dispersão do RMSEP entre
+partições é o piso de ruído de partição do conjunto: variação que existe
+antes de qualquer modelo entrar em cena.
 """
 
 from __future__ import annotations
@@ -25,6 +26,8 @@ sys.path.insert(0, str(ROOT / "src"))
 from tcc.arms.mean import MeanArm
 from tcc.data import load
 from tcc.protocol import evaluate
+
+ALL_DATASETS = ["gasoline", "tecator", "mango", "bioprocess"]
 
 COLUMNS = [
     "arm_name",
@@ -99,23 +102,14 @@ def _markdown_stats(n_seeds: int, r2: np.ndarray, rmsep: np.ndarray) -> list[str
     return lines
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        "--n-seeds",
-        type=int,
-        default=100,
-        help="número de seed_split (0 a N-1) a executar (padrão: 100)",
-    )
-    args = parser.parse_args()
-
-    tecator = load("tecator")
+def _run_dataset(dataset_name: str, n_seeds: int) -> None:
+    dataset = load(dataset_name)
 
     rows = []
     r2_values = []
     rmsep_values = []
-    for seed_split in range(args.n_seeds):
-        result = evaluate(MeanArm(), tecator, seed_split=seed_split, seed_algo=0)
+    for seed_split in range(n_seeds):
+        result = evaluate(MeanArm(), dataset, seed_split=seed_split, seed_algo=0)
         r2_values.append(result.r2)
         rmsep_values.append(result.rmsep)
         rows.append(_format_row(result, n_test=len(result.test_idx)))
@@ -126,7 +120,7 @@ def main() -> None:
     out_dir = ROOT / "results"
     out_dir.mkdir(exist_ok=True)
 
-    csv_path = out_dir / "mean_baseline_tecator.csv"
+    csv_path = out_dir / f"mean_baseline_{dataset_name}.csv"
     with csv_path.open("w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=COLUMNS)
         writer.writeheader()
@@ -134,18 +128,19 @@ def main() -> None:
 
     # Mesma tabela em Markdown, com as estatísticas no topo: renderiza
     # direto no GitHub, para leitura sem depender do Excel
-    md_path = out_dir / "mean_baseline_tecator.md"
+    md_path = out_dir / f"mean_baseline_{dataset_name}.md"
     with md_path.open("w", encoding="utf-8") as f:
-        f.write("# Linha de base: MeanArm no Tecator\n\n")
-        f.write("\n".join(_markdown_stats(args.n_seeds, r2_arr, rmsep_arr)))
+        f.write(f"# Linha de base: MeanArm no {dataset_name}\n\n")
+        f.write("\n".join(_markdown_stats(n_seeds, r2_arr, rmsep_arr)))
         f.write(f"\n\n## Todas as partições ({len(rows)})\n\n")
         f.write("\n".join(_markdown_table(rows)))
         f.write("\n")
 
+    print(f"=== {dataset_name} (n={dataset.X.shape[0]}, p={dataset.X.shape[1]}) ===")
     # No terminal, só uma amostra: 100 linhas iguais não ajudam ninguém
     sample = rows[:N_SAMPLE_ROWS]
     header = (
-        f"{'arm':>5} {'dataset':>8} {'split':>5} {'algo':>4} "
+        f"{'arm':>5} {'dataset':>10} {'split':>5} {'algo':>4} "
         f"{'r2':>9} {'rmsep':>8} {'rmse_cv':>8} {'n_fits':>6} "
         f"{'wall_time':>10} {'n_test':>6}"
     )
@@ -153,7 +148,7 @@ def main() -> None:
     print("-" * len(header))
     for row in sample:
         print(
-            f"{row['arm_name']:>5} {row['dataset_name']:>8} "
+            f"{row['arm_name']:>5} {row['dataset_name']:>10} "
             f"{row['seed_split']:>5} {row['seed_algo']:>4} "
             f"{row['r2']:>9} {row['rmsep']:>8} {row['rmse_cv']:>8} "
             f"{row['n_fits']:>6} {row['wall_time']:>10} {row['n_test']:>6}"
@@ -162,8 +157,30 @@ def main() -> None:
         print(f"... ({len(rows) - len(sample)} linhas omitidas; completo no CSV)")
 
     print()
-    print("\n".join(_stats_lines(args.n_seeds, r2_arr, rmsep_arr)))
+    print("\n".join(_stats_lines(n_seeds, r2_arr, rmsep_arr)))
     print(f"\nSalvo em {csv_path.relative_to(ROOT)} e {md_path.relative_to(ROOT)}")
+    print()
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--dataset",
+        choices=ALL_DATASETS + ["all"],
+        default="all",
+        help="conjunto a rodar, ou 'all' para os 4 em sequência (padrão: all)",
+    )
+    parser.add_argument(
+        "--n-seeds",
+        type=int,
+        default=100,
+        help="número de seed_split (0 a N-1) a executar (padrão: 100)",
+    )
+    args = parser.parse_args()
+
+    names = ALL_DATASETS if args.dataset == "all" else [args.dataset]
+    for name in names:
+        _run_dataset(name, args.n_seeds)
 
 
 if __name__ == "__main__":

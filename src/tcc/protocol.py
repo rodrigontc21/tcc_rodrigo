@@ -86,6 +86,30 @@ def _make_cv_folds(
     return folds
 
 
+def _fit_and_score(
+    arm: Arm,
+    X_train: np.ndarray,
+    y_train: np.ndarray,
+    X_test: np.ndarray,
+    y_test: np.ndarray,
+    cv_folds: CVFolds,
+    algo_rng: np.random.Generator,
+):
+    """Núcleo comum de `evaluate` e do portão de validação (ADR 005):
+    ajuste do braço, predição e métricas no teste. Fatorado para que os
+    dois modos de protocolo compartilhem exatamente a mesma lógica em vez
+    de duplicá-la."""
+    budget = Budget()
+    start_time = time.perf_counter()
+    fitted = arm.fit(X_train, y_train, cv_folds, algo_rng, budget)
+    y_pred = fitted.predict(X_test)
+    wall_time = time.perf_counter() - start_time
+
+    r2 = float(r2_score(y_test, y_pred))
+    rmsep = float(np.sqrt(np.mean((y_test - y_pred) ** 2)))
+    return fitted, y_pred, r2, rmsep, budget, wall_time
+
+
 def evaluate(
     arm: Arm,
     dataset: Dataset,
@@ -93,6 +117,7 @@ def evaluate(
     seed_algo: int,
     test_size: float = DEFAULT_TEST_SIZE,
     n_splits: int = DEFAULT_N_SPLITS,
+    preprocessor=None,
 ) -> Result:
     """Avalia um braço num conjunto de dados sob a mesma prova para todos.
 
@@ -112,20 +137,20 @@ def evaluate(
     X_train, y_train = dataset.X[train_idx], dataset.y[train_idx]
     X_test, y_test = dataset.X[test_idx], dataset.y[test_idx]
 
-    preprocessor = IdentityPreprocessor().fit(X_train)
+    # Identidade enquanto o Estágio 1 não fecha a escolha (ver
+    # PROTOCOLO.md); o parâmetro permite ao experimento de comparação
+    # injetar os candidatos sem furar o protocolo.
+    if preprocessor is None:
+        preprocessor = IdentityPreprocessor()
+    preprocessor = preprocessor.fit(X_train)
     X_train = preprocessor.transform(X_train)
     X_test = preprocessor.transform(X_test)
 
     cv_folds = _make_cv_folds(len(train_idx), n_splits, cv_rng)
 
-    budget = Budget()
-    start_time = time.perf_counter()
-    fitted = arm.fit(X_train, y_train, cv_folds, algo_rng, budget)
-    y_pred = fitted.predict(X_test)
-    wall_time = time.perf_counter() - start_time
-
-    r2 = float(r2_score(y_test, y_pred))
-    rmsep = float(np.sqrt(np.mean((y_test - y_pred) ** 2)))
+    fitted, y_pred, r2, rmsep, budget, wall_time = _fit_and_score(
+        arm, X_train, y_train, X_test, y_test, cv_folds, algo_rng
+    )
 
     return Result(
         r2=r2,

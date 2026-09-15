@@ -87,19 +87,62 @@ class PLSArm:
         cv_folds: CVFolds,
         budget: Budget,
     ) -> tuple[int, float]:
-        best_n, best_rmse = 1, float("inf")
-        for n_components in self._candidates(X_train, cv_folds):
-            squared_errors = []
+        """Escolhe o número de componentes pela REGRA DE UM ERRO-PADRÃO.
+
+        Convenção de Hastie, Tibshirani & Friedman, "The Elements of
+        Statistical Learning" (2ª ed., §7.10) — a mesma família de
+        convenção do `selectNcomp(method="onesigma")` do pacote R `pls`,
+        usada no artigo de referência. Em vez do argmin puro:
+
+        1. RMSE por fold (não agregado), para ter variabilidade entre
+           folds e poder estimar o erro-padrão;
+        2. por candidato: média dos RMSEs por fold e erro-padrão
+           (desvio-padrão amostral ÷ raiz do nº de folds);
+        3. n_min = candidato de menor RMSE médio;
+        4. limiar = RMSE médio de n_min + erro-padrão de n_min;
+        5. escolhido = MENOR candidato com RMSE médio ≤ limiar.
+
+        Ou seja: o modelo mais simples ainda estatisticamente
+        indistinguível do melhor. A curva de erro do PLS é plana perto do
+        mínimo, então o argmin puro persegue ruído — era a causa da
+        instabilidade de 6 a 10 componentes entre `seed_split`.
+        """
+        candidates = self._candidates(X_train, cv_folds)
+        mean_rmse = np.empty(len(candidates))
+        se_rmse = np.empty(len(candidates))
+
+        for i, n_components in enumerate(candidates):
+            fold_rmses = []
             for fold_train, fold_val in cv_folds:
                 model = PLSRegression(n_components=n_components).fit(
                     X_train[fold_train], y_train[fold_train]
                 )
                 budget.increment()
                 y_hat = np.asarray(model.predict(X_train[fold_val])).ravel()
-                squared_errors.append((y_train[fold_val] - y_hat) ** 2)
+                fold_rmses.append(
+                    float(np.sqrt(np.mean((y_train[fold_val] - y_hat) ** 2)))
+                )
 
-            rmse = float(np.sqrt(np.mean(np.concatenate(squared_errors))))
-            if rmse < best_rmse:
-                best_n, best_rmse = n_components, rmse
+            fold_rmses = np.asarray(fold_rmses)
+            mean_rmse[i] = fold_rmses.mean()
+            # Com um único fold não há dispersão a estimar; o erro-padrão
+            # zero degenera a regra em argmin puro, que é o comportamento
+            # correto nesse caso limite.
+            se_rmse[i] = (
+                fold_rmses.std(ddof=1) / np.sqrt(len(fold_rmses))
+                if len(fold_rmses) > 1
+                else 0.0
+            )
 
-        return best_n, best_rmse
+        i_min = int(np.argmin(mean_rmse))
+        threshold = mean_rmse[i_min] + se_rmse[i_min]
+        # argmax no vetor booleano devolve o PRIMEIRO True: como
+        # `candidates` é crescente, esse é o menor n dentro do limiar
+        # (n_min sempre satisfaz, então a busca nunca fica vazia).
+        i_chosen = int(np.argmax(mean_rmse <= threshold))
+
+        # rmse_cv passa a ser a média dos RMSEs por fold do candidato
+        # escolhido — coerente com a estatística que decidiu a escolha.
+        # Difere marginalmente do RMSE agregado de antes (a média de
+        # raízes não é a raiz da média).
+        return candidates[i_chosen], float(mean_rmse[i_chosen])

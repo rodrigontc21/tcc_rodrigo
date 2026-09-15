@@ -1,14 +1,18 @@
 venv/
 __pycache__/
+# downloads brutos dos datasets (os loaders baixam na primeira chamada)
+data/
 *.pyc
 .ipynb_checkpoints/
 # results/ inteiro seria ignorado, mas "!" não reabre nada dentro de
 # diretório ignorado — por isso o padrão é results/* com exceção explícita
 results/*
-!results/mean_baseline_tecator.csv
-!results/mean_baseline_tecator.md
+!results/mean_baseline_*.csv
+!results/mean_baseline_*.md
 !results/permuted_y_tecator.csv
 !results/permuted_y_tecator.md
+!results/preprocessing_comparison_tecator.csv
+!results/preprocessing_comparison_tecator.md
 .vscode/
 .DS_Store
 docs/PERGUNTAS.md
