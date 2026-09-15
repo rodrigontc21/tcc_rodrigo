@@ -285,3 +285,57 @@ gordura (76) coincide quase exatamente com o máximo da água nesta fonte
 **Próximo**
 Estágio 1 — comparar SNV, derivada e a combinação dos dois, usando o
 `PLSArm` como avaliador.
+
+## 2026-09-15
+
+**Nota de abertura**
+~11 dias sem registrar desde a última entrada (03/09), por causa de um
+hiato de commits. O que segue é um resumo consolidado desse período, sem
+granularidade diária.
+
+**Feito**
+
+**Camada de dados.** Os 4 loaders implementados em `src/tcc/data.py`
+(tecator, gasoline, mango, bioprocess), com o alvo selecionado por nome e
+hash de proveniência.
+
+**Piso de ruído.** Rodada do `MeanArm` nos 3 conjuntos novos (gasoline,
+mango, bioprocess) — o Tecator já havia rodado em 28/08, registrado na
+entrada daquele dia. Resultados dos 4 conjuntos em
+`results/mean_baseline_*`.
+
+**Teste permanente do diagnóstico de R².**
+`test_mean_arm_r2_offset_matches_theory` passa a verificar R² ≈ −1/n_test
+para o `MeanArm`, com verificação por mutação.
+
+**Dois modos de protocolo.** Módulo `src/tcc/validation.py` e ADR 005:
+separação formal entre `evaluate()`, que serve à grade principal, e
+`evaluate_against_literature()`/`scripts/validate_against_paper.py` (split
+fixo 172/43 do Tecator, `n_components=10` fixo, sem passar pela busca de
+hiperparâmetros). Testes em `tests/test_validation.py`.
+
+**Troca com o orientador via WhatsApp (14/09).** Respondeu aos 6 pontos
+sobre o piso de ruído, confirmou `test_size = 0.25` uniforme, apontou que a
+seleção de componentes do PLS usava argmin puro em vez da regra de um
+erro-padrão, e definiu Glicose como alvo do bioprocess.
+
+**PROTOCOLO.md.** Seção Partição atualizada, registrando a confirmação do
+orientador sobre `test_size = 0.25` uniforme.
+
+**Regra de um erro-padrão no PLS.** Implementada em `PLSArm._search`, com
+testes e verificação por mutação em `tests/test_pls.py`.
+
+**Pré-processamento revisitado.** Nova rodada de
+`scripts/compare_preprocessing_tecator.py` com a regra corrigida: a
+conclusão anterior (SNV→derivada vence) se reverteu — agora SNV sozinho
+empata ou vence (Δ R² = −0,0009, p = 0,27). Ainda não comunicado ao
+orientador; a seção Pré-processamento do `PROTOCOLO.md` segue pendente de
+atualização, de propósito, aguardando a resposta dele.
+
+**ADRs de curadoria.** ADR 006 (curadoria do Mango, corte da safra 5) e
+ADR 007 (alvo do bioprocess = Glicose), ambos com status proposto. Nenhum
+implementado em código, aguardando aprovação do orientador.
+
+**Commit consolidado.** Hoje (15/09), descoberto o hiato de ~2 semanas sem
+commit; feito commit consolidado de todo o trabalho acima e push para o
+GitHub.

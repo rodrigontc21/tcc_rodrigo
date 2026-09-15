@@ -56,7 +56,10 @@ Aberta em: 2026-08-20
 Tecator e Gasoline consigo por fontes públicas. Mango DMC v3 e o conjunto
 Raman de bioprocesso o grupo já possui, ou preciso localizar?
 
-**Resposta:**
+**Resposta:** em andamento, não fechada. O orientador definiu por WhatsApp
+em 14/09 os critérios de curadoria do Mango (corte da safra 5, ver ADR 006)
+e do alvo do bioprocess (Glicose, ver ADR 007), mas a aprovação formal
+desses ADRs ainda está pendente.
 
 ---
 
