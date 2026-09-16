@@ -339,3 +339,62 @@ implementado em código, aguardando aprovação do orientador.
 **Commit consolidado.** Hoje (15/09), descoberto o hiato de ~2 semanas sem
 commit; feito commit consolidado de todo o trabalho acima e push para o
 GitHub.
+
+## 2026-09-16
+
+**Verificação independente do ADR 007.** Os números do bioprocess foram
+reconferidos direto do cache Arrow do HuggingFace, sem passar pelo loader
+do projeto: 6.960 espectros no conjunto bruto (train 4.849 + validation
+1.409 + test 702), 488 sem rótulo de glicose, 6.472 restantes, 1.870
+canais espectrais e exatamente 8 alvos com os nomes esperados; glicose de
+0,0 a 19,99. Todos batem com o ADR e com o pino de `tests/test_data.py`.
+
+**ADRs 006 e 007 enviados à orientação** (15/09, WhatsApp), com o
+documento em anexo e não só o resumo, como o orientador havia exigido.
+Resposta dele: daria uma olhada no dia seguinte. Continuam com status
+proposto.
+
+**Pergunta 6 identificada como o bloqueio real do Estágio 2.** A tabela de
+decisões em aberto do `PROTOCOLO.md` aponta a pergunta 6 (linguagem dos
+braços clássicos) como bloqueio do Estágio 2, e a `PERGUNTAS.md` não tem
+registro de envio dela — está aberta desde 20/08 sem nunca ter sido
+perguntada.
+
+**Migração do ambiente para o WSL.** O projeto passou a rodar em Ubuntu
+24.04 sob WSL, com venv em `~/venv-tcc`, fora do repositório. Os arquivos
+do projeto continuam no sistema de arquivos do Windows, alcançados por um
+link simbólico (`~/tcc`), decisão deliberada para não quebrar o acesso
+externo aos arquivos. Critério de aceite cumprido: os 56 testes passam no
+ambiente novo. Efeitos colaterais resolvidos no caminho: identidade e
+credenciais do git reconfiguradas do lado Linux, e o BOM que vinha do
+PowerShell deixou de aparecer.
+
+**Ponte com o R validada (spike da pergunta 6).** R atualizado de 4.3.3
+para 4.6.1 pelo repositório do CRAN — o do Ubuntu está parado no 4.3.3 e o
+`rpy2` 3.6 exige R ≥ 4.5, o que causava erro de símbolo ausente ao
+carregar a biblioteca. Instalados `rpy2` 3.6.7 em modo API, `mdatools`
+0.16.0 (iPLS) e `plsVarSel` 0.10.0 (CARS, GA-PLS, VIP), com `pls` 2.9-0
+como dependência.
+
+**Achado a registrar sobre os pacotes R.** Carregar `mdatools` e
+`plsVarSel` juntos causa mascaramento de nomes: `pls::crossval` mascara
+`mdatools::crossval` e o `plsVarSel` sobrescreve um método S3 do `pls`.
+As chamadas precisam usar namespace explícito, sob pena de a função
+executada depender da ordem dos `library()`.
+
+**requirements.txt regenerado** no ambiente Linux: entram `rpy2`,
+`rpy2-rinterface` e `rpy2-robjects`; saem `pywinpty` e `win32_setctime`,
+que só existem no Windows.
+
+**ADR 008 escrito e enviado** propondo os braços clássicos via pacotes R,
+com VIP em Python, o `rpy2` isolado atrás da interface `Arm` e as versões
+registradas como proveniência. Status proposto, nenhum braço implementado.
+
+**Próximo**
+Aguardar a orientação sobre três pontos em aberto: a reversão do
+pré-processamento (SNV vs. SNV→derivada), a aprovação dos ADRs 006 e 007,
+e a aprovação do ADR 008. Pendência interna detectada hoje: a seção
+"Protocolo da literatura" do `PROTOCOLO.md` ainda diz "implementação
+pendente", mas `src/tcc/validation.py` já implementa
+`evaluate_against_literature()` — corrigir quando o protocolo for
+atualizado.
