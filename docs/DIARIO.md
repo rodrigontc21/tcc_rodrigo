@@ -386,15 +386,15 @@ executada depender da ordem dos `library()`.
 `rpy2-rinterface` e `rpy2-robjects`; saem `pywinpty` e `win32_setctime`,
 que só existem no Windows.
 
-**ADR 008 escrito e enviado** propondo os braços clássicos via pacotes R,
-com VIP em Python, o `rpy2` isolado atrás da interface `Arm` e as versões
-registradas como proveniência. Status proposto, nenhum braço implementado.
+**ADR 008 escrito** propondo os braços clássicos via pacotes R, com VIP em
+Python, o `rpy2` isolado atrás da interface `Arm` e as versões registradas
+como proveniência. Status proposto, nenhum braço implementado.
 
 **Próximo**
-Aguardar a orientação sobre três pontos em aberto: a reversão do
-pré-processamento (SNV vs. SNV→derivada), a aprovação dos ADRs 006 e 007,
-e a aprovação do ADR 008. Pendência interna detectada hoje: a seção
-"Protocolo da literatura" do `PROTOCOLO.md` ainda diz "implementação
-pendente", mas `src/tcc/validation.py` já implementa
-`evaluate_against_literature()` — corrigir quando o protocolo for
-atualizado.
+Aguardar a orientação sobre dois pontos já enviados: a reversão do
+pré-processamento (SNV vs. SNV→derivada) e a aprovação dos ADRs 006 e
+007. Enviar o ADR 008 e, depois, aguardar a aprovação dele. Pendência
+interna detectada hoje: a seção "Protocolo da literatura" do
+`PROTOCOLO.md` ainda diz "implementação pendente", mas
+`src/tcc/validation.py` já implementa `evaluate_against_literature()` —
+corrigir quando o protocolo for atualizado.
