@@ -398,3 +398,232 @@ interna detectada hoje: a seção "Protocolo da literatura" do
 `PROTOCOLO.md` ainda diz "implementação pendente", mas
 `src/tcc/validation.py` já implementa `evaluate_against_literature()` —
 corrigir quando o protocolo for atualizado.
+
+## 2026-09-17
+
+**ADRs 006 e 007 aceitos pela orientação**, cada um com uma exigência
+cumprida antes da aceitação.
+
+**ADR 006 — Mango, safras 1–4.** Exigência: a coluna `Set`
+(Cal/Tuning/Val Ext) não pode ser descartada junto com o filtro. Os papers
+originais não usam partição aleatória, usam essa divisão, e ela é
+necessária no modo "protocolo da literatura" do Estágio 2 (ADR 005).
+Resolvido com um campo novo em `Dataset`, `metadata: dict | None` (`None`
+nos outros três conjuntos), que `_load_mango()` popula com
+`{"Set": ...}`. Implementado: filtro `Season != 5` em `_load_mango()` e
+pino `EXPECTED["mango"]` de 12.011 para 11.691 amostras em
+`tests/test_data.py`. Novo `sha256` do `Dataset` (cobre X, eixo e DM; a
+coluna `Set` não entra no hash), conferido como determinístico em duas
+cargas:
+`5b829645f407864de6b2a2c90ca2eee7ac0a963baef4aa76d8fca0bbaf8dbb36`.
+
+**ADR 007 — glicose no bioprocess.** Exigência: a distribuição dos 488
+espectros sem rótulo de glicose contra qualquer metadado disponível, para
+distinguir ausência aleatória de ausência estruturada — esta introduziria
+viés de seleção, ao contrário do corte por safra do Mango. O schema do
+`bioprocess_substrates` não expõe corrida nem condição experimental, só
+as colunas espectrais, os 8 alvos e a partição treino/validação/teste do
+cache. A ausência foi cruzada com essa partição (qui-quadrado), com a
+ordem das linhas (sequências de ausência, teste de permutação) e com os
+outros 7 alvos (Mann-Whitney, correção de Bonferroni).
+
+Conclusão: a ausência não é aleatória pura — EnPump e fosfato total são
+significativamente mais altos onde falta a glicose —, mas também não é
+um bloco, uma corrida ou um split inteiro. Fica como limitação declarada,
+não correção no loader: a faixa de EnPump e fosfato altos fica
+sub-representada no conjunto avaliado, e as conclusões para glicose valem
+para essa distribuição de condições. Em `_load_bioprocess()`, o
+comentário "PROVISÓRIO" deu lugar a um comentário definitivo, citando o
+ADR 007 e registrando a limitação.
+
+**Pergunta 4 respondida.** Mango e bioprocess vêm de fontes públicas, com
+a curadoria aprovada (ADRs 006 e 007). Sai da fila da `PERGUNTAS.md`.
+
+**Causa raiz da reversão do pré-processamento.** A vantagem do
+SNV→derivada na primeira rodada (R² 0,9699 contra 0,9658, p≈0,01) não era
+efeito do pré-processamento: era a instabilidade do argmin puro na
+seleção do número de componentes do PLS. O teste pareado estava
+aritmeticamente correto, mas comparava dois pré-processamentos com o
+número de componentes escolhido de forma ruidosa por cima. Corrigido o
+seletor (regra de um erro-padrão), o efeito desaparece.
+
+Registrado no `PROTOCOLO.md`: escolha revertida para SNV puro. Com o
+seletor corrigido, SNV 0,9689 contra 0,9680 do SNV→derivada (ΔR² =
+−0,0009, p=0,27; ΔRMSEP p=0,26) — sem diferença a defender, e a
+parcimônia decide: um passo a menos no pré-processamento. A derivada
+sozinha fica nitidamente pior (0,9445). O desvio-padrão do R² do SNV
+entre partições caiu de 0,0125 para 0,0068 com a regra nova, e o RMSEP
+médio também melhorou (2,2159 → 2,1285). A evidência vem só das
+`seed_split` 0–29, disjuntas da grade final. A troca do default de
+`evaluate()` continua adiada para o início do Estágio 2.
+
+## 2026-09-18
+
+**Eixo do Tecator (adendo ao ADR 004).** A orientação apontou que o
+loader do pgsg_1 reconstrói o eixo com `np.linspace(850, 1050, 100)`
+(passo de 2,0202 nm), quando o instrumento tem passo de 2 nm exatos de
+850 a 1048 nm. Verificação local: o nosso loader não usa `linspace`, mas
+herda o mesmo eixo — o `skfda` repassa o `argvals` do `fda.usc`, que já
+vem assim. Nem a fonte primária (StatLib) nem o paper definem a posição
+dos canais; a faixa 850–1048 nm é indicação da orientação, sem fonte
+escrita localizada.
+
+Decisão: o eixo passa a 850–1048 nm em passo de 2 nm. O `sha256`
+continua calculado sobre o eixo da fonte, e o loader confere que a fonte
+ainda entrega o `linspace` antes de substituí-lo — falha se ela mudar.
+Nenhuma métrica muda, porque nenhum braço usa o eixo; muda o comprimento
+de onda atribuído a cada canal, em até 2 nm no fim da faixa. A "banda de
+931 nm" do paper é o canal 40 (930,81 nm no eixo `linspace`, 930 nm no
+novo), então comparações com bandas publicadas se ancoram no índice do
+canal, não no valor em nm. Teste:
+`test_tecator_axis_is_850_to_1048_in_2nm_steps`.
+
+**Achado: réplicas vazando entre treino e teste (ADR 009).** Revisando a
+análise dos 488 espectros sem glicose do ADR 007, apareceu uma estrutura
+que o protocolo não tratava: no bioprocess, linhas vizinhas com os 8
+alvos idênticos ocorrem muito acima do acaso — várias medições da mesma
+amostra física. `evaluate()` sorteava treino, teste e folds espectro a
+espectro, então uma réplica podia cair no treino e outra da mesma amostra
+no teste: o R² de qualquer braço ficava inflado e o piso de ruído,
+subestimado.
+
+Diagnóstico estendido aos 4 conjuntos, comparando alvos idênticos em
+linhas vizinhas com pares de linhas sorteados:
+- Tecator: 7 pares vizinhos com (fat, water, protein) idênticos, 3,3%
+  dos vizinhos contra 0,17% ao acaso; 2 deles com espectro também
+  idêntico. Repetições distantes são compatíveis com coincidência (alvos
+  com uma casa decimal).
+- Gasoline: 1,7% contra 1,2% — sem evidência de réplicas.
+- Mango: 48% dos vizinhos repetem o DM, contra 0,02%; repetições
+  distantes trazem os mesmos metadados em 738 de 749 casos. Em geral 2
+  leituras por fruto, até 6.
+- Bioprocess: 5.089 blocos de linhas vizinhas idênticas, mas só 3.433
+  composições distintas — a mesma composição reaparece em linhas
+  distantes.
+
+**Decisão proposta.** Réplicas da mesma amostra física nunca ficam em
+lados diferentes, nem entre treino e teste, nem entre folds da CV
+interna. `Dataset` ganha o campo `groups`, preenchido por conjunto na
+camada de dados: Tecator por linhas vizinhas com os três alvos idênticos;
+Gasoline sem grupos; Mango por DM idêntico com os mesmos metadados;
+bioprocess pela composição dos 8 alvos. Algoritmo: cada grupo é
+representado por uma linha fixa, a ordem dos grupos vem da posição desse
+representante na permutação de `seed_split`, e teste e folds são
+preenchidos com grupos inteiros até o tamanho-alvo. Com grupos unitários,
+a partição é idêntica à anterior.
+
+**Implementado** em `src/tcc/protocol.py` (partição e folds),
+`src/tcc/data.py` (`groups` em cada loader) e `src/tcc/validation.py`
+(folds internas do modo literatura; a divisão 172/43 continua fixa, e
+nenhum par de réplicas do Tecator atravessa essa fronteira). Testes:
+nenhum grupo atravessa treino/teste nos três conjuntos com réplicas,
+nenhum grupo atravessa folds, grupos unitários reproduzem a partição
+antiga, e ausência de viés por tamanho de grupo. O teste pode passar do
+alvo em até o tamanho de um grupo menos um: Tecator 54 a 55, Mango 2.923
+a 2.928, bioprocess exato em 1.618.
+
+**Viés de tamanho de grupo, detectado e corrigido.** A primeira versão
+ordenava os grupos pela primeira aparição de qualquer membro, o que
+favorecia grupos grandes: no Mango, frutos com 6 leituras ocupavam 54% do
+teste, contra 32% do conjunto. O teste de teoria do R² detectou o desvio;
+a versão final ordena pelo representante fixo.
+
+**Diagnóstico de R² muda de forma.** Para o `MeanArm`, a média do R²
+passa a ser ≈ −1/n_ef, com n_ef o tamanho efetivo de Kish do teste, e não
+−1/n_test. Com o split antigo, a teoria "por linhas" parecia bater porque
+o vazamento correlacionava as médias de treino e teste.
+
+**ADR 007 passa a contar amostras, não espectros.** Como as réplicas não
+são independentes, a análise dos 488 foi refeita por amostra: agrupando
+réplicas vizinhas, os 6.960 espectros correspondem a 5.089 amostras (um
+teto, já que a identificação é aproximada), e os 488 sem glicose, a 355.
+Por split: 6,88% (treino), 7,64% (validação), 6,17% (teste), χ²=1,59,
+p=0,45. A sequência mais longa sem glicose tem 3 amostras. EnPump quase
+dobra nas amostras sem glicose (1,39 contra 0,76) e o fosfato total sobe
+de 3,91 para 4,60. Contando espectros, o extrato de levedura aparecia
+como significativo (p=0,0017); contando amostras, deixa de ser (p=0,13).
+
+**Números desatualizados.** Os valores do `PROTOCOLO.md` foram calculados
+com a partição anterior. Recalculados com a agrupada:
+- Piso de ruído (dispersão relativa do RMSEP do `MeanArm`, 100
+  `seed_split`): Mango de 0,95% para 1,60%, bioprocess de 0,96% para
+  1,25%; Tecator praticamente igual (7,7%); Gasoline não muda. A
+  diferença entre conjuntos na seção da margem δ cai de "mais de 10×"
+  para cerca de 7×.
+- Pré-processamento no Tecator (`seed_split` 0–29): SNV 0,9686,
+  SNV→derivada 0,9688, ΔR² = +0,0003, p = 0,76. O empate continua, e o
+  SNV puro por parcimônia se mantém.
+
+**Limitação.** A identificação das amostras é aproximada, porque Mango e
+bioprocess não expõem identificador. Réplicas não detectadas continuariam
+vazando; coincidências agrupadas por engano só tornam a partição mais
+conservadora.
+
+**Pendente**
+- ADR 009 com status proposto, aguardando aprovação da orientação. O
+  código já está implementado.
+- Atualizar os números do `PROTOCOLO.md` e regenerar
+  `results/mean_baseline_{tecator,mango,bioprocess}.*`,
+  `results/permuted_y_tecator.*` e
+  `results/preprocessing_comparison_tecator.*`.
+
+## 2026-09-21
+
+**Correção de dois números da entrada de 18/09.** A entrada de 18/09,
+copiada do ADR 009, registrou dois valores imprecisos. Ela fica como
+estava, como registro do que se sabia naquele dia; a correção vai aqui.
+
+- **n_test do bioprocess.** Registrado como "exato em 1.618". Nas 100
+  `seed_split` de `results/mean_baseline_bioprocess.csv`, regenerado hoje
+  com a partição agrupada, o n_test é 1.618 em 98 partições e 1.620 em 2:
+  faixa de 1.618 a 1.620, com alvo 1.618.
+- **Razão entre os pisos de ruído.** Registrado que a diferença entre
+  conjuntos "cai de 'mais de 10×' para cerca de 7×". A razão real entre o
+  maior e o menor piso (dispersão relativa do RMSEP do `MeanArm`) é
+  gasoline 11,84% ÷ bioprocess 1,25% = 9,45×. Antes do ADR 009 era cerca
+  de 12,5× (11,8% contra 0,95%), então o "mais de 10×" estava certo. O
+  "cerca de 7×" corresponde só a gasoline ÷ mango (7,4×). O erro já
+  estava nos números do próprio ADR 009 em 18/09, não surgiu com a
+  regeneração.
+
+A correção já foi replicada no ADR 009 (faixa 1.618 a 1.620; razão de
+cerca de 12,5× para cerca de 9,5×) e no `PROTOCOLO.md`, cuja seção da
+margem δ já dizia "cerca de 9,5×" e cuja tabela do piso de ruído já traz
+n_test 1.618–1.620 para o bioprocess.
+
+**Correção da entrada de 17/09: o ADR 007 não foi aceito.** A entrada de
+17/09 registra "ADRs 006 e 007 aceitos pela orientação". Para o ADR 007
+isso está errado: em 17/09 a orientação condicionou a aprovação definitiva
+a ver a distribuição dos 488 espectros sem glicose contra qualquer
+metadado disponível, e essa resposta nunca foi enviada. A análise existe no
+ADR 007, mas foi feita depois, sem que a orientação a tenha visto. A
+entrada de 17/09 fica como estava. Pelo mesmo motivo, a frase dela sobre a
+pergunta 4 ("curadoria aprovada (ADRs 006 e 007)") vale só para o ADR 006.
+
+Corrigido hoje: o status do ADR 007 passou de "aceito (17/09/2026)" para
+"proposto", com o código implementado e a aprovação final pendente. A
+análise dos 488 ganhou um script reprodutível,
+`scripts/audit_bioprocess_missing_glucose.py`, que reproduz os números do
+ADR 007 contando por amostra física (linhas vizinhas com os 8 alvos
+idênticos, 5.089 amostras): χ² = 1,59, p = 0,45 por split; sequência mais
+longa de 3 amostras sem glicose (permutação, p = 0,80); EnPump e fosfato
+total significativos após Bonferroni; extrato de levedura não significativo
+por amostra (p = 0,126), significativo por espectro (p = 0,0017).
+
+**Status do ADR 007 ajustado às palavras da orientação.** Relendo a
+mensagem de 17/09, a orientação escreveu "ADR 007 — aprovado, com uma
+pendência". O status passou de "proposto" para "aprovado com pendência
+(17/09/2026)", com a pendência sendo a confirmação da distribuição dos
+488, enviada hoje. A mesma redação foi aplicada ao comentário do
+`_load_bioprocess()`, à pergunta 4 e à tabela de decisões do
+`PROTOCOLO.md`.
+
+**Resultados do Tecator regenerados com a partição agrupada.**
+`results/mean_baseline_tecator.*` (dispersão relativa do RMSEP 7,72%,
+n_test 54–55), `results/permuted_y_tecator.*` e
+`results/preprocessing_comparison_tecator.*` (SNV 0,9686, SNV→derivada
+0,9688, derivada 0,9463; ΔR² = +0,0003, p = 0,76). O empate continua e a
+escolha de SNV puro se mantém. O `PROTOCOLO.md` guarda a tabela original
+do pré-processamento, que foi a base da decisão, e acrescenta a refeita.
+Com isso, todos os arquivos que o ADR 009 listava como desatualizados
+estão regenerados.

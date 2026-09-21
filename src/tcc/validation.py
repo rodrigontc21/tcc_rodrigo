@@ -17,6 +17,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import numpy as np
+from sklearn.model_selection import train_test_split
 
 from tcc.arms.base import Arm
 from tcc.data import Dataset
@@ -27,6 +28,31 @@ from tcc.protocol import DEFAULT_N_SPLITS, _fit_and_score, _make_cv_folds
 # Aprovada em 01/09 para uso uniforme em todos os braços validados contra
 # a literatura neste conjunto (ADR 005).
 N_TRAIN_TECATOR = 172
+
+# Divisão 48/12 do Gasoline (ADR 010, proposto): o paper só diz "48/12";
+# train_test_split(test_size=0.2, random_state=42) reproduz os números
+# publicados do PLS (R² 0,975, RMSE 0,145) até a terceira casa, e a
+# divisão sequencial não (R² 0,923). Hipótese inferida, não documentada.
+GASOLINE_TEST_SIZE = 0.2
+GASOLINE_SPLIT_SEED = 42
+
+
+def _literature_split(dataset: Dataset) -> tuple[np.ndarray, np.ndarray]:
+    """Índices (treino, teste) da divisão da literatura de cada conjunto.
+    Só Tecator e Gasoline têm divisão definida; os outros dois são
+    rejeitados."""
+    n = dataset.X.shape[0]
+    if dataset.name == "tecator":
+        return np.arange(N_TRAIN_TECATOR), np.arange(N_TRAIN_TECATOR, n)
+    if dataset.name == "gasoline":
+        train_idx, test_idx = train_test_split(
+            np.arange(n), test_size=GASOLINE_TEST_SIZE, random_state=GASOLINE_SPLIT_SEED
+        )
+        return np.sort(train_idx), np.sort(test_idx)
+    raise ValueError(
+        f"protocolo da literatura só definido para 'tecator' (172/43) e "
+        f"'gasoline' (48/12); recebido {dataset.name!r}"
+    )
 
 # Sementes fixas e documentadas deste modo: as folds internas e o gerador
 # do braço precisam existir pelo contrato de Arm.fit, mas aqui não há eixo
@@ -60,15 +86,11 @@ class LiteratureResult:
 def evaluate_against_literature(arm: Arm, dataset: Dataset) -> LiteratureResult:
     """Avalia um braço sob o protocolo da literatura: divisão fixa e
     Z-score (espectro e alvo) ajustado só no treino."""
-    if dataset.name != "tecator":
-        raise ValueError(
-            f"protocolo da literatura só definido para 'tecator' "
-            f"(divisão fixa 172/43); recebido {dataset.name!r}"
-        )
+    train_idx, test_idx = _literature_split(dataset)
 
     X, y = dataset.X, dataset.y
-    X_train, X_test = X[:N_TRAIN_TECATOR], X[N_TRAIN_TECATOR:]
-    y_train, y_test = y[:N_TRAIN_TECATOR], y[N_TRAIN_TECATOR:]
+    X_train, X_test = X[train_idx], X[test_idx]
+    y_train, y_test = y[train_idx], y[test_idx]
 
     # Z-score ajustado SÓ no treino, espectro e alvo — protocolo do paper
     x_mean, x_std = X_train.mean(axis=0), X_train.std(axis=0, ddof=0)
@@ -79,8 +101,14 @@ def evaluate_against_literature(arm: Arm, dataset: Dataset) -> LiteratureResult:
     yz_train = (y_train - y_mean) / y_std
     yz_test = (y_test - y_mean) / y_std
 
+    # A divisão treino/teste é a do artigo (fixa, não agrupável), mas as
+    # folds internas são nossas: réplicas do treino ficam no mesmo fold.
+    train_groups = None if dataset.groups is None else dataset.groups[train_idx]
     cv_folds = _make_cv_folds(
-        len(y_train), DEFAULT_N_SPLITS, np.random.default_rng(_LITERATURE_CV_SEED)
+        len(y_train),
+        DEFAULT_N_SPLITS,
+        np.random.default_rng(_LITERATURE_CV_SEED),
+        groups=train_groups,
     )
     fitted, _, r2, rmsep, _, _ = _fit_and_score(
         arm,

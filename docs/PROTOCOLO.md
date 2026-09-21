@@ -44,6 +44,17 @@ o valor publicado acontece à parte, no modo "protocolo da literatura"
 hoje só tem divisão definida para o Tecator, 172/43; a do Gasoline entra
 quando aquele braço for ao portão de validação, no Estágio 2.)
 
+**Proposto ([ADR 009](ADR/009-particao-agrupada-por-amostra-fisica.md)),
+já implementado, pendente de aprovação:** partição e folds agrupadas por
+amostra física. Tecator, Mango e bioprocess têm réplicas (várias medições
+da mesma amostra), que nunca ficam em lados diferentes do treino/teste nem
+das folds; o Gasoline não tem evidência de réplicas. O piso de ruído dos 4
+conjuntos e a comparação de pré-processamento foram refeitos com a
+partição agrupada em 21/09/2026 (seções "Piso de ruído de partição" e
+"Pré-processamento"). A tabela original do pré-processamento, calculada
+com a partição anterior, fica registrada porque foi com ela que a decisão
+foi tomada.
+
 **Em aberto**
 - Estratificação por quantil de `y`: sem ela, uma partição azarada pode
   deixar o teste com faixa estreita do alvo.
@@ -55,6 +66,18 @@ quando aquele braço for ao portão de validação, no Estágio 2.)
 - 5 folds, geradas por `evaluate` a partir de `seed_split` e injetadas no
   braço via `cv_folds`.
 - Nenhum braço constrói as próprias folds.
+- Número de componentes latentes do PLS escolhido pela **regra de um
+  erro-padrão**, não pelo argmin puro do erro de CV (Hastie, Tibshirani &
+  Friedman, *The Elements of Statistical Learning*, 2ª ed., §7.10; mesma
+  família do `selectNcomp(method="onesigma")` do pacote R `pls`, usado no
+  artigo de referência). Por candidato, calculam-se o RMSE de cada fold, a
+  média e o erro-padrão; escolhe-se o **menor** candidato cujo RMSE médio
+  fica dentro de um erro-padrão do mínimo — o modelo mais simples ainda
+  estatisticamente indistinguível do melhor. Implementada em
+  `PLSArm._search`, com teste e verificação por mutação em
+  `tests/test_pls.py`; adotada depois de a orientação apontar, em
+  14/09/2026, que o seletor usava argmin puro. Foi essa correção que
+  reverteu a escolha de pré-processamento (ver "Pré-processamento").
 
 **Em aberto**
 - As folds não são observáveis no `Result`, então nada detecta um braço
@@ -64,7 +87,7 @@ quando aquele braço for ao portão de validação, no Estágio 2.)
 
 ## Pré-processamento (decidido com evidência, aplicação adiada para o Estágio 2)
 
-- Hoje: `IdentityPreprocessor` continua em vigor; **SNV→derivada** é a
+- Hoje: `IdentityPreprocessor` continua em vigor; **SNV puro** é a
   escolha registrada para quando o Estágio 2 começar.
 - Decidido: único para todos os braços — comparar braços sob
   pré-processamentos diferentes invalida o benchmark.
@@ -76,44 +99,94 @@ orientação observou que SNV costuma dar resultados melhores, mas a escolha
 não é a priori. Isso mudou o Estágio 1 de "escolher um e registrar" para
 "comparar e decidir com evidência".
 
-**Escolha: SNV→derivada, com evidência empírica no Tecator** (PLSArm com
-busca de componentes por CV interna, `seed_split` 0–29, `seed_algo=0`;
-tabela completa em `results/preprocessing_comparison_tecator.md`):
+**Primeira rodada (14/09/2026, seletor de componentes com argmin puro):
+SNV→derivada vencia por margem pequena.** A comparação nessa configuração
+dava SNV→derivada à frente por pouco, mas com significância no teste
+pareado (R² 0,9699 vs. 0,9658, p≈0,01). Essa conclusão **se revelou
+artefato** e foi revertida — ver abaixo.
+
+**Causa raiz identificada (17/09/2026).** A vantagem do SNV→derivada não
+era um efeito real do pré-processamento: era a instabilidade do argmin
+puro na seleção do número de componentes do PLS. O teste pareado estava
+aritmeticamente correto, mas comparava dois pré-processamentos **com o
+número de componentes escolhido de forma ruidosa por cima** — não dois
+pré-processamentos isolados. A derivada provavelmente estabilizava a
+curva de RMSECV e, por tabela, a seleção de componentes; corrigido o
+seletor (regra de um erro-padrão, ver "Validação cruzada interna"), o
+efeito desaparece.
+
+**Escolha final: SNV puro, com evidência empírica no Tecator, seletor de
+componentes já com a regra de um erro-padrão** (PLSArm, `seed_split`
+0–29, `seed_algo=0`; tabela completa em
+`results/preprocessing_comparison_tecator.md`):
 
 | pré-processador | R² média | R² dp | RMSEP média | RMSEP dp |
 |---|---|---|---|---|
-| snv | 0,9658 | 0,0125 | 2,2159 | 0,4586 |
-| derivative | 0,9477 | 0,0176 | 2,7379 | 0,4671 |
-| **snv_derivative** | **0,9699** | **0,0092** | **2,0940** | **0,4038** |
+| **snv** | **0,9689** | **0,0068** | **2,1285** | **0,2782** |
+| derivative | 0,9445 | 0,0139 | 2,8361 | 0,3874 |
+| snv_derivative | 0,9680 | 0,0068 | 2,1629 | 0,3156 |
 
-A combinação vence nos quatro indicadores e bate o SNV puro em 21 das 30
-partições pareadas (ΔR² médio +0,0041); a margem sobre o SNV é pequena,
-mas consistente em direção e com variância menor.
+Com o seletor corrigido, SNV puro empata ou vence a combinação (ΔR² =
+−0,0009, p=0,27 bicaudal no teste pareado; ΔRMSEP p=0,26) — não há
+diferença a defender. A derivada sozinha fica nitidamente pior (0,9445),
+sugerindo que não agrega informação neste conjunto. Repare também no
+desvio-padrão do R² do SNV: caiu de 0,0125 (rodada com argmin puro) para
+0,0068 — a regra de um erro-padrão cortou pela metade a variabilidade
+entre partições. E, neste conjunto, sem custo: com o SNV, o RMSEP médio
+também melhorou (2,2159 → 2,1285) e o R² médio subiu (0,9658 → 0,9689).
+A regra troca, em princípio, um pouco de viés por menos variância; aqui
+nem houve troca, sinal de que os componentes extras que o argmin escolhia
+eram sobreajuste à curva de CV, não informação.
 
-**Decisão pré-registrada, não descoberta a partir dos resultados**
-(aprovada pela orientação em 14/09/2026). A escolha de SNV→derivada foi
-registrada **antes** de a grade final do Estágio 5 rodar, e a evidência
-que a motivou vem exclusivamente das `seed_split` 0–29 — a faixa
-exploratória reservada a decisões metodológicas (ver "Faixas de
-seed_split"), disjunta das `seed_split` ≥ 100 da grade final. Ou seja: o
-pré-processamento não é conclusão extraída dos resultados da grade, e
-nenhuma partição usada nesta decisão reaparece na avaliação final. A
-orientação aprovou essa sequência em 14/09/2026.
+**Refeita com a partição agrupada do ADR 009 (21/09/2026).** A tabela
+acima foi calculada com a partição anterior, que deixava réplicas da mesma
+amostra caírem em treino e teste. Com a partição agrupada, mesmas
+`seed_split` 0–29 (tabela completa em
+`results/preprocessing_comparison_tecator.md`):
 
-**Escopo da evidência e adiamento deliberado.** A evidência acima é SÓ do
-Tecator. Com a aprovação de 14/09/2026, SNV→derivada está confirmada como
-a escolha a seguir; a troca de `IdentityPreprocessor` por
-`snv_derivative()` como default de `evaluate()` continua adiada para o
-início do Estágio 2, e a validade da escolha nos outros três conjuntos
-segue não medida — só a do Tecator foi. Até lá, `IdentityPreprocessor`
-continua sendo o comportamento real do protocolo — não é regressão, é
-decisão deliberada de não aplicar cedo demais.
+| pré-processador | R² média | R² dp | RMSEP média | RMSEP dp |
+|---|---|---|---|---|
+| snv | 0,9686 | 0,0071 | 2,1267 | 0,2861 |
+| derivative | 0,9463 | 0,0145 | 2,7676 | 0,3844 |
+| snv_derivative | 0,9688 | 0,0076 | 2,1208 | 0,3166 |
+
+O empate continua, agora com a combinação ligeiramente à frente (ΔR² =
++0,0003, p=0,76; ΔRMSEP p=0,83), e a derivada sozinha continua nitidamente
+pior. A decisão não muda: sem diferença a defender, a parcimônia decide
+por SNV puro.
+
+**Decisão pré-registrada, não descoberta a partir dos resultados.** A
+escolha original, SNV→derivada, foi aprovada pela orientação em
+14/09/2026; em 17/09/2026 ela foi **revertida** para SNV puro, depois da
+correção do seletor de componentes (motivo acima). Tanto a escolha
+original quanto a reversão foram registradas **antes** de a grade final
+do Estágio 5 rodar, e a evidência de ambas vem exclusivamente das
+`seed_split` 0–29 — a faixa exploratória reservada a decisões
+metodológicas (ver "Faixas de seed_split"), disjunta das `seed_split` ≥
+100 da grade final. Ou seja: o pré-processamento não é conclusão extraída
+dos resultados da grade, e nenhuma partição usada nesta decisão reaparece
+na avaliação final.
+
+**Não é escolha livre — é parcimônia.** Com ΔR² = −0,0009 e p=0,27 não há
+diferença a defender, e nesse caso a parcimônia decide: um passo a menos
+no pré-processamento é um fator a menos que um revisor pode questionar.
+
+**Escopo da evidência: decisão de protocolo para os 4 conjuntos, não
+resultado por conjunto.** A comparação acima é SÓ do Tecator (NIR). Fixar
+SNV a priori para os quatro conjuntos é a opção defensável — mas é
+**decisão de protocolo**, não resultado medido nos outros três. Ressalva
+registrada pela orientação: o Raman do bioprocess tem características
+diferentes do NIR, onde SNV pode não ser a escolha óbvia — a validade da
+escolha nesse conjunto segue não medida. A troca de `IdentityPreprocessor`
+por `SNVPreprocessor()` como default de `evaluate()` continua adiada para
+o início do Estágio 2. Até lá, `IdentityPreprocessor` continua sendo o
+comportamento real do protocolo — não é regressão, é decisão deliberada de
+não aplicar cedo demais.
 
 **Restrição a registrar.** Com o ajuste na posição atual (antes das folds
-da CV interna), só pré-processadores por amostra são seguros. SNV e
-derivadas são linha a linha e não vazam; centragem e autoscaling são
-entre-amostras e vazariam para a CV interna se aplicados nessa posição.
-A escolha do método real decide se o contrato de `evaluate` precisa mudar.
+da CV interna), só pré-processadores por amostra são seguros. SNV é linha
+a linha e não vaza; centragem e autoscaling são entre-amostras e
+vazariam para a CV interna se aplicados nessa posição.
 
 **Limitação declarada (plausibilidade química no Tecator).** Gordura e
 água são espectralmente quase indistinguíveis no Tecator (correlação
@@ -148,31 +221,33 @@ fora — um braço que reporte errado não é detectável pelo protocolo.
 
 ## Piso de ruído de partição (medido nos 4 conjuntos)
 
-Baseline da média (`MeanArm`), 100 `seed_split` por conjunto (Tecator em
-28/08/2026, os demais em 14/09/2026; tabelas completas em
-`results/mean_baseline_<dataset>.md`):
+Baseline da média (`MeanArm`), 100 `seed_split` por conjunto, com a
+partição agrupada do ADR 009 (Tecator, Mango e bioprocess regenerados em
+21/09/2026; Gasoline em 14/09/2026, que não tem réplicas e por isso não
+muda; tabelas completas em `results/mean_baseline_<dataset>.md`):
 
 | conjunto | RMSEP média ± dp | dispersão relativa | R² dp | n_test |
 |---|---|---|---|---|
 | gasoline | 1,4772 ± 0,1750 | ~11,8% | 0,1466 | 15 |
-| tecator | 12,6858 ± 0,9761 | ~7,7% | 0,0382 | 54 |
-| mango | 2,4417 ± 0,0231 | ~0,95% | 0,0005 | 3.003 |
-| bioprocess | 6,2394 ± 0,0596 | ~0,96% | 0,0012 | 1.618 |
+| tecator | 12,6382 ± 0,9755 | ~7,7% | 0,0409 | 54–55 |
+| mango | 2,4585 ± 0,0393 | ~1,60% | 0,0023 | 2.923–2.928 |
+| bioprocess | 6,2422 ± 0,0782 | ~1,25% | 0,0030 | 1.618–1.620 |
 
 - Nenhum efeito da decomposição menor que o piso do respectivo conjunto é
   interpretável.
 - Propriedade verificada por teste automatizado
   (`test_mean_arm_r2_offset_matches_theory`): a média do R² do MeanArm é
-  ≈ −1/n_test em cada conjunto — nunca 0,000, que indicaria vazamento na
-  métrica (diagnóstico da orientação de 27/08).
+  ≈ −1/n_ef em cada conjunto, com n_ef o tamanho efetivo de Kish do teste
+  (ADR 009) — nunca 0,000, que indicaria vazamento na métrica (diagnóstico
+  da orientação de 27/08).
 
 ---
 
 ## Margem de equivalência δ (regras fixadas antes do Estágio 7)
 
 - **δ é declarado por conjunto, não como valor único global.** A dispersão
-  relativa do piso de ruído varia mais de 10× entre conjuntos (mango
-  ~0,95% e bioprocess ~0,96% contra gasoline ~11,8%); um δ global seria
+  relativa do piso de ruído varia cerca de 9,5× entre conjuntos
+  (bioprocess ~1,25% e mango ~1,60% contra gasoline ~11,8%); um δ global seria
   frouxo demais nos conjuntos grandes e apertado demais nos pequenos.
 - **O piso de ruído medido é um LIMITE INFERIOR empírico para δ, não o
   próprio δ.** δ abaixo do desvio-padrão do RMSEP do MeanArm entre
@@ -206,17 +281,18 @@ avaliação. Fixação a priori, por ser mais simples e defensível:
 
 ---
 
-## Protocolo da literatura (decidido, [ADR 005](ADR/005-dois-modos-de-protocolo.md), implementação pendente)
+## Protocolo da literatura (decidido, [ADR 005](ADR/005-dois-modos-de-protocolo.md), implementado)
 
 - Segundo modo de avaliação, exclusivo do portão de validação contra
   valores publicados (Estágio 2) — nunca entra na grade nem na
   decomposição.
 - Divisão fixa 172/43 no Tecator, uniforme para todos os braços validados
   contra a literatura, independente do split de cada artigo original.
-- Arquitetura aprovada em 01/09: função separada em `src/tcc/validation.py`,
-  tipo de retorno distinto do `Result`, núcleo compartilhado com
-  `evaluate()`. Ainda não implementada; até lá,
-  `scripts/validate_against_paper.py` é o substituto temporário.
+- Arquitetura aprovada em 01/09: função separada em `src/tcc/validation.py`
+  (`evaluate_against_literature`), tipo de retorno distinto do `Result`
+  (`LiteratureResult`), núcleo compartilhado com `evaluate()` via
+  `protocol._fit_and_score`. Implementada; `scripts/validate_against_paper.py`
+  segue em uso como script de checagem pontual, não mais como substituto.
 
 ---
 
@@ -229,13 +305,15 @@ Referência às perguntas pendentes em `docs/estudo_rodrigo/PERGUNTAS.md`:
 | 1 | Eixo de semente e a H5 — Jaccard deve ser medido no eixo `seed_split`, não `seed_algo` | Congelamento do protocolo |
 | 2 | Formato do resumo da revisão dirigida | Não bloqueia o protocolo |
 | 3 | Repositório do modelo de referência (B4) | Estágio 3 |
-| 4 | Origem de Mango DMC v3 e do conjunto de bioprocesso | Estágio 1 (para esses dois conjuntos) |
+| 4 | ~~Origem de Mango DMC v3 e do conjunto de bioprocesso~~ **Respondida em 17/09/2026.** Mango aceito ([ADR 006](ADR/006-curadoria-do-mango-safras-1-4.md)); bioprocess aprovado com pendência: a aprovação definitiva depende da confirmação da distribuição dos 488 espectros sem glicose ([ADR 007](ADR/007-alvo-do-bioprocess-glicose.md)) | Fechamento do Estágio 1 (ADR 007) |
 | 5 | ~~Proveniência do Tecator — faixa do alvo divergente do paper~~ **Resolvida em 03/09** ([ADR 004](ADR/004-proveniencia-do-tecator.md)): fonte confirmada equivalente (OpenML 505 = fda.usc); "7–76%" era erro de prosa | — |
 | 6 | Linguagem dos braços clássicos (Python vs. R/`rpy2`) | Estágio 2 |
 | 7 | Cálculo do prior dentro da CV interna, como os selecionadores clássicos | Estágio 3 |
 | 8 | Semente algorítmica na grade principal — diagonal vs. média sobre réplicas | Estágio 5 |
+| 9 | Divisão 48/12 do Gasoline no protocolo da literatura — `train_test_split(test_size=0.2, random_state=42)`, inferida pela reprodução dos números publicados ([ADR 010](ADR/010-divisao-de-literatura-do-gasoline.md), proposto) | Portão de validação do Estágio 2 (ADR 010) |
 
-Das oito, só a nº 5 tem decisão registrada até o momento (ADR 004). Fora
+Das nove, as nº 4 e 5 têm decisão registrada até o momento: ADR 004 e
+ADR 006 aceitos; ADR 007 aprovado com pendência (distribuição dos 488). Fora
 dessa fila numerada, a Tarefa D — dois modos de protocolo — também já foi
 decidida, em reunião de orientação e não por pergunta escrita
 ([ADR 005](ADR/005-dois-modos-de-protocolo.md)). Onde este documento cita

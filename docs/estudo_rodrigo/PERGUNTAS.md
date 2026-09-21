@@ -50,19 +50,6 @@ código do Guilherme Coelho?
 
 ---
 
-### 4. Conjuntos de dados 3 e 4
-Aberta em: 2026-08-20
-
-Tecator e Gasoline consigo por fontes públicas. Mango DMC v3 e o conjunto
-Raman de bioprocesso o grupo já possui, ou preciso localizar?
-
-**Resposta:** em andamento, não fechada. O orientador definiu por WhatsApp
-em 14/09 os critérios de curadoria do Mango (corte da safra 5, ver ADR 006)
-e do alvo do bioprocess (Glicose, ver ADR 007), mas a aprovação formal
-desses ADRs ainda está pendente.
-
----
-
 ### 6. Linguagem dos braços clássicos
 Aberta em: 2026-08-20
 
@@ -107,7 +94,49 @@ da margem. Qual das duas o senhor prefere para a grade principal?
 
 ---
 
+### 9. Divisão 48/12 do Gasoline no protocolo da literatura — [trava o portão do Estágio 2]
+Aberta em: 2026-09-21
+
+O paper (Seção 4.1) só diz "48/12 train-test split", sem dizer quais
+linhas vão para cada lado. A documentação do pacote R `pls` não define
+divisão para o gasoline; a vinheta usa 50/10 sequencial, não 48/12. Testei
+as candidatas com o PLS H = 5 do paper: a divisão sequencial 48/12 dá R²
+0,923, e `train_test_split(test_size=0.2, random_state=42)` do scikit-learn
+dá R² 0,9752 e RMSE 0,1453, batendo com os 0,975 e 0,145 publicados. Isso
+também bate com o "seed 42" citado na Seção 4.2. Propus essa divisão no
+[ADR 010](../ADR/010-divisao-de-literatura-do-gasoline.md), mas é
+inferência pelos números, não fonte escrita.
+
+O código do pgsg_1 confirma essa divisão para o Gasoline? E, se a semente
+42 for de uma divisão aleatória, a do Tecator no paper também era
+aleatória, e não os 172 primeiros sequenciais que aprovamos em 01/09? Com
+a mesma semente, o Tecator dá R² 0,9489, também diferente dos 0,919
+publicados.
+
+**Resposta:**
+
+---
+
 ## Respondidas
+
+### [x] 4. Conjuntos de dados 3 e 4
+Aberta em: 2026-08-20
+Respondida em: 2026-09-17
+
+Tecator e Gasoline consigo por fontes públicas. Mango DMC v3 e o conjunto
+Raman de bioprocesso o grupo já possui, ou preciso localizar?
+
+**Resposta:** os dois conjuntos vêm de fontes públicas. Mango: Mendeley
+Data 46htwnp833, cortado para as safras 1–4 (11.691 amostras), com a
+coluna `Set` preservada; curadoria aprovada pela orientação em 17/09/2026
+([ADR 006](../ADR/006-curadoria-do-mango-safras-1-4.md)). Bioprocess:
+`bioprocess_substrates` via `raman-data`, alvo glicose, definido pela
+orientação em 14/09/2026 e já implementado; aprovado com pendência em
+17/09/2026: a aprovação definitiva depende da confirmação da distribuição
+dos 488 espectros sem glicose, enviada em 21/09/2026
+([ADR 007](../ADR/007-alvo-do-bioprocess-glicose.md)).
+
+---
 
 ### [x] 5. Proveniência do Tecator — faixa do alvo divergente
 Aberta em: 2026-08-20

@@ -34,6 +34,32 @@ class Dataset:
     unit: Unit # a unidade do eixo
     name: str
     sha256: str # hash do conteúdo carregado (ADR 004): proveniência verificável
+    # Metadado extra por amostra, quando a fonte tem algo que a grade
+    # principal não usa mas outro modo de protocolo precisa (ADR 006): a
+    # divisão Cal/Tuning/Val Ext do Mango, usada no modo "protocolo da
+    # literatura" do Estágio 2. None nos conjuntos sem esse metadado.
+    metadata: dict | None = None
+    # Identificador de amostra física por linha (ADR 009): réplicas da mesma
+    # amostra compartilham o id, e o protocolo nunca as separa entre treino
+    # e teste nem entre folds. None quando não há evidência de réplicas —
+    # cada linha é então uma amostra independente.
+    groups: np.ndarray | None = None
+
+
+def _adjacent_replicate_groups(targets: np.ndarray) -> np.ndarray:
+    """Linhas consecutivas com o vetor de alvos idêntico = mesma amostra."""
+    both_nan = np.isnan(targets[1:]) & np.isnan(targets[:-1])
+    same_as_next = np.all((targets[1:] == targets[:-1]) | both_nan, axis=1)
+    return np.cumsum(np.concatenate([[True], ~same_as_next])) - 1
+
+
+def _composition_groups(targets: np.ndarray) -> np.ndarray:
+    """Linhas com o vetor de alvos idêntico, em qualquer posição = mesma
+    amostra. NaN vira um valor comparável, para que réplicas com o mesmo
+    alvo ausente também se agrupem."""
+    key = np.where(np.isnan(targets), np.inf, targets)
+    _, inverse = np.unique(key, axis=0, return_inverse=True)
+    return inverse.ravel()
 
 
 def load(name: str) -> Dataset:
@@ -70,8 +96,27 @@ def _load_tecator() -> Dataset:
         digest.update(column.encode())
         digest.update(np.ascontiguousarray(targets_frame[column], dtype=float).tobytes())
 
+    # Eixo (ADR 004): o fda.usc distribui os 100 canais como linspace(850,
+    # 1050, 100), passo de 2,0202 nm; a fonte primária (StatLib) não define a
+    # posição dos canais. Por indicação da orientação (18/09/2026), o eixo
+    # passa a ser 850-1048 nm em passo de 2 nm. O hash acima fica sobre o
+    # eixo da fonte, como prova do que foi carregado; a checagem abaixo
+    # falha se a fonte mudar e a substituição deixar de ser válida.
+    if not np.allclose(axis, np.linspace(850, 1050, 100), atol=1e-3):
+        raise ValueError("eixo do Tecator na fonte mudou; rever o ADR 004")
+    axis = 850.0 + 2.0 * np.arange(100)
+
+    # Réplicas (ADR 009): 7 pares de linhas vizinhas com (fat, water,
+    # protein) idênticos, ~19× acima do acaso, 2 deles com espectro idêntico.
+    # Repetições não vizinhas são compatíveis com coincidência (alvos com uma
+    # casa decimal), então só vizinhas contam como réplica.
+    groups = _adjacent_replicate_groups(
+        targets_frame[["fat", "water", "protein"]].to_numpy(dtype=float)
+    )
+
     return Dataset(
-        X=X, y=y, axis=axis, unit="nm", name="tecator", sha256=digest.hexdigest()
+        X=X, y=y, axis=axis, unit="nm", name="tecator", sha256=digest.hexdigest(),
+        groups=groups,
     )
 
 
@@ -147,11 +192,14 @@ def _load_gasoline() -> Dataset:
 # repositório): arquivo MangoDMC_NIR_Data_v3.csv, escolhido porque o
 # protocolo do projeto nomeia "Mango DMC v3" (o v4 do mesmo repositório tem
 # 260 MB e safras extras fora do escopo). Alvo = DM (dry matter content, %).
-# Atenção documentada: os papers do v3 reportam 11.691 amostras (safras
-# 1-4); o CSV atual traz 12.011 — a atualização de 2024 acrescentou 320
-# amostras de uma safra 5 ("Val Ext 2"). Carregamos o arquivo como
-# distribuído; qualquer recorte de safra é decisão de protocolo, não do
-# loader.
+# O CSV distribuído tem 12.011 amostras (safras 1-5); os papers originais
+# cobrem só as safras 1-4 (11.691). Decisão de protocolo (ADR 006,
+# aprovada pela orientação em 17/09/2026): cortar para Season != 5
+# (equivalente a Set != "Val Ext 2", bijeção verificada), restando as
+# 11.691 amostras comparáveis com a literatura. A coluna Set é preservada
+# em Dataset.metadata — os papers usam a divisão Cal/Tuning/Val Ext
+# codificada nela, necessária no modo "protocolo da literatura" do
+# Estágio 2.
 _MANGO_URL = (
     "https://data.mendeley.com/public-files/datasets/46htwnp833/files/"
     "10975117-717b-4504-a372-7845b4c42237/file_downloaded"
@@ -181,6 +229,10 @@ def _load_mango() -> Dataset:
     path = _ensure_mango_csv()
     df = pd.read_csv(path)
 
+    # Corte de safra (ADR 006): safras 1-4 só, batendo com os papers
+    # originais (11.691 amostras). Critério por nome de coluna (ADR 004).
+    df = df[df["Season"] != 5].reset_index(drop=True)
+
     # Colunas espectrais são as de nome numérico (comprimento de onda em
     # nm); as demais são metadados (Set, Season, ..., DM)
     spectral_columns = []
@@ -194,6 +246,22 @@ def _load_mango() -> Dataset:
     X = df[spectral_columns].to_numpy(dtype=float)
     axis = np.array([float(c) for c in spectral_columns])
     y = np.asarray(pd.to_numeric(df["DM"]), dtype=float)
+    # Preservada para o modo "protocolo da literatura" (ADR 006) — não
+    # entra no sha256, que cobre só o conteúdo numérico já coberto acima.
+    metadata = {"Set": df["Set"].to_numpy()}
+    # Réplicas (ADR 009): cada fruto tem em geral duas leituras — metade das
+    # linhas vizinhas repete o DM (5 casas decimais), contra 0,02% ao acaso,
+    # e repetições não vizinhas de DM trazem os mesmos metadados em 98,5% dos
+    # casos. Mesmo DM + mesmos metadados = mesmo fruto.
+    groups = (
+        df.groupby(
+            ["DM", "Season", "Region", "Date", "Type", "Cultivar", "Pop"],
+            dropna=False,
+            sort=False,
+        )
+        .ngroup()
+        .to_numpy()
+    )
 
     digest = hashlib.sha256()
     digest.update(np.ascontiguousarray(X).tobytes())
@@ -202,7 +270,8 @@ def _load_mango() -> Dataset:
     digest.update(np.ascontiguousarray(y).tobytes())
 
     return Dataset(
-        X=X, y=y, axis=axis, unit="nm", name="mango", sha256=digest.hexdigest()
+        X=X, y=y, axis=axis, unit="nm", name="mango", sha256=digest.hexdigest(),
+        metadata=metadata, groups=groups,
     )
 
 
@@ -211,11 +280,15 @@ def _load_mango() -> Dataset:
 # huggingface.co/datasets/chlange/SubstrateMixRaman): 6.960 espectros Raman,
 # eixo em número de onda (cm-1). Dos 8 alvos disponíveis (Glucose, Glycerol,
 # Acetate, EnPump, Nitrate, Yeast_Extract, total_phosphate, total_sulfate),
-# usamos GLICOSE — PROVISÓRIO: é o analito mais reportado na literatura de
-# monitoramento de bioprocesso que levantamos, mas a escolha ainda será
-# confirmada com a orientação. 488 espectros não têm rótulo de glicose
-# (has_missing_labels do catálogo) e são descartados aqui, restando 6.472 —
-# NaN no alvo não atravessa a camada de dados.
+# usamos GLICOSE — alvo definido pela orientação em 14/09/2026 e já
+# implementado (ADR 007, aprovado com pendência: falta a confirmação da
+# distribuição dos 488 espectros sem glicose): analito mais reportado na
+# literatura de monitoramento de bioprocesso e de melhor razão sinal-ruído em Raman. 488 espectros não
+# têm rótulo de glicose (7% do conjunto) e são descartados aqui, restando
+# 6.472 — NaN no alvo não atravessa a camada de dados. A ausência não é
+# uniforme (associada a EnPump e fosfato total mais altos, ver ADR 007),
+# mas não se concentra num split nem num bloco de corrida — limitação
+# declarada, não corrigida no loader.
 def _load_bioprocess() -> Dataset:
     import raman_data
 
@@ -239,6 +312,14 @@ def _load_bioprocess() -> Dataset:
         digest.update(name.encode())
         digest.update(np.ascontiguousarray(targets[labeled, j]).tobytes())
 
+    # Réplicas (ADR 009): o catálogo marca o conjunto como agrupado, sem
+    # expor a amostra de cada espectro. Linhas vizinhas repetem os 8 alvos
+    # muito acima do acaso, e a mesma composição reaparece em linhas
+    # distantes (5.089 blocos vizinhos, 3.433 composições). Mesma composição
+    # = mesma amostra, para nenhuma cair dos dois lados da partição.
+    groups = _composition_groups(targets[labeled])
+
     return Dataset(
-        X=X, y=y, axis=axis, unit="cm-1", name="bioprocess", sha256=digest.hexdigest()
+        X=X, y=y, axis=axis, unit="cm-1", name="bioprocess", sha256=digest.hexdigest(),
+        groups=groups,
     )

@@ -1,7 +1,7 @@
 # ADR 006 — Curadoria do Mango: safras 1–4
 
 **Data:** 2026-09-14
-**Status:** proposto
+**Status:** aceito (17/09/2026)
 
 ## Contexto
 
@@ -59,6 +59,17 @@ Descartam-se 320 amostras válidas — perda deliberada de dado em troca de
 comparabilidade com a literatura. Como o corte é por safra inteira, e não
 por amostra, ele não introduz viés de seleção dentro das safras retidas.
 
-O filtro **não** foi implementado nesta data: este ADR documenta o que
-muda, pendente da aprovação da orientação sobre a redação exata. Enquanto
-o status for "proposto", o código continua carregando as 12.011 amostras.
+**Adição exigida pela orientação antes da aceitação (17/09/2026):** a
+coluna `Set` (Cal/Tuning/Val Ext) não pode ser descartada junto com o
+filtro — os papers originais não usam partição aleatória, usam essa
+divisão, necessária no modo "protocolo da literatura" do Estágio 2 (ADR
+005). Resolvido: `Dataset` ganhou um campo `metadata: dict | None`
+(default `None` nos outros três conjuntos, que não têm essa coluna), e
+`_load_mango()` popula `metadata={"Set": ...}`.
+
+Implementado em 17/09/2026: filtro aplicado em `_load_mango()`, pino
+`EXPECTED["mango"]` atualizado para 11.691 em `tests/test_data.py`,
+coluna `Set` preservada em `Dataset.metadata`. Novo `sha256` do `Dataset`
+(cobre X, eixo e DM; a coluna `Set` não entra no hash), conferido como
+determinístico em duas cargas:
+`5b829645f407864de6b2a2c90ca2eee7ac0a963baef4aa76d8fca0bbaf8dbb36`.

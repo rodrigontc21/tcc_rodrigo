@@ -1,7 +1,7 @@
 # ADR 005 — Dois modos de protocolo (Tarefa D)
 
 **Data:** 2026-09-01
-**Status:** aceito, implementação pendente
+**Status:** aceito, implementado (2026-09-14)
 
 ## Contexto
 
@@ -31,7 +31,10 @@ artigo original (CARS, GA-PLS) individualmente usou.
 O executor da grade (Estágio 5) importa só `evaluate()`; a função de
 validação não tem `seed_split` na assinatura e devolve outro tipo, então
 não encaixa nos eixos da grade nem na decomposição — a proteção é
-estrutural, não disciplinar. `scripts/validate_against_paper.py` continua
-temporário (o docstring dele já traz essa nota) até a migração para
-`validation.py` acontecer. A implementação fica registrada como pendente:
-este ADR documenta a arquitetura decidida, não código existente.
+estrutural, não disciplinar. `scripts/validate_against_paper.py` segue em
+uso como checagem pontual, fina camada sobre
+`evaluate_against_literature`, e não como implementação temporária a ser
+substituída. Implementado em 14/09/2026 em
+`src/tcc/validation.py` (`evaluate_against_literature`), com o núcleo
+compartilhado com `evaluate()` via `protocol._fit_and_score` e testes em
+`tests/test_validation.py`.

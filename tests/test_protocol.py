@@ -9,8 +9,9 @@ import pytest
 from tcc.arms.base import Budget, CVFolds
 from tcc.arms.mean import MeanArm
 from tcc.arms.permuted import PermutedYArm
+from tcc.arms.pls import PLSArm
 from tcc.data import load
-from tcc.protocol import evaluate
+from tcc.protocol import _make_cv_folds, _split_train_test, evaluate
 
 
 @dataclass(frozen=True)
@@ -275,6 +276,42 @@ def test_permuted_y_wrapping_mean_arm_keeps_r2_near_zero(tecator):
     np.testing.assert_allclose(r_permuted.y_pred, r_plain.y_pred)
 
 
+def test_permuted_y_wrapping_pls_has_no_skill_on_average(tecator):
+    """Sonda de vazamento com um braço que usa X: PermutedYArm(PLSArm())
+    nas 30 seed_split da faixa exploratória (0-29, PROTOCOLO.md), com
+    seed_algo=0 e o pré-processador padrão de evaluate().
+
+    Com y permutado no treino, as predições do teste não têm como carregar
+    informação sobre o y verdadeiro do teste — a não ser que ele chegue ao
+    modelo por um caminho que não passe pela permutação. Nesse caso o R²
+    médio fica positivo.
+
+    Limiar: R² médio ≤ 0. Um preditor sem informação sobre y_test tem R²
+    esperado ≤ 0 (o MeanArm já fica em ≈ −1/n_ef; um PLS ajustado a ruído
+    fica abaixo disso). Distribuição observada nas 30 partições
+    (results/permuted_y_pls_tecator.md, 21/09/2026): média −0,0474, dp
+    0,0849, máximo +0,1005. O erro-padrão da média é 0,0849/√30 ≈ 0,0155,
+    então o limiar fica ~3 erros-padrão acima do observado. Não se usa
+    limiar por partição: R² isolados chegam a +0,10 sem vazamento algum,
+    e qualquer corte ali seria arbitrário.
+
+    O que este teste pega e o de MeanArm não pega: y verdadeiro chegando ao
+    braço sem passar pela permutação. Verificado em 21/09/2026 com uma
+    sonda que não embaralha: R² médio +0,954 com PLS (falha aqui), −0,035
+    com MeanArm (cego, porque ignora X). O que ele NÃO pega: vazamento só
+    de X, como um pré-processador ajustado em treino+teste. Sem y, esse
+    vazamento não dá habilidade ao modelo; verificado por mutação em
+    21/09/2026 (autoscaling em treino+teste: resultado idêntico, porque o
+    PLSRegression já autoescala; PCA em treino+teste: R² médio −0,074).
+    """
+    r2 = [
+        evaluate(PermutedYArm(PLSArm()), tecator, seed_split=s, seed_algo=0).r2
+        for s in range(30)
+    ]
+
+    assert np.mean(r2) <= 0.0, f"R² médio {np.mean(r2):+.4f} com y permutado"
+
+
 def test_no_identical_replicas_across_seed_split(tecator):
     """Anti-réplica no eixo seed_split (checklist do pipeline, Estágio 5).
 
@@ -320,3 +357,94 @@ def test_stochastic_arm_replicas_across_seed_algo_are_distinct(tecator):
     }
 
     assert len(keys) == 3
+
+
+def _paired_groups(n_groups: int, seed: int) -> np.ndarray:
+    """Grupos de réplica sintéticos: cada amostra física aparece duas vezes,
+    em posições embaralhadas (réplicas não necessariamente vizinhas)."""
+    return np.random.default_rng(seed).permutation(np.repeat(np.arange(n_groups), 2))
+
+
+def test_grouped_split_keeps_replicates_together():
+    groups = _paired_groups(100, seed=0)
+    for seed in range(50):
+        train, test = _split_train_test(len(groups), 0.25, np.random.default_rng(seed), groups)
+        assert not set(groups[train]) & set(groups[test]), f"seed={seed}"
+        assert len(train) + len(test) == len(groups)
+
+
+def test_grouped_folds_keep_replicates_together():
+    groups = _paired_groups(80, seed=1)
+    for seed in range(50):
+        folds = _make_cv_folds(len(groups), 5, np.random.default_rng(seed), groups)
+        seen = np.zeros(len(groups), dtype=int)
+        for fold_train, fold_val in folds:
+            assert not set(groups[fold_train]) & set(groups[fold_val]), f"seed={seed}"
+            seen[fold_val] += 1
+        # cada linha é validação em exatamente um fold
+        assert np.all(seen == 1)
+
+
+def test_singleton_groups_reproduce_ungrouped_partition():
+    """Compatibilidade do ADR 009: com grupos unitários, a partição e as
+    folds agrupadas são idênticas às não agrupadas — o caminho novo
+    generaliza o antigo, não o substitui."""
+    n = 215
+    singletons = np.arange(n)
+    for seed in range(20):
+        plain = _split_train_test(n, 0.25, np.random.default_rng(seed))
+        grouped = _split_train_test(n, 0.25, np.random.default_rng(seed), singletons)
+        np.testing.assert_array_equal(plain[0], grouped[0])
+        np.testing.assert_array_equal(plain[1], grouped[1])
+
+        plain_folds = _make_cv_folds(161, 5, np.random.default_rng(seed))
+        grouped_folds = _make_cv_folds(161, 5, np.random.default_rng(seed), np.arange(161))
+        for (pt, pv), (gt, gv) in zip(plain_folds, grouped_folds):
+            np.testing.assert_array_equal(pt, gt)
+            np.testing.assert_array_equal(pv, gv)
+
+
+class _FoldSpyArm:
+    """Captura as folds que evaluate() injeta, para conferir a fiação dos
+    grupos até a CV interna."""
+
+    name = "fold_spy"
+
+    def __init__(self):
+        self.cv_folds = None
+
+    def fit(self, X_train, y_train, cv_folds, rng_algo, budget):
+        self.cv_folds = cv_folds
+        budget.increment()
+        return _FittedZeroArm()
+
+
+def test_evaluate_keeps_replicates_in_the_same_cv_fold(tecator):
+    spy = _FoldSpyArm()
+    result = evaluate(spy, tecator, seed_split=0, seed_algo=0)
+
+    in_test = np.zeros(tecator.X.shape[0], dtype=bool)
+    in_test[result.test_idx] = True
+    train_groups = tecator.groups[~in_test]
+    for fold_train, fold_val in spy.cv_folds:
+        assert not set(train_groups[fold_train]) & set(train_groups[fold_val])
+
+
+def test_grouped_split_does_not_favor_large_groups():
+    """Regressão do viés de tamanho (ADR 009): ordenar os grupos pela
+    primeira aparição de qualquer membro na permutação puxa grupos grandes
+    para o teste (no Mango, frutos de 6 leituras ocupavam 54% do teste
+    contra 32% do conjunto). Aqui metade das linhas está em grupos de 6; a
+    fração delas no teste, na média de 200 sementes, tem que ficar em 1/2.
+
+    Tolerância: a fração por semente tem dp ≈ 0,12 (≈12 grupos de 6 num
+    teste de 150 linhas), então o erro-padrão da média de 200 é ≈ 0,009;
+    0,03 são ~3 erros-padrão."""
+    groups = np.concatenate([np.arange(300), np.repeat(np.arange(300, 350), 6)])
+    groups = np.random.default_rng(2).permutation(groups)
+    in_big_group = groups >= 300
+    fractions = []
+    for seed in range(200):
+        _, test = _split_train_test(len(groups), 0.25, np.random.default_rng(seed), groups)
+        fractions.append(in_big_group[test].mean())
+    assert np.mean(fractions) == pytest.approx(0.5, abs=0.03)

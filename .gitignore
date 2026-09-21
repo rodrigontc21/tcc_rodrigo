@@ -13,6 +13,9 @@ results/*
 !results/permuted_y_tecator.md
 !results/preprocessing_comparison_tecator.csv
 !results/preprocessing_comparison_tecator.md
+!results/bioprocess_missing_glucose_audit.csv
+!results/bioprocess_missing_glucose_audit.md
+!results/testes_estagio1.txt
 .vscode/
 .DS_Store
 docs/PERGUNTAS.md

@@ -46,3 +46,31 @@ Ressalva obrigatória: o loader inspecionado vive em pgsg_1, na pasta
 `revision_pgsg_0_r1` (rodada de revisão) — isso confirma o que a revisão
 usou; se a submissão original rodou em outra base de código, isso
 permanece não verificado.
+
+## Adendo (18/09/2026) — eixo de comprimentos de onda
+
+A orientação apontou que o loader do pgsg_1 reconstrói o eixo com
+`np.linspace(850, 1050, 100)` (passo de 2,0202 nm), quando o instrumento
+tem passo de 2 nm exatos de 850 a 1048 nm.
+
+Verificação local: o loader deste trabalho não usa `linspace`, mas herda o
+mesmo eixo. O `skfda` repassa o campo `argvals` do `fda.usc`, que já vem
+como `linspace(850, 1050, 100)`. A fonte primária (StatLib) só diz "850 -
+1050 nm" e "100 channel spectrum", sem definir a posição dos canais, e o
+paper (pgsg_0, Seção 4.1) repete "100 wavelengths spanning 850–1050 nm". A
+faixa 850–1048 com passo de 2 nm é, portanto, indicação da orientação, sem
+fonte escrita localizada; se ela for documentada (manual do Infratec ou
+Tønnesen et al., 1991), a citação entra aqui.
+
+Decisão: o eixo passa a ser 850–1048 nm em passo de 2 nm, por indicação da
+orientação. O `sha256` continua calculado sobre o eixo da fonte, como
+prova do que foi carregado; o loader confere que a fonte ainda entrega o
+`linspace` antes de substituí-lo, e falha se ela mudar.
+
+Consequências: nenhuma métrica muda, porque nenhum braço usa o eixo; muda
+só o comprimento de onda atribuído a cada canal, em até 2 nm no fim da
+faixa. A "banda de 931 nm" do paper é o canal 40 lido no eixo `linspace`
+(930,81 nm); neste eixo ele fica em 930 nm, e o "top 10" de 921–935 nm
+vira 920–934 nm. Por isso, comparações com bandas publicadas no paper se
+ancoram no **índice do canal**, não no valor em nm. Teste:
+`test_tecator_axis_is_850_to_1048_in_2nm_steps` em `tests/test_data.py`.

@@ -1,14 +1,22 @@
-"""Sonda de vazamento: PermutedYArm(MeanArm) no Tecator, muitas seed_split.
+"""Sonda de vazamento: PermutedYArm(<braço>) no Tecator, muitas seed_split.
 
 Com o alvo embaralhado no treino, não existe relação X→y a aprender:
 R² apreciavelmente acima de zero denunciaria vazamento no caminho de X
 (pré-processamento, seleção de variáveis). Complementa o baseline da
 média, que valida o lado do y mas nunca toca em X.
 
+O braço interno é escolhido por `--inner`:
+
+- mean (padrão): PermutedYArm(MeanArm()), 100 seed_split. O MeanArm
+  ignora X, então esta versão só confere o lado do y.
+- pls: PermutedYArm(PLSArm()), 30 seed_split (0-29, faixa exploratória
+  do PROTOCOLO.md). O PLS usa X de verdade, então é esta versão que
+  enxerga vazamento no caminho de X.
+
 Gera dois arquivos versionados em results/ (para envio à orientação):
 
-- permuted_y_tecator.csv  uma linha por execução de `evaluate`
-- permuted_y_tecator.md   estatísticas descritivas + tabela completa
+- permuted_y_tecator.csv / .md      com --inner mean
+- permuted_y_pls_tecator.csv / .md  com --inner pls
 """
 
 from __future__ import annotations
@@ -32,28 +40,54 @@ from run_mean_baseline import (
 
 from tcc.arms.mean import MeanArm
 from tcc.arms.permuted import PermutedYArm
+from tcc.arms.pls import PLSArm
 from tcc.data import load
 from tcc.protocol import evaluate
+
+# Por braço interno: construtor, sufixo dos arquivos de saída, título do
+# Markdown e número padrão de seed_split
+INNER_ARMS = {
+    "mean": (MeanArm, "permuted_y_tecator", "y permutado no Tecator", 100),
+    "pls": (PLSArm, "permuted_y_pls_tecator", "y permutado com PLS no Tecator", 30),
+}
+
+# PROTOCOLO.md, "Faixas de seed_split": 0-29 é a faixa exploratória. O PLS
+# fica restrito a ela; o MeanArm já rodava 0-99 antes dessa regra existir.
+EXPLORATORY_SEED_LIMIT = 30
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
+        "--inner",
+        choices=sorted(INNER_ARMS),
+        default="mean",
+        help="braço envolvido pelo PermutedYArm (padrão: mean)",
+    )
+    parser.add_argument(
         "--n-seeds",
         type=int,
-        default=100,
-        help="número de seed_split (0 a N-1) a executar (padrão: 100)",
+        default=None,
+        help="número de seed_split (0 a N-1) a executar "
+        "(padrão: 100 para mean, 30 para pls)",
     )
     args = parser.parse_args()
+
+    make_inner, stem, title, default_seeds = INNER_ARMS[args.inner]
+    n_seeds = default_seeds if args.n_seeds is None else args.n_seeds
+    if args.inner == "pls" and n_seeds > EXPLORATORY_SEED_LIMIT:
+        parser.error(
+            f"--inner pls usa só a faixa exploratória 0-{EXPLORATORY_SEED_LIMIT - 1}"
+        )
 
     tecator = load("tecator")
 
     rows = []
     r2_values = []
     rmsep_values = []
-    for seed_split in range(args.n_seeds):
+    for seed_split in range(n_seeds):
         result = evaluate(
-            PermutedYArm(MeanArm()), tecator, seed_split=seed_split, seed_algo=0
+            PermutedYArm(make_inner()), tecator, seed_split=seed_split, seed_algo=0
         )
         r2_values.append(result.r2)
         rmsep_values.append(result.rmsep)
@@ -65,23 +99,23 @@ def main() -> None:
     out_dir = ROOT / "results"
     out_dir.mkdir(exist_ok=True)
 
-    csv_path = out_dir / "permuted_y_tecator.csv"
+    csv_path = out_dir / f"{stem}.csv"
     with csv_path.open("w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=COLUMNS)
         writer.writeheader()
         writer.writerows(rows)
 
-    md_path = out_dir / "permuted_y_tecator.md"
+    md_path = out_dir / f"{stem}.md"
     with md_path.open("w", encoding="utf-8") as f:
-        f.write("# Sonda de vazamento: y permutado no Tecator\n\n")
-        f.write("\n".join(_markdown_stats(args.n_seeds, r2_arr, rmsep_arr)))
+        f.write(f"# Sonda de vazamento: {title}\n\n")
+        f.write("\n".join(_markdown_stats(n_seeds, r2_arr, rmsep_arr)))
         f.write(f"\n\n## Todas as partições ({len(rows)})\n\n")
         f.write("\n".join(_markdown_table(rows)))
         f.write("\n")
 
     sample = rows[:N_SAMPLE_ROWS]
     header = (
-        f"{'arm':>17} {'dataset':>8} {'split':>5} {'algo':>4} "
+        f"{'arm':>20} {'dataset':>8} {'split':>5} {'algo':>4} "
         f"{'r2':>9} {'rmsep':>8} {'rmse_cv':>8} {'n_fits':>6} "
         f"{'wall_time':>10} {'n_test':>6}"
     )
@@ -89,7 +123,7 @@ def main() -> None:
     print("-" * len(header))
     for row in sample:
         print(
-            f"{row['arm_name']:>17} {row['dataset_name']:>8} "
+            f"{row['arm_name']:>20} {row['dataset_name']:>8} "
             f"{row['seed_split']:>5} {row['seed_algo']:>4} "
             f"{row['r2']:>9} {row['rmsep']:>8} {row['rmse_cv']:>8} "
             f"{row['n_fits']:>6} {row['wall_time']:>10} {row['n_test']:>6}"
@@ -98,7 +132,7 @@ def main() -> None:
         print(f"... ({len(rows) - len(sample)} linhas omitidas; completo no CSV)")
 
     print()
-    print("\n".join(_stats_lines(args.n_seeds, r2_arr, rmsep_arr)))
+    print("\n".join(_stats_lines(n_seeds, r2_arr, rmsep_arr)))
     print(f"\nSalvo em {csv_path.relative_to(ROOT)} e {md_path.relative_to(ROOT)}")
 
 

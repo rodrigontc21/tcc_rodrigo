@@ -54,29 +54,45 @@ class SpyArm:
         return _FittedSpy()
 
 
+# Tamanho do treino da divisão da literatura de cada conjunto: 172/43 no
+# Tecator (ADR 005), 48/12 no Gasoline (ADR 010)
+LITERATURE_N_TRAIN = {"tecator": 172, "gasoline": 48}
+
+
 @pytest.fixture(scope="module")
 def tecator():
     return load("tecator")
 
 
-def test_partition_is_fixed_and_deterministic(tecator):
-    # A divisão da literatura não depende de semente nenhuma: duas
-    # chamadas entregam ao braço exatamente os mesmos dados, com os 172
-    # primeiros espectros no treino (divisão padrão do Tecator).
-    spy1, spy2 = SpyArm(), SpyArm()
-    evaluate_against_literature(spy1, tecator)
-    evaluate_against_literature(spy2, tecator)
+@pytest.fixture(scope="module")
+def gasoline():
+    return load("gasoline")
 
-    assert spy1.received_X.shape == (172, tecator.X.shape[1])
+
+@pytest.fixture(scope="module", params=sorted(LITERATURE_N_TRAIN))
+def literature_dataset(request):
+    return load(request.param)
+
+
+def test_partition_is_fixed_and_deterministic(literature_dataset):
+    # A divisão da literatura não depende de semente nenhuma do protocolo:
+    # duas chamadas entregam ao braço exatamente os mesmos dados, com o
+    # tamanho de treino da divisão publicada.
+    spy1, spy2 = SpyArm(), SpyArm()
+    evaluate_against_literature(spy1, literature_dataset)
+    evaluate_against_literature(spy2, literature_dataset)
+
+    n_train = LITERATURE_N_TRAIN[literature_dataset.name]
+    assert spy1.received_X.shape == (n_train, literature_dataset.X.shape[1])
     np.testing.assert_array_equal(spy1.received_X, spy2.received_X)
     np.testing.assert_array_equal(spy1.received_y, spy2.received_y)
 
 
-def test_return_type_is_structurally_distinct_from_result(tecator):
+def test_return_type_is_structurally_distinct_from_result(literature_dataset):
     # A proteção prometida pelo ADR 005: o tipo de retorno não é Result
     # nem carrega os campos de semente — um LiteratureResult não encaixa
     # na grade nem na decomposição, por construção.
-    r = evaluate_against_literature(SpyArm(), tecator)
+    r = evaluate_against_literature(SpyArm(), literature_dataset)
 
     assert isinstance(r, LiteratureResult)
     assert not isinstance(r, Result)
@@ -84,10 +100,13 @@ def test_return_type_is_structurally_distinct_from_result(tecator):
     assert not hasattr(r, "seed_algo")
 
 
-def test_rejects_datasets_without_defined_literature_split(tecator):
+@pytest.mark.parametrize("name", ["mango", "bioprocess", "outro"])
+def test_rejects_datasets_without_defined_literature_split(tecator, name):
+    # Os arrays são do Tecator de propósito: a rejeição depende só do nome,
+    # e carregar Mango/bioprocess de verdade só deixaria o teste lento.
     other = Dataset(
         X=tecator.X, y=tecator.y, axis=tecator.axis, unit="nm",
-        name="outro", sha256=tecator.sha256,
+        name=name, sha256=tecator.sha256,
     )
     with pytest.raises(ValueError, match="literatura"):
         evaluate_against_literature(SpyArm(), other)
@@ -103,3 +122,22 @@ def test_reproduces_paper_validation_numbers(tecator):
     assert r.arm_name == "pls_full(h=10)"
     assert r.r2 == pytest.approx(0.9604, abs=1e-3)
     assert r.rmsep == pytest.approx(0.2041, abs=1e-3)
+
+
+def test_reproduces_published_gasoline_pls(gasoline):
+    # Portão de validação no Gasoline (ADR 010): PLS H=5, o H que o paper
+    # obteve pela regra de um erro-padrão, contra os números publicados
+    # (pgsg_0, Seção 4.2 e Tabela 1: R² = 0,975, RMSE = 0,145, escala
+    # normalizada). A divisão sequencial 48/12 daria R² 0,923; este teste
+    # falha se alguém trocar a divisão sem revisar o ADR 010.
+    #
+    # Tolerância 5e-4 = meia unidade da 3ª casa publicada, a precisão real
+    # do paper. A tolerância anterior (1e-3) aceitava 34 das 20000 sementes
+    # da auditoria; 5e-4 aceita 9, e rejeita a 239, que passava antes
+    # (verificação por mutação no adendo do ADR 010).
+    r = evaluate_against_literature(PLSArm(n_components=5), gasoline)
+
+    assert r.arm_name == "pls_full(h=5)"
+    assert r.dataset_name == "gasoline"
+    assert r.r2 == pytest.approx(0.975, abs=5e-4)
+    assert r.rmsep == pytest.approx(0.145, abs=5e-4)
