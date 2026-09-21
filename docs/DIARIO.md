@@ -569,6 +569,80 @@ conservadora.
 
 ## 2026-09-21
 
+**Documentação em dia.** ADR 005 passou de "implementação pendente" para
+"implementado (2026-09-14)", com a frase sobre `validate_against_paper.py`
+corrigida (segue como checagem pontual, não como implementação temporária).
+README com o Estágio 1 marcado. Entradas de 17 e 18/09 deste diário
+reconstituídas a partir dos ADRs.
+
+**Sonda de vazamento com um braço que usa X.** `PermutedYArm(PLSArm())` no
+Tecator, `seed_split` 0–29, `seed_algo=0`: R² médio −0,0474, dp 0,0849,
+máximo +0,1005 (`scripts/run_permuted_y.py --inner pls`). Teste novo,
+`test_permuted_y_wrapping_pls_has_no_skill_on_average`, com limiar R² médio
+≤ 0, cerca de 3 erros-padrão acima do observado; sem limiar por partição,
+porque R² isolados chegam a +0,10 sem vazamento.
+
+Verificação por mutação: um pré-processador ajustado em treino+teste NÃO
+fez o teste falhar, nem o antigo com MeanArm. Autoscaling vazado deu
+resultado idêntico (o `PLSRegression` já autoescala) e PCA vazada deu R²
+médio −0,074. Com y permutado, vazamento só de X não dá habilidade ao
+modelo; a sonda só pega y verdadeiro chegando ao braço sem passar pela
+permutação. Isso ela pega: com a permutação quebrada, R² médio +0,954 com
+PLS (falha) e −0,035 com MeanArm (cego). Limitação registrada no docstring
+do teste. Detectar vazamento só de X exige outra sonda, a pensar junto do
+teste anti-vazamento da seleção de variáveis no Estágio 2.
+
+**Divisão de literatura do Gasoline (ADR 010, proposto).** O paper só diz
+"48/12 train-test split". Investigação: `man/gasoline.Rd` do pacote `pls`
+não define divisão; a vinheta usa 50/10 sequencial (`gasoline[1:50,]`); a
+Seção 4.2 do paper cita "same data partition (seed 42)". Com o PLS H=5 do
+paper e Z-score no treino: sequencial 48/12 dá R² 0,9231; 50/10 dá 0,9139;
+`train_test_split(test_size=0.2, random_state=42)` dá R² 0,9752 e RMSE
+0,1453, batendo com os 0,975 e 0,145 publicados. Implementado em
+`validation.py` (`_literature_split`), com teste de reprodução contra o
+valor publicado. Achado lateral: a mesma semente não reproduz o Tecator
+(0,9489 contra 0,919), e a sequencial em uso também não (0,9604). Pergunta
+9 aberta à orientação.
+
+**Auditoria da semente 42.** `scripts/audit_gasoline_split.py`, com o
+próprio portão de `validation.py`. Sementes que reproduzem os dois valores
+publicados:
+
+| sementes | em 1e-3 | em 5e-4 (3 casas) |
+|---|---|---|
+| 200 | 1 (a 42) | 1 (a 42) |
+| 2.000 | 6 | 1 (a 42) |
+| 20.000 | 34 | 9 |
+
+A unicidade aparente era efeito de amostra pequena. A 42 é típica
+(percentis 37 no R² e 60 no RMSE). Taxa de acerto por acaso em 5e-4:
+0,045% (Wilson 95%: 0,024%–0,086%). R² e RMSE são parcialmente redundantes
+(Pearson −0,50; observado/esperado sob independência ≈ 1,3×). Leitura
+registrada no adendo do ADR 010: a 42 não é identificada por unicidade, mas
+o paper a nomeia antes de qualquer busca, e a chance de coincidência fica
+em torno de 0,045%. A âncora cronológica é o texto do paper
+(`docs/fontes/pgsg_0_paper.pdf`, no repositório desde `ff78fe5`, 20/08); a
+ordem entre a leitura do "seed 42" e as varreduras, dentro do dia, não tem
+registro por commit.
+
+Tolerância do teste de reprodução do Gasoline apertada de 1e-3 para 5e-4,
+com verificação por mutação: semente 239 com 1e-3 passa (falso positivo);
+com 5e-4 falha no RMSE (0,14443 contra 0,145); restaurada a 42, a suíte
+passa.
+
+**Auditoria de fechamento dos Estágios 0 e 1**, rodando a suíte e
+verificações pontuais (partição e folds idênticas entre braços,
+pré-processador ajustado só em `X_train`, coluna `Set`, alvo `fat` por
+nome, sha256). Os critérios do pipeline passam; as lacunas eram de
+aprovação e registro: nada commitado, ADR 009 proposto e nunca enviado,
+resultados da partição antiga, análise dos 488 sem script, H5 sem resposta,
+δ sem valor numérico. O relatório escrito foi descartado depois de usado.
+
+**Piso de ruído com a partição agrupada.** Mango e bioprocess regenerados:
+dispersão relativa do RMSEP de 1,60% e 1,25%, batendo com o ADR 009.
+`PROTOCOLO.md` atualizado (tabela do piso de ruído, razão entre conjuntos
+de cerca de 9,5×).
+
 **Correção de dois números da entrada de 18/09.** A entrada de 18/09,
 copiada do ADR 009, registrou dois valores imprecisos. Ela fica como
 estava, como registro do que se sabia naquele dia; a correção vai aqui.
@@ -589,7 +663,9 @@ estava, como registro do que se sabia naquele dia; a correção vai aqui.
 A correção já foi replicada no ADR 009 (faixa 1.618 a 1.620; razão de
 cerca de 12,5× para cerca de 9,5×) e no `PROTOCOLO.md`, cuja seção da
 margem δ já dizia "cerca de 9,5×" e cuja tabela do piso de ruído já traz
-n_test 1.618–1.620 para o bioprocess.
+n_test 1.618–1.620 para o bioprocess. No mesmo passe, o `PROTOCOLO.md`
+passou a descrever o teste do R² do MeanArm como ≈ −1/n_ef (tamanho
+efetivo de Kish), não −1/n_test.
 
 **Correção da entrada de 17/09: o ADR 007 não foi aceito.** A entrada de
 17/09 registra "ADRs 006 e 007 aceitos pela orientação". Para o ADR 007
@@ -608,7 +684,11 @@ ADR 007 contando por amostra física (linhas vizinhas com os 8 alvos
 idênticos, 5.089 amostras): χ² = 1,59, p = 0,45 por split; sequência mais
 longa de 3 amostras sem glicose (permutação, p = 0,80); EnPump e fosfato
 total significativos após Bonferroni; extrato de levedura não significativo
-por amostra (p = 0,126), significativo por espectro (p = 0,0017).
+por amostra (p = 0,126), significativo por espectro (p = 0,0017). Com os
+grupos por composição do ADR 009, a conclusão do Mann-Whitney se mantém,
+mas o qui-quadrado por split não se aplica: 1.599 das 3.433 composições
+aparecem em mais de um split da fonte. As linhas do `raman_data` vêm na
+ordem treino, teste, validação.
 
 **Status do ADR 007 ajustado às palavras da orientação.** Relendo a
 mensagem de 17/09, a orientação escreveu "ADR 007 — aprovado, com uma
@@ -616,7 +696,7 @@ pendência". O status passou de "proposto" para "aprovado com pendência
 (17/09/2026)", com a pendência sendo a confirmação da distribuição dos
 488, enviada hoje. A mesma redação foi aplicada ao comentário do
 `_load_bioprocess()`, à pergunta 4 e à tabela de decisões do
-`PROTOCOLO.md`.
+`PROTOCOLO.md`, que também ganhou a pergunta 9 (Gasoline).
 
 **Resultados do Tecator regenerados com a partição agrupada.**
 `results/mean_baseline_tecator.*` (dispersão relativa do RMSEP 7,72%,
@@ -627,3 +707,40 @@ escolha de SNV puro se mantém. O `PROTOCOLO.md` guarda a tabela original
 do pré-processamento, que foi a base da decisão, e acrescenta a refeita.
 Com isso, todos os arquivos que o ADR 009 listava como desatualizados
 estão regenerados.
+
+**Versionamento.** `.gitignore` com exceção para
+`results/bioprocess_missing_glucose_audit.*` e `results/testes_estagio1.txt`.
+Um `.git/index.lock` órfão de 18/09 travava o `git add` e foi removido.
+Commit `2121687` com todo o trabalho desde 17/09, enviado ao GitHub. Suíte:
+75 passed, 1 skipped.
+
+**Resposta à orientação (WhatsApp, 21/09).** Enviada a mensagem pendente
+desde 17/09: SNV puro como decisão de protocolo (padrão do `evaluate()` a
+partir do Estágio 2), ADR 006 aplicado, eixo do Tecator, distribuição dos
+488, ADR 009, estudo paralelo, ADR 008 e ADR 010. Anexos: ADRs 006 a 010 e
+`PROTOCOLO.md`; resultados por links fixados no commit `2121687`.
+Perguntas em aberto:
+1. ADR 007: enquadramento dos 488 como limitação e aprovação definitiva.
+2. ADR 009: aprovação da partição agrupada.
+3. Estudo paralelo de parametrizações: o código existe, e os loaders devem
+   se alinhar a ele?
+4. Braços clássicos: pacotes R via `rpy2` ou Python.
+5. Gasoline: o pgsg_1 confirma `random_state=42`? E a divisão do Tecator
+   no paper também era aleatória?
+
+**Limpeza.** Para a Lixeira: a `venv/` antiga do Windows (sem uso desde a
+migração para o WSL), os caches (`__pycache__`, `.pytest_cache`,
+`.ipynb_checkpoints`), `results/gasoline_split_audit.*`,
+`results/permuted_y_pls_tecator.*` e `scripts/check_targets.py`
+(diagnóstico temporário da pergunta 5). Cache do pip do Windows apagado
+(559 MB). Suíte depois da limpeza: 75 passed, 1 skipped.
+
+**Pendente**
+- Commit da remoção do `check_targets.py`.
+- Resposta da orientação às 5 perguntas.
+
+**Próximo**
+Com a resposta, atualizar os status dos ADRs 007, 009 e 010. O Estágio 1
+fecha quando os ADRs 007 e 009 forem aprovados. Depois, Estágio 2: SNV como
+padrão do `evaluate()` e braços clássicos, conforme a decisão sobre o ADR
+008.
