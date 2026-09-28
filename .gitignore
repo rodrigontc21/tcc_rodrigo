@@ -18,5 +18,9 @@ results/*
 !results/testes_estagio1.txt
 .vscode/
 .DS_Store
+# registro bruto das conversas com a orientação (export do WhatsApp):
+# mensagens privadas e anexos de terceiros, entre eles o TCC de outro
+# aluno — o repositório é público. Fica no disco, fora do versionamento.
+docs/orientacao/
 docs/PERGUNTAS.md
 commit_msg.txt
