@@ -27,6 +27,11 @@ class _FittedMeanArm:
         # Não há hiperparâmetro para validar, então não há CV interna.
         return float("nan")
 
+    @property
+    def cv_selections(self) -> list[set[int]] | None:
+        # Ignora X por completo: não há banda a selecionar (ADR 011).
+        return None
+
 
 class MeanArm:
     """Braço trivial: prediz a média de y_train, ignora X inteiramente.

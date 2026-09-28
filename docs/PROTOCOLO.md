@@ -79,19 +79,36 @@ foi tomada.
   14/09/2026, que o seletor usava argmin puro. Foi essa correção que
   reverteu a escolha de pré-processamento (ver "Pré-processamento").
 
+**Parcialmente resolvido ([ADR 011](ADR/011-selecao-por-fold-observavel.md),
+28/09/2026).** `FittedArm` passou a expor `cv_selections` — as bandas
+escolhidas dentro de cada fold —, e com isso a armadilha central do
+Estágio 2 virou verificável: `assert_selection_is_fold_local`, em
+`tests/test_selection_leakage.py`, falha se a seleção de um fold mudar
+quando as linhas de validação daquele fold são perturbadas. O campo não
+entra no `Result`: auditoria de fold é contrato, não métrica.
+
 **Em aberto**
-- As folds não são observáveis no `Result`, então nada detecta um braço
-  que use CV própria em vez das folds injetadas.
+- O caso grosseiro do achado do ADR 001 é detectado (um braço cujo
+  `cv_selections` não tem o mesmo comprimento das folds injetadas), mas
+  um braço que reconstrua folds equivalentes por conta própria continua
+  indetectável, e `cv_selections` é autodeclarado como `n_fits` e
+  `rmse_cv`.
+- Braços sem seleção de variáveis (`pls_full`, `mlp_full`) devolvem
+  `None` e ficam fora dessa auditoria, por não terem o que auditar.
 
 ---
 
-## Pré-processamento (decidido com evidência, aplicação adiada para o Estágio 2)
+## Pré-processamento (decidido com evidência, em vigor desde 28/09/2026)
 
-- Hoje: `IdentityPreprocessor` continua em vigor; **SNV puro** é a
-  escolha registrada para quando o Estágio 2 começar.
+- **SNV puro** é o pré-processamento do protocolo, e desde 28/09/2026 é o
+  default de `evaluate()` — a troca prevista para o início do Estágio 2,
+  aprovada pela orientação em 17/09/2026 ("Use SNV puro").
 - Decidido: único para todos os braços — comparar braços sob
   pré-processamentos diferentes invalida o benchmark.
 - Ajustado apenas em `X_train`, aplicado ao teste.
+- `IdentityPreprocessor` continua no código como o nível "sem
+  pré-processamento", inclusive para reproduzir números dos Estágios 0 e
+  1; não é mais o comportamento padrão.
 
 **Decisão da reunião de 01/09/2026.** Comparar SNV, derivada e a
 combinação SNV→derivada empiricamente, e escolher com evidência — a
@@ -178,10 +195,28 @@ SNV a priori para os quatro conjuntos é a opção defensável — mas é
 registrada pela orientação: o Raman do bioprocess tem características
 diferentes do NIR, onde SNV pode não ser a escolha óbvia — a validade da
 escolha nesse conjunto segue não medida. A troca de `IdentityPreprocessor`
-por `SNVPreprocessor()` como default de `evaluate()` continua adiada para
-o início do Estágio 2. Até lá, `IdentityPreprocessor` continua sendo o
-comportamento real do protocolo — não é regressão, é decisão deliberada de
-não aplicar cedo demais.
+por `SNVPreprocessor()` como default de `evaluate()` foi feita em
+28/09/2026, no início do Estágio 2, como estava previsto.
+
+**O que mudou de número com a troca.** Nada nos resultados versionados. O
+piso de ruído e a sonda de vazamento versionada usam o `MeanArm`, que
+ignora X por completo, então SNV não altera métrica nenhuma neles
+(conferido: `results/permuted_y_tecator.csv` fica idêntico fora do
+`wall_time`). A comparação de pré-processamento injeta o candidato
+explicitamente e também não depende do default. A sonda com PLS, que usa
+X de verdade, muda: R² médio de −0,0474 para −0,0265 nas `seed_split`
+0–29, com dp de 0,0849 para 0,1254. O invariante do teste (R² médio ≤ 0)
+continua valendo, com margem menor — registrado no docstring de
+`test_permuted_y_wrapping_pls_has_no_skill_on_average`.
+
+**Pendência aberta pela troca.** O modo "protocolo da literatura"
+(`validation.py`) NÃO aplica SNV: ele reproduz o desenho do artigo, que
+usa só Z-score. Isso é deliberado — o portão compara contra os números
+publicados, não contra o protocolo deste trabalho —, mas significa que os
+dois modos passaram a diferir também no pré-processamento, e não só na
+partição. A consequência para o portão do Estágio 2 é que uma diferença
+de RMSEP contra a literatura não pode ser atribuída ao pré-processamento
+sem essa ressalva.
 
 **Restrição a registrar.** Com o ajuste na posição atual (antes das folds
 da CV interna), só pré-processadores por amostra são seguros. SNV é linha
@@ -311,6 +346,8 @@ Referência às perguntas pendentes em `docs/estudo_rodrigo/PERGUNTAS.md`:
 | 7 | Cálculo do prior dentro da CV interna, como os selecionadores clássicos | Estágio 3 |
 | 8 | Semente algorítmica na grade principal — diagonal vs. média sobre réplicas | Estágio 5 |
 | 9 | Divisão 48/12 do Gasoline no protocolo da literatura — `train_test_split(test_size=0.2, random_state=42)`, inferida pela reprodução dos números publicados ([ADR 010](ADR/010-divisao-de-literatura-do-gasoline.md), proposto) | Portão de validação do Estágio 2 (ADR 010) |
+| 10 | Critério de número de componentes no iPLS — o `mdatools` só oferece argmin e Wold, não a regra de um erro-padrão que o `PLSArm` usa ([ADR 012](ADR/012-ipls-via-mdatools.md), proposto) | Portão de validação do Estágio 2 (ADR 012) |
+| 11 | O portão do Estágio 2 é executável como está escrito? Busca preliminar não achou RMSEP publicado de iPLS nem de CARS no Tecator ou no Gasoline — os artigos originais usam cerveja e milho | Critério de aceitação do Estágio 2 |
 
 Das nove, as nº 4 e 5 têm decisão registrada até o momento: ADR 004 e
 ADR 006 aceitos; ADR 007 aprovado com pendência (distribuição dos 488). Fora

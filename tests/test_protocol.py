@@ -128,6 +128,43 @@ def test_mean_arm_produces_valid_result(tecator):
     assert result.seed_algo == 0
 
 
+def test_evaluate_applies_snv_by_default(tecator):
+    """O pré-processamento do protocolo chega de fato ao braço.
+
+    SNV puro é decisão de protocolo, aprovada pela orientação em
+    17/09/2026 e em vigor como default de `evaluate()` desde o início do
+    Estágio 2 (PROTOCOLO.md, "Pré-processamento"). Sem este teste, trocar
+    o default de volta para `IdentityPreprocessor` não quebrava nada —
+    verificado por mutação em 28/09/2026, com a suíte inteira verde.
+
+    A assinatura do SNV é inconfundível: cada espectro sai com média 0 e
+    desvio 1. O espectro cru do Tecator não tem nenhuma das duas."""
+    spy = SpyArm()
+    evaluate(spy, tecator, seed_split=0, seed_algo=0)
+
+    np.testing.assert_allclose(spy.received_X.mean(axis=1), 0.0, atol=1e-12)
+    np.testing.assert_allclose(spy.received_X.std(axis=1), 1.0, atol=1e-12)
+    assert abs(tecator.X.mean(axis=1)).min() > 1e-6, "o cru já estaria centrado"
+
+
+def test_arms_without_selection_report_none(tecator):
+    """Contrato do ADR 011: braço sem seleção de variáveis devolve `None`
+    em `cv_selections`, e não uma lista vazia.
+
+    A distinção importa para o Estágio 4 — `None` é "não se aplica", lista
+    vazia seria "selecionou nada". Sem este teste, trocar um pelo outro
+    não quebrava nada (mutação de 28/09/2026)."""
+    for arm in (MeanArm(), PLSArm()):
+        fitted = arm.fit(
+            tecator.X[:100],
+            tecator.y[:100],
+            _make_cv_folds(100, 5, np.random.default_rng(0)),
+            np.random.default_rng(0),
+            Budget(),
+        )
+        assert fitted.cv_selections is None, arm.name
+
+
 def test_same_seed_split_gives_identical_partition_across_arms(tecator):
     r_mean = evaluate(MeanArm(), tecator, seed_split=42, seed_algo=1)
     r_zero = evaluate(ZeroArm(), tecator, seed_split=42, seed_algo=2)
@@ -288,12 +325,23 @@ def test_permuted_y_wrapping_pls_has_no_skill_on_average(tecator):
 
     Limiar: R² médio ≤ 0. Um preditor sem informação sobre y_test tem R²
     esperado ≤ 0 (o MeanArm já fica em ≈ −1/n_ef; um PLS ajustado a ruído
-    fica abaixo disso). Distribuição observada nas 30 partições
-    (results/permuted_y_pls_tecator.md, 21/09/2026): média −0,0474, dp
-    0,0849, máximo +0,1005. O erro-padrão da média é 0,0849/√30 ≈ 0,0155,
-    então o limiar fica ~3 erros-padrão acima do observado. Não se usa
-    limiar por partição: R² isolados chegam a +0,10 sem vazamento algum,
-    e qualquer corte ali seria arbitrário.
+    fica abaixo disso). Não se usa limiar por partição: R² isolados sobem
+    bem acima de zero sem vazamento algum, e qualquer corte ali seria
+    arbitrário.
+
+    Distribuição observada nas 30 partições, com o SNV que passou a ser o
+    padrão de evaluate() no início do Estágio 2 (28/09/2026): média
+    −0,0265, dp 0,1254, máximo +0,2467. Com o IdentityPreprocessor dos
+    Estágios 0 e 1 era média −0,0474, dp 0,0849, máximo +0,1005
+    (21/09/2026).
+
+    A margem encolheu com a troca: o erro-padrão da média é 0,1254/√30 ≈
+    0,0229, então o limiar está ~1,2 erro-padrão acima do observado,
+    contra ~3 antes. O teste não é instável por isso — as sementes são
+    fixas (0–29), então o resultado é determinístico —, mas fica mais
+    sensível: uma mudança futura que empurre o R² médio em ~0,03 já o
+    faz disparar. Se disparar, investigue vazamento ANTES de mexer no
+    limiar, que é teórico e não calibrado nos dados.
 
     O que este teste pega e o de MeanArm não pega: y verdadeiro chegando ao
     braço sem passar pela permutação. Verificado em 21/09/2026 com uma
@@ -303,6 +351,13 @@ def test_permuted_y_wrapping_pls_has_no_skill_on_average(tecator):
     vazamento não dá habilidade ao modelo; verificado por mutação em
     21/09/2026 (autoscaling em treino+teste: resultado idêntico, porque o
     PLSRegression já autoescala; PCA em treino+teste: R² médio −0,074).
+
+    Ressalva: as duas verificações do parágrafo acima foram feitas com o
+    `IdentityPreprocessor`, que era o default em 21/09. Não foram refeitas
+    sob SNV. A conclusão qualitativa não depende do pré-processamento — a
+    permutação quebrada entrega o y verdadeiro ao braço, e nenhum
+    pré-processamento por amostra desfaz isso —, mas os números citados
+    são da configuração antiga.
     """
     r2 = [
         evaluate(PermutedYArm(PLSArm()), tecator, seed_split=s, seed_algo=0).r2

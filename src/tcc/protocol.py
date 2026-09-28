@@ -8,6 +8,7 @@ from sklearn.metrics import r2_score
 
 from tcc.arms.base import Arm, Budget, CVFolds
 from tcc.data import Dataset
+from tcc.preprocessing import SNVPreprocessor
 
 # Provisório: o protocolo congela na semana 11 (ver PROTOCOLO.md). Até lá,
 # test_size e n_splits ficam como parâmetros de evaluate() com um default
@@ -42,14 +43,16 @@ class Result:
 
 
 class IdentityPreprocessor:
-    """Placeholder de pré-processamento espectral.
+    """Pré-processamento nulo: devolve o espectro como veio.
 
-    O Estágio 1 do pipeline decide o método real (SNV, derivada, ...) e ele
-    será único para todos os braços — comparar braços sob pré-processamentos
-    diferentes invalidaria o benchmark (ver PROTOCOLO.md). Por ora, a
-    identidade mantém o ponto de encaixe "ajustado só no treino" já no
-    lugar certo, para que trocar por SNV/derivada depois não exija mexer em
-    `evaluate`.
+    Foi o default de `evaluate` durante os Estágios 0 e 1, enquanto a
+    escolha do pré-processamento não estava fechada; desde o início do
+    Estágio 2 o default é o `SNVPreprocessor` (ver PROTOCOLO.md,
+    "Pré-processamento"). Permanece como o nível "sem pré-processamento"
+    de qualquer comparação que precise dele — inclusive para reproduzir
+    resultados dos Estágios 0 e 1 — e nunca como escolha de um braço
+    isolado: comparar braços sob pré-processamentos diferentes invalida o
+    benchmark.
     """
 
     def fit(self, X_train: np.ndarray) -> "IdentityPreprocessor":
@@ -210,11 +213,15 @@ def evaluate(
     X_train, y_train = dataset.X[train_idx], dataset.y[train_idx]
     X_test, y_test = dataset.X[test_idx], dataset.y[test_idx]
 
-    # Identidade enquanto o Estágio 1 não fecha a escolha (ver
-    # PROTOCOLO.md); o parâmetro permite ao experimento de comparação
-    # injetar os candidatos sem furar o protocolo.
+    # SNV puro, único para todos os braços (PROTOCOLO.md,
+    # "Pré-processamento"): escolhido com evidência no Tecator, aprovado
+    # pela orientação em 17/09/2026 e aplicado a partir do Estágio 2. É
+    # transformação por amostra, então o ajuste nesta posição — antes das
+    # folds da CV interna — não vaza. O parâmetro continua existindo para
+    # o experimento de comparação injetar os candidatos sem furar o
+    # protocolo, nunca para um braço escolher o seu.
     if preprocessor is None:
-        preprocessor = IdentityPreprocessor()
+        preprocessor = SNVPreprocessor()
     preprocessor = preprocessor.fit(X_train)
     X_train = preprocessor.transform(X_train)
     X_test = preprocessor.transform(X_test)

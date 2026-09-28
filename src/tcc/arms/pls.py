@@ -35,6 +35,12 @@ class _FittedPLSArm:
     def rmse_cv(self) -> float:
         return self._rmse_cv
 
+    @property
+    def cv_selections(self) -> list[set[int]] | None:
+        # pls_full usa o espectro inteiro: não seleciona bandas em fold
+        # nenhum (ADR 011, e o mesmo recorte do Estágio 4 do pipeline).
+        return None
+
 
 class PLSArm:
     """Braço A1: PLS sobre o espectro completo.

@@ -744,3 +744,422 @@ Com a resposta, atualizar os status dos ADRs 007, 009 e 010. O Estágio 1
 fecha quando os ADRs 007 e 009 forem aprovados. Depois, Estágio 2: SNV como
 padrão do `evaluate()` e braços clássicos, conforme a decisão sobre o ADR
 008.
+
+## 2026-09-28
+
+**Registro bruto das conversas com a orientação.** Export do WhatsApp em
+`docs/orientacao/` (122 mensagens, 28/07 a 28/09, com os anexos em
+`files/` e as imagens em `images/`). Não versionado: entrou no
+`.gitignore` no commit `c00dc6e`, porque o repositório é público e a pasta
+tem mensagens privadas e anexos de terceiros — entre eles o TCC de outro
+aluno, que a orientação enviou em 18/08.
+
+**Lembrete enviado** (WhatsApp, 13:59), sobre a mensagem de 21/09. Sem
+resposta até o fim do dia; a última mensagem da orientação continua sendo
+a de 17/09, com os pareceres dos ADRs 006 e 007.
+
+**Dois achados que a leitura do export trouxe, e que não estavam
+registrados em lugar nenhum do projeto.**
+
+1. *Corrigendum ao paper de referência (mensagem de 03/09).* A razão
+   amostras-por-parâmetro da Seção 3.5 do pgsg_0 está errada por um fator
+   de mil, de forma consistente: 172/1765 = 0,098, não 97; 48/6882 =
+   0,007, não 7; 172/109221 = 0,0016, não 2. A orientação registrou que o
+   argumento empírico continua de pé — o CNN pesado falha e a arquitetura
+   leve funciona —, mas a justificativa numérica não, e que avalia um
+   corrigendum cobrindo isso, a faixa da gordura e a proveniência.
+   Orientação explícita para este trabalho: se discutir capacidade do
+   modelo, usar parâmetros por amostra, com a conta explícita. Como o B4 é
+   o braço do paper, isso é material do manuscrito. Na mesma mensagem, o
+   eixo: "vou corrigir no pgsg_1 — não herde".
+2. *A pergunta 1 provavelmente nunca foi enviada.* A `PERGUNTAS.md`
+   registra "Enviada em: 2026-08-28 (sem resposta direta até o momento)",
+   mas o export não tem nenhuma mensagem em 28/08 — a conversa vai de
+   27/08 17:50 direto para 03/09 15:45. O que houve em 27/08 foi o tema
+   ser levantado e a orientação responder com a correção conceitual da H5
+   (Jaccard, não variabilidade do erro); a pergunta específica — reescrever
+   a H5 em termos de `seed_split` antes de congelar o protocolo — não
+   aparece. Mesma situação para as perguntas 3, 7 e 8, que também não
+   estão no export. A 1 é a que trava o congelamento, marcado para a
+   semana 11 (~27/10); a 3 trava o Estágio 3 e pode ter tempo de espera
+   longo, por depender de terceiros. Se tiverem ido por outro canal, não
+   há registro. A `PERGUNTAS.md` não foi alterada: a data de envio fica
+   como está até haver confirmação de qual foi o canal.
+
+**Início do Estágio 2 — SNV como padrão do `evaluate()`.** Trocado o
+default de `IdentityPreprocessor` para `SNVPreprocessor()` em
+`src/tcc/protocol.py`. É a única peça do Estágio 2 já aprovada por escrito
+pela orientação (17/09: "Use SNV puro"), e o `PROTOCOLO.md` previa a troca
+para o início deste estágio. O `IdentityPreprocessor` fica no código como
+o nível "sem pré-processamento".
+
+Efeito medido, e não presumido: **nenhum resultado versionado muda**. O
+piso de ruído e a sonda de vazamento versionada rodam com o `MeanArm`, que
+ignora X, então SNV não altera métrica alguma neles — `permuted_y_tecator`
+foi regenerado e conferido coluna a coluna contra o `HEAD`: idêntico fora
+do `wall_time`, e por isso a regeneração foi revertida em vez de
+commitada. A comparação de pré-processamento injeta o candidato
+explicitamente e também não depende do default.
+
+A sonda com PLS, que usa X, muda: R² médio de −0,0474 para −0,0265 nas
+`seed_split` 0–29, dp de 0,0849 para 0,1254, máximo de +0,1005 para
++0,2467. O invariante do teste (R² médio ≤ 0) continua valendo, mas a
+margem caiu de ~3 erros-padrão para ~1,2. O teste não fica instável,
+porque as sementes são fixas, e sim mais sensível; o docstring de
+`test_permuted_y_wrapping_pls_has_no_skill_on_average` passou a registrar
+os dois conjuntos de números e a instrução de investigar vazamento antes
+de mexer no limiar, que é teórico e não calibrado nos dados.
+
+Suíte depois da troca: 75 passed, 1 skipped.
+
+**Consequência registrada no `PROTOCOLO.md`.** O modo "protocolo da
+literatura" não aplica SNV — reproduz o desenho do artigo, que usa só
+Z-score. Os dois modos passaram a diferir também no pré-processamento, e
+não só na partição; no portão do Estágio 2, uma diferença de RMSEP contra
+a literatura não pode ser atribuída ao pré-processamento sem essa
+ressalva.
+
+**Braços clássicos: implementação começa sob proposta, não sob
+aprovação.** O ADR 008 (iPLS, CARS e GA-PLS via `rpy2`) continua com
+status **proposto** — a orientação não se manifestou, e a regra que ela
+mesma fixou em 14/09 é "eu aprovo o ADR, não a escolha solta numa
+mensagem". A decisão de começar a implementar assim mesmo é minha, e fica
+registrada aqui como tal para não virar um "aceito" que ninguém disse. Se
+a resposta for Python, os braços em R não se perdem: viram o oráculo
+contra o qual a reimplementação é conferida, o que é mais forte do que
+validar só contra valor publicado.
+
+**Teste anti-vazamento da seleção — e o contrato que faltava (ADR 011).**
+O pipeline manda escrever um teste que falhe se a seleção enxergar a
+partição de validação. Com o contrato atual isso era impossível: o braço
+honesto e o trapaceiro produzem `Result` idênticos, porque os dois
+recebem `X_train` inteiro (o que é correto — as folds servem à CV interna
+deles, e o modelo final é legitimamente ajustado em todo o treino) e a
+diferença mora em quais linhas cada um usa para escolher bandas *dentro
+de cada fold*, que não aparecia em lugar nenhum. Qualquer perturbação
+aplicada de fora atinge os dois igualmente, porque as linhas de validação
+de um fold são linhas de treino dos outros.
+
+É o mesmo buraco que o ADR 001 registrou e adiou explicitamente para o
+Estágio 2. `FittedArm` ganhou `cv_selections` — as bandas escolhidas
+dentro de cada fold, na ordem de `cv_folds`, `None` para braços sem
+seleção. Mesma convenção do `rmse_cv` (ADR 002) e do `band_scores`: é
+propriedade do braço, porque só ele sabe o que fez internamente. Não
+entra no `Result` e `evaluate` não o lê — o Estágio 6 exige métricas como
+funções puras sobre `results/`, e auditoria de fold é verificação de
+contrato, que vive nos testes.
+
+Motivação independente, que apareceu relendo o paper: a Seção 5.2 do
+pgsg_0 reporta que "8 das 10 bandas do top-10 apareceram consistentemente
+no top-10 das seleções das 5 folds". O B4 tem que reproduzir o modelo
+publicado no Estágio 3, e essa afirmação só é reproduzível com a seleção
+por fold observável. Ou seja, o campo seria necessário de qualquer forma;
+o teste anti-vazamento apenas antecipou.
+
+`tests/test_selection_leakage.py`: o verificador
+`assert_selection_is_fold_local` perturba as linhas de validação de cada
+fold, injetando correlação espúria numa banda de ruído, e exige que a
+seleção daquele fold saia idêntica. As seleções dos outros folds mudam, e
+devem mudar. O hiperparâmetro fica fixo durante a verificação — com busca
+ativa o candidato escolhido depende de todas as folds, e a perturbação
+poderia trocá-lo, mudando a seleção por agregação da CV e não por
+vazamento.
+
+Duas sondas provam que o verificador tem dentes: `_HonestSelectorArm`,
+que seleciona só com `fold_train`, e `_LeakySelectorArm`, idêntica exceto
+por olhar o treino inteiro — o erro que o pipeline chama de mais comum da
+literatura. Um teste afirma que o verificador aprova a primeira, outro
+que reprova a segunda. Sem o segundo seria mais um invariante testado com
+braço insensível ao mecanismo, o padrão de falha de 25/08 e 28/08.
+
+Verificação por mutação: fazendo a sonda honesta selecionar sobre o
+treino inteiro, `test_honest_selector_passes_the_check` falha
+(`1 failed, 3 passed`); restaurado o arquivo, com hash conferido contra a
+cópia anterior, `4 passed`.
+
+**Duas voltas até o teste ficar honesto, e as duas valem registro.** A
+primeira versão do fixture usava 2 bandas informativas com k=3: a
+terceira vaga era ruído e variava de fold para fold, então o controle
+falhava por instabilidade da seleção, não por vazamento. A segunda versão
+acrescentou uma terceira banda informativa, e ela saiu com |r| = 0,03
+apesar do coeficiente 1,2 — colinearidade amostral entre colunas
+"independentes" com n=100, que empurrou uma banda de ruído para o top-3.
+As duas falhas eram do desenho do teste, não do verificador, mas as duas
+teriam produzido um teste que passa por motivo errado. A versão final
+ortogonaliza as colunas por QR, o que torna |r_j| = |coef_j|/||y||
+previsível e independente da sorte da semente (~0,80, ~0,52 e ~0,31,
+contra ~0,45 que a perturbação alcança e ~0,03 do ruído), e o fixture
+agora afirma a própria premissa: se o top-k sobre dados limpos deixar de
+ser o conjunto das bandas informativas, ele falha alto, e não de forma
+obscura dentro de um teste.
+
+Suíte: 79 passed, 1 skipped.
+
+**Spike da API do mdatools, antes do ADR do iPLS.** Escrever o ADR sem
+saber o que o pacote expõe seria adivinhação, então a ordem foi spike
+primeiro — mesmo padrão de 16/09, em que a ponte foi validada antes do
+ADR 008. Trava declarada antes de rodar: o spike serve para aprender a
+API, nunca para escolher configuração olhando desempenho; o número de
+intervalos vai à CV interna e a faixa de candidatos é declarada a priori.
+
+Ponte conferida hoje: rpy2 3.6.7, R 4.6.1, mdatools 0.16.0, plsVarSel
+0.10.0, pls 2.9.0, biblioteca de usuário em
+`~/R/x86_64-pc-linux-gnu-library/4.6`.
+
+Três achados, e o terceiro é o que justifica a ordem:
+
+1. **As folds do protocolo podem ser injetadas.** `mdatools::crossval`
+   começa com `if (is.numeric(cv) && length(cv) == nobj) return(...)` —
+   um vetor de rótulos de segmento é aceito como está. Como as `cv_folds`
+   de `evaluate` formam partição, a conversão é bem definida, e o braço
+   usa as folds do protocolo em vez das próprias. Fecha, para o iPLS, o
+   risco do ADR 001.
+2. **A centragem interna não vaza**: `cv.scope = "local"` é o default,
+   com centragem calculada dentro de cada segmento.
+3. **O critério de componentes conflita com o protocolo.** O corpo de
+   `selectCompNum.pls` tem exatamente dois ramos —
+   `switch(selcrit, wold = ..., min = ..., ncomp)`. A regra de um
+   erro-padrão não existe no mdatools; ela está no pacote `pls`, em
+   `selectNcomp(method = c("randomization", "onesigma"))`. Sem
+   tratamento, o A1 escolheria complexidade por um-erro-padrão e o A3 por
+   argmin — critério desigual entre braços, e exatamente o que a
+   orientação mandou remover em 14/09 ("seu PLS não é o mesmo objeto que
+   o PLS do artigo").
+
+**ADR 012 escrito** com esses achados. Decisões: `method = "forward"`;
+`int.num ∈ {10, 15, 20, 25, 30}` à CV interna, mesma faixa nos quatro
+conjuntos (a largura do intervalo varia com `p`, e isso é deliberado);
+folds injetadas; e `glob.ncomp` fixado no valor que a regra de um
+erro-padrão do `PLSArm` escolhe sobre o mesmo treino, em vez de usar o
+`ncomp.selcrit`. O critério é parâmetro do braço, então o código não fica
+bloqueado.
+
+Duas lacunas registradas no próprio ADR, para não passarem por decisão
+fundamentada: a faixa de `int.num` **não** foi conferida contra Nørgaard
+et al. (2000) — o artigo ainda não foi lido, é parte da revisão dirigida
+pendente —, e a ressalva de que fixar `glob.ncomp` pelo ajuste de espectro
+completo pode ser generoso demais para um subconjunto pequeno de
+intervalos.
+
+**Pergunta 10 aberta à orientação**, em `PERGUNTAS.md` e na tabela de
+decisões do `PROTOCOLO.md`: qual critério de componentes o iPLS deve usar.
+É metodológica, não de implementação, e cai na classe que a orientação
+pediu para levar em ADR.
+
+**Achado que pode atingir o critério de aceitação do Estágio 2.** O
+pipeline exige, como item não negociável, "reproduzir valores publicados
+de RMSEP para Tecator e Gasoline com iPLS e CARS, dentro da faixa
+reportada na literatura". Começando a revisão dirigida pela pergunta que
+decide se isso é executável, uma busca preliminar sugere que esses valores
+podem não existir:
+
+- **iPLS** (Nørgaard et al., 2000) usa um conjunto NIR de 60 amostras de
+  **cerveja**, alvo extrato original, RMSEP 0,17% plato. Não usa Tecator
+  nem Gasoline.
+- **CARS** (Li et al., 2009) aplica o método a NIR de produtos agrícolas,
+  **milho** entre eles. Sem menção a Tecator nem Gasoline.
+- Busca por trabalhos de terceiros que apliquem os dois métodos a esses
+  conjuntos não retornou nada. Há RMSEP publicado para o Tecator por
+  outros métodos, não por esses.
+
+**Natureza da evidência, para não valer mais do que vale:** três buscas na
+web, só em resumos, sem acesso aos textos completos. Ausência aí não é
+prova de ausência, e a revisão dirigida de verdade — com os artigos em
+mãos — pode desmentir. Registrado como suspeita a confirmar, não como
+conclusão.
+
+Se confirmado, três saídas: validar a implementação nos conjuntos dos
+artigos originais (o de cerveja parece disponível em pacote R, objeto
+`beer.ob` do `OHPL`); procurar trabalho de terceiros nesses conjuntos; ou
+redefinir o portão. A escolha é da orientação, e virou **pergunta 11** em
+`PERGUNTAS.md` e na tabela do `PROTOCOLO.md`.
+
+O motivo de perguntar agora, e não depois: o pipeline dá quatro semanas
+aos braços clássicos, e descobrir isso com os três prontos seria o
+"descobrir em outubro e refatorar" que a orientação alertou em 27/08.
+
+**`IPLSArm` implementado** (`src/tcc/arms/ipls.py`). O `rpy2` fica inteiro
+dentro do módulo, importado sob demanda — quem não usa o braço não precisa
+de R. Folds injetadas convertidas em vetor de segmentos, com conferência
+de que particionam as linhas em vez de assumir. Seleção **aninhada**: o
+`ipls` roda uma vez por fold, só sobre `fold_train`, mais uma vez sobre o
+treino inteiro para o ajuste final.
+
+Decisão de desenho que não estava no ADR e passou a estar: o `ipls` é
+usado só para **selecionar**; o modelo final é o mesmo `PLSRegression` do
+`PLSArm`. Assim A1 e A3 diferem por exatamente uma característica — o
+subconjunto de variáveis. Se o mdatools ajustasse o modelo, diferença de
+implementação do PLS entraria no termo da decomposição junto com o efeito
+da seleção.
+
+Detalhe de `rpy2` que custou uma volta: chamar o `ipls` **dentro** do
+contexto do conversor `numpy2ri` faz o retorno vir como `NamedList`, sem
+`rx2` nem acesso por nome — o objeto do R chega desmontado. Convertendo só
+os argumentos e chamando fora do contexto, volta um `ListVector` e os
+campos saem por nome. Está comentado no código para não ser redescoberto.
+
+**O verificador anti-vazamento reprovou o braço na primeira execução — e
+estava certo.** Com só o `int_num` fixo, perturbar as linhas de validação
+de um fold mudava a seleção daquele fold. A causa não era vazamento: o
+`glob_ncomp` era buscado pela regra de um erro-padrão sobre todo o
+`X_train`, agregando as folds, e entrava em todas as execuções do iPLS,
+inclusive nas de cada fold. É exatamente o falso positivo que o ADR 011
+antecipou ao exigir hiperparâmetro fixo. Corrigido tornando `glob_ncomp`
+parâmetro do braço; com os dois fixos, passa.
+
+Vale o registro de que o ponto fraco exposto era do **verificador**, não
+do braço — e que ele só apareceu no primeiro contato com um braço real,
+que era justamente a limitação que eu havia declarado ao escrever o ADR
+011.
+
+**Um erro meu no teste, corrigido.** Escrevi primeiro um teste afirmando
+que fixar só o `int_num` faz o verificador reprovar. Ele falhou: num
+problema sintético pequeno a perturbação não chega a mudar a escolha do
+`glob_ncomp`, e o verificador passa. Ou seja, eu tinha transformado um
+comportamento dependente dos dados em afirmação universal. O teste passou
+a verificar o **mecanismo** — que o valor fixo corta a busca, conferido
+pelo orçamento — e não o sintoma.
+
+**Custo medido no Tecator** (`seed_split=0`), que era a dúvida aberta
+sobre a seleção aninhada:
+
+| braço | R² | RMSEP | n_fits | tempo |
+|---|---|---|---|---|
+| A1 `pls_full` | 0,9660 | 2,2605 | 101 | 0,2 s |
+| A3 `ipls(int_num=20)` | 0,9710 | 2,0893 | 106 | 6,3 s |
+| A3 `ipls` (busca) | 0,9415 | 2,9656 | 151 | 23,7 s |
+
+Viável no Tecator. **Não** extrapolar daqui: o bioprocess tem n=6.472 e
+p=1.870, e o custo precisa ser medido lá antes de qualquer promessa sobre
+a grade. E os R² são de **uma** partição — não são resultado, são prova de
+que o encanamento funciona.
+
+Suíte: 84 passed, 1 skipped (5 testes novos, pulados onde não há R).
+
+**Auditoria adversarial do `IPLSArm`, feita logo depois de ele passar.**
+A suíte verde não é evidência de correção — foi o padrão de falha
+registrado em 25/08 e 28/08. Procurando erro em vez de confirmação, dois
+bugs reais:
+
+**Bug 1 — as folds internas do braço violavam o ADR 009.** O iPLS roda uma
+CV própria para pontuar intervalos, e eu a construía fatiando `arange(n)`
+em pedaços contíguos, ignorando os grupos de réplica. No Tecator não
+apareceu: há só 7 pares de réplicas e nenhum caía na fronteira de fatia.
+Num teste com réplicas densas — o padrão do Mango (em geral 2 leituras por
+fruto) e do bioprocess (toda amostra com 2+ espectros) — **664 grupos
+ficavam partidos**, com a mesma amostra física dos dois lados da CV
+interna. Vazamento invisível de fora do braço, e que só não explodiu
+porque o primeiro conjunto testado foi o de réplicas mais escassas.
+
+A raiz é do contrato: `Arm.fit` não recebe `dataset.groups`, então o braço
+não tem como respeitar a regra por conta própria. A correção evita mexer
+no contrato — as folds internas passam a ser os **outros blocos de
+validação das folds externas**, reindexados. A garantia é herdada de
+`_make_cv_folds`, sem o braço precisar conhecer os grupos. Confirmado: 664
+→ 0.
+
+**Bug 2 — o `n_fits` do iPLS era incomparável com o do PLS.** Cada chamada
+do `ipls` contava 1 ajuste, quando ela ajusta centenas de modelos por
+dentro. Medido: `n_fits` 6 para o A3 contra 101 do A1, com o A3 gastando
+~25× mais tempo. A tabela de custo do manuscrito diria o oposto da
+verdade, e o pipeline é explícito quanto ao propósito do campo ("se o
+GA-PLS consumir 40× mais ajustes que o MLP, isso precisa aparecer na
+tabela"). Passou a ser estimado a partir do que o mdatools reporta —
+iterações da busca forward em `int.stat`, intervalos restantes por
+iteração, segmentos de CV. Agora: 1.757 contra 101, razão de 17,4× em
+ajustes contra 24,6× em tempo, que é a ordem de grandeza certa. Declarado
+como **estimativa**, não contagem exata: o interior do pacote não é
+instrumentado.
+
+Nenhum dos dois mudou o resultado no Tecator (R² 0,9710, RMSEP 2,0893
+antes e depois), o que era esperado — o bug 1 não se manifesta nesse
+conjunto e o bug 2 só afeta contabilidade.
+
+Dois achados menores, um corrigido e um registrado: o `test_ipls.py`
+pulava com `importorskip("rpy2.robjects")`, que não cobre "rpy2 instalado,
+`mdatools` ausente" — agora confere o pacote R também. E o braço expõe
+`selection` do ajuste final, mas `evaluate()` ainda grava `None` no
+`Result`, porque a camada de seleção é o Estágio 4; fica como lacuna
+conhecida, não bug.
+
+Os dois bugs ganharam teste de regressão
+(`test_inner_folds_never_split_a_replicate_group` e
+`test_budget_reflects_the_real_cost_of_the_search`). Suíte: 86 passed,
+1 skipped.
+
+**Segunda vistoria do dia, por mutação sistemática.** Seis mutações no
+código novo, cada uma devendo fazer algum teste falhar. Três falharam como
+esperado (folds internas contíguas, `n_fits` voltando a contar 1, remoção
+da checagem de partição). **Três passaram verdes**, e a primeira é grave.
+
+**Achado grave — o teste anti-vazamento do iPLS passava por construção.**
+Com o `IPLSArm` selecionando deliberadamente sobre todo o `X_train` — o
+vazamento que o Estágio 2 proíbe —, a suíte inteira continuava verde.
+Mecanismo: o verificador injetava correlação espúria numa **única banda**,
+e o iPLS seleciona **intervalos inteiros**. No fixture (p=40, `int_num=5`,
+largura 8) a seleção era sempre o intervalo 1, que contém as bandas
+informativas; a banda perturbada caía no intervalo 2 e nunca vencia. A
+seleção era invariante à perturbação, vazando ou não. É o mesmo padrão de
+25/08 e 28/08 — invariante testado com um braço insensível ao mecanismo —
+agora ocorrido no próprio teste escrito para evitá-lo.
+
+Alargar a perturbação para um intervalo inteiro **não** resolveu: uma
+perturbação que alcança um terço das linhas não faz um intervalo ruim
+superar um bom. A correção mudou a natureza da perturbação — em vez de
+promover um perdedor, **destruir o vencedor**. O verificador já calcula a
+seleção-base, então agora arruína, só nas linhas de validação daquele
+fold, exatamente as bandas que ele havia escolhido. Quem enxerga aquelas
+linhas vê como ruidosas as bandas de que mais gostava e troca; quem não as
+enxerga não nota. Funciona em qualquer granularidade, e dispensa afinar a
+largura por método. Confirmado: a mutação do vazamento agora **falha**.
+
+Acrescentado `_LeakyIPLSArm` e `test_check_catches_ipls_that_sees_the_validation_fold`,
+para que o teste do braço real tenha a mesma prova de dentes que as sondas
+sintéticas já tinham.
+
+**Achado médio — a decisão de pré-processamento não tinha teste.** Reverter
+o default do `evaluate()` de SNV para `Identity` não quebrava nada. Uma
+decisão de protocolo aprovada pela orientação podia ser desfeita em
+silêncio. Corrigido com `test_evaluate_applies_snv_by_default`, que confere
+a assinatura do SNV no que chega ao braço (cada espectro com média 0 e
+desvio 1).
+
+**Achado baixo — o contrato do ADR 011 não estava testado.** `cv_selections`
+devolvendo `[]` em vez de `None` nos braços sem seleção não quebrava nada,
+e a distinção importa para o Estágio 4: `None` é "não se aplica", lista
+vazia seria "selecionou nada". Corrigido com
+`test_arms_without_selection_report_none`.
+
+**Duas imprecisões de documentação, também corrigidas.**
+
+1. O ADR 012 afirmava que `glob.ncomp` **e** `int.ncomp` eram fixados no
+   valor da regra de um erro-padrão. O código nunca fez isso com o
+   `int.ncomp`: ele recorta pela largura do intervalo, porque um PLS com
+   mais componentes que variáveis é degenerado. A consequência estava sem
+   declaração e enfraquece a uniformidade prometida — nos candidatos
+   maiores da faixa `int.num`, a complexidade dentro do intervalo fica
+   abaixo do valor da regra, enquanto o A1 usa o valor cheio. Agora está
+   escrito.
+2. O comentário do `n_fits` dizia que cada iteração da busca forward
+   ocupa uma linha de `int.stat`. Conferido: a primeira linha é o modelo
+   global de espectro completo (`n = 0`, `selected = FALSE`), e
+   `nrow = 1 + intervalos selecionados`. A aritmética sobrevive por
+   coincidência — a busca que aceita `s` intervalos faz `s + 1` passadas,
+   e `nrow` também vale `s + 1` —, mas a justificativa estava errada.
+   Registrada a coincidência, porque uma mudança no formato da tabela
+   quebraria a estimativa em silêncio.
+
+As três correções de teste foram reconfirmadas por mutação: as três
+mutações que passavam verdes agora falham, e os arquivos foram restaurados
+com hash conferido. Suíte: 89 passed, 1 skipped.
+
+**Limitação desta vistoria.** Foi feita por quem escreveu o código, no
+mesmo dia. O achado grave era o tipo de coisa que um revisor independente
+encontraria mais rápido, e não há como saber o que continua invisível pelo
+mesmo motivo. Uma vistoria em sessão nova, como a de 27/08, continua
+valendo.
+
+**Próximo**
+Medir o custo do `IPLSArm` nos outros três conjuntos, sobretudo no
+bioprocess, antes de seguir para o CARS. Se a seleção aninhada não couber
+lá, isso é resultado e vira decisão de protocolo.

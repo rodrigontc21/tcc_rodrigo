@@ -52,6 +52,27 @@ class FittedArm(Protocol):
         braços sem busca de hiperparâmetro (nada foi validado internamente)."""
         ...
 
+    @property
+    def cv_selections(self) -> list[set[int]] | None:
+        """Bandas escolhidas DENTRO de cada fold da CV interna, na ordem de
+        `cv_folds`. `None` para braços sem seleção de variáveis (ADR 011).
+
+        Existe para que a armadilha central do Estágio 2 seja verificável:
+        a seleção do fold i tem que depender só de `fold_train[i]`. Sem
+        este campo, um braço que selecione bandas vendo a partição de
+        validação é indistinguível de um honesto pelo lado de fora — as
+        duas coisas produzem o mesmo `Result`.
+
+        Não entra no `Result` e `evaluate` não o lê: auditoria de fold é
+        verificação de contrato, não métrica, e o Estágio 6 exige que as
+        métricas sejam funções puras sobre `results/`. O campo `selection`
+        do `Result` continua sendo o do ajuste final (Estágio 4).
+
+        Autodeclarado, como `n_fits` e `rmse_cv`: prova-se a localidade do
+        que foi reportado, não que o reportado seja o executado.
+        """
+        ...
+
 
 @runtime_checkable
 class Arm(Protocol):

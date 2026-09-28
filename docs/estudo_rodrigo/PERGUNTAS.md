@@ -117,6 +117,75 @@ publicados.
 
 ---
 
+### 10. Critério de número de componentes no iPLS — [trava o portão do Estágio 2]
+Aberta em: 2026-09-28
+
+O `PLSArm` escolhe componentes pela regra de um erro-padrão, como o senhor
+apontou em 14/09 e como o artigo de referência faz (`selectNcomp` do
+pacote `pls`, método `onesigma`). O `mdatools`, que o ADR 008 propõe para
+o iPLS, não oferece essa regra: o `ncomp.selcrit` dele aceita só `"min"`
+(argmin puro, o default) e `"wold"` — conferi no corpo de
+`selectCompNum.pls`, que tem exatamente esses dois ramos.
+
+Do jeito que vem, o A1 escolheria complexidade por um-erro-padrão e o A3
+por argmin — critérios diferentes entre braços, o que me parece ferir o
+ajuste justo.
+
+No [ADR 012](../ADR/012-ipls-via-mdatools.md) propus fixar `glob.ncomp` no
+valor que a nossa regra de um erro-padrão escolhe sobre o mesmo treino,
+deixando o mdatools cuidar só da busca de intervalos. A ressalva é que um
+subconjunto de intervalos tem menos variáveis que o espectro inteiro, e o
+número de componentes justificável muda com isso — fixar pelo ajuste de
+espectro completo pode ser generoso demais.
+
+O senhor concorda com essa saída, prefere aceitar o `"min"` do mdatools
+declarando a divergência como limitação, ou vê um caminho melhor?
+
+**Resposta:**
+
+---
+
+### 11. O portão do Estágio 2 é executável como está escrito? — [trava o critério de aceitação do Estágio 2]
+Aberta em: 2026-09-28
+
+O pipeline põe como critério não negociável do Estágio 2: "antes de
+qualquer comparação com braços neurais, reproduzir valores publicados de
+RMSEP para Tecator e Gasoline com iPLS e CARS, dentro da faixa reportada
+na literatura".
+
+Fazendo a revisão dirigida, uma busca preliminar (só resumos, sem acesso
+aos textos completos) sugere que esses valores talvez não existam:
+
+- **iPLS**, Nørgaard et al. (2000): o artigo original usa um conjunto NIR
+  de 60 amostras de **cerveja**, prevendo extrato original, com RMSEP de
+  0,17% plato. Não usa Tecator nem Gasoline.
+- **CARS**, Li et al. (2009): aplica o método a NIR de produtos
+  agrícolas, **milho** entre eles. Não vi menção a Tecator nem Gasoline.
+- Procurei também trabalhos de terceiros que aplicassem iPLS ou CARS a
+  esses dois conjuntos e não encontrei — há RMSEP publicado para o
+  Tecator por outros métodos, mas não por esses dois.
+
+A ressalva é grande: foi busca superficial, em resumos, e ausência aí não
+é prova de ausência.
+
+Se os valores realmente não existirem, vejo três saídas e não sei qual o
+senhor prefere:
+
+1. validar a implementação nos conjuntos dos artigos originais (cerveja
+   para o iPLS, milho para o CARS) — o de cerveja parece estar disponível
+   em pacote R. Valida a implementação, que me parece ser o que o portão
+   quer, ainda que não nos conjuntos deste trabalho;
+2. continuar procurando trabalho de terceiros nesses conjuntos;
+3. redefinir o portão.
+
+Pergunto agora porque o pipeline dá quatro semanas aos braços clássicos,
+e descobrir isso com os três braços prontos seria exatamente o
+"descobrir em outubro e refatorar" que o senhor me alertou em 27/08.
+
+**Resposta:**
+
+---
+
 ## Respondidas
 
 ### [x] 4. Conjuntos de dados 3 e 4
