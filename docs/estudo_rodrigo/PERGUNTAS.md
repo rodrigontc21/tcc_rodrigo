@@ -52,11 +52,39 @@ código do Guilherme Coelho?
 
 ### 6. Linguagem dos braços clássicos
 Aberta em: 2026-08-20
+Enviada em: 2026-09-21 (sem resposta)
+Reescrita em: 2026-09-28 — a versão anterior dizia que o `plsVarSel` tinha
+CARS, o que não é verdade
 
-O pipeline recomenda preferir implementações estabelecidas a reescrever. Boa
-parte das implementações consagradas de iPLS, CARS e GA-PLS está em pacotes R
-(`mdatools`, `plsVarSel`). O senhor prefere implementação em Python, ou o uso
-dos pacotes R via `rpy2` nos braços clássicos?
+O pipeline recomenda preferir implementações estabelecidas a reescrever, e
+não indica linguagem — todos os blocos de código dele são Python. Fui
+atrás de onde estão as implementações estabelecidas, método a método:
+
+- **iPLS**: `mdatools`, em R;
+- **GA-PLS**: `plsVarSel`, em R;
+- **VIP**: é fórmula fechada sobre pesos e loadings do PLS, faço direto em
+  Python, sem atravessar a ponte;
+- **CARS**: nenhum dos dois tem. Conferi no ambiente — o `plsVarSel`
+  exporta 31 funções e nenhuma é CARS. Eu tinha escrito o contrário no
+  ADR 008, sem verificar.
+
+Segui pelo R para o iPLS e o GA-PLS, com o `rpy2` isolado atrás da
+interface `Arm`, e por isso migrei o ambiente para o Linux (o `rpy2` não
+funciona bem no Windows, e exigiu atualizar o R de 4.3.3 para 4.6.1). O
+iPLS já está implementado e passando nos testes.
+
+**Para o CARS, decidi e registrei no ADR 008**, em vez de trazer a escolha
+solta: vou usar o `libPLS`, a biblioteca do grupo do Hongdong Li, primeiro
+autor do artigo que define o CARS, com artigo próprio publicado no
+*Chemometrics and Intelligent Laboratory Systems*. A alternativa seria o
+`carsAlgo`, do CRAN, que se descreve como "inspired from the work of Li et
+al. (2009)" — reimplementação de terceiros, que é justamente o que não
+serve para o portão. O libPLS não é pacote, são arquivos soltos, então a
+proveniência fica por commit fixo e `sha256`, como fiz com o tarball do
+`pls` e o CSV do Mango.
+
+**O senhor aprova o caminho em R para o iPLS e o GA-PLS?** E vê problema
+em usar o libPLS para o CARS?
 
 **Resposta:**
 
@@ -117,29 +145,45 @@ publicados.
 
 ---
 
-### 10. Critério de número de componentes no iPLS — [trava o portão do Estágio 2]
-Aberta em: 2026-09-28
+### 10. Critério de número de componentes dentro da busca de intervalos do iPLS — [trava o portão do Estágio 2]
+Aberta em: 2026-09-28 (reescrita no mesmo dia — a primeira versão descrevia
+o mecanismo errado)
 
 O `PLSArm` escolhe componentes pela regra de um erro-padrão, como o senhor
 apontou em 14/09 e como o artigo de referência faz (`selectNcomp` do
-pacote `pls`, método `onesigma`). O `mdatools`, que o ADR 008 propõe para
-o iPLS, não oferece essa regra: o `ncomp.selcrit` dele aceita só `"min"`
-(argmin puro, o default) e `"wold"` — conferi no corpo de
-`selectCompNum.pls`, que tem exatamente esses dois ramos.
+pacote `pls`, método `onesigma`). O `mdatools` não oferece essa regra: o
+`ncomp.selcrit` dele aceita só `"min"` (o default) e `"wold"`.
 
-Do jeito que vem, o A1 escolheria complexidade por um-erro-padrão e o A3
-por argmin — critérios diferentes entre braços, o que me parece ferir o
-ajuste justo.
+O ponto é onde esse critério age. Dentro do `ipls.forward`, **cada
+intervalo candidato é ajustado e pontuado com o `ncomp.selcrit`**, e o
+vencedor de cada passada sai do RMSE calculado com o número de componentes
+que aquele critério escolheu para aquele intervalo. Medido no Tecator
+(`seed_split` 0, teto 8, 20 intervalos):
 
-No [ADR 012](../ADR/012-ipls-via-mdatools.md) propus fixar `glob.ncomp` no
-valor que a nossa regra de um erro-padrão escolhe sobre o mesmo treino,
-deixando o mdatools cuidar só da busca de intervalos. A ressalva é que um
-subconjunto de intervalos tem menos variáveis que o espectro inteiro, e o
-número de componentes justificável muda com isso — fixar pelo ajuste de
-espectro completo pode ser generoso demais.
+| `ncomp.selcrit` | componentes por intervalo | bandas selecionadas |
+|---|---|---|
+| `"min"` | 5, 5, 4, 6, 4 | 20 |
+| `"wold"` | 4, 2, 3, 5, 4, 3, 3 | 30 |
 
-O senhor concorda com essa saída, prefere aceitar o `"min"` do mdatools
-declarando a divergência como limitação, ou vê um caminho melhor?
+Ou seja: o número de componentes varia de intervalo para intervalo, e
+trocar o critério **muda quais bandas são selecionadas**.
+
+Consequência: mesmo fixando `glob.ncomp` no valor da nossa regra de um
+erro-padrão — que é o que implementei —, ele funciona só como **teto**. A
+complexidade que de fato decide a seleção continua vindo do critério do
+mdatools. Alinhar de verdade exigiria aplicar a regra de um erro-padrão
+dentro de cada candidato de intervalo, o que significa reimplementar por
+fora a busca do pacote, e aí o argumento de "usar implementação
+estabelecida" se perde.
+
+Três saídas, e não sei qual o senhor prefere:
+
+1. aceitar o `"min"` do mdatools dentro da seleção e declarar a divergência
+   como limitação, mantendo o `glob.ncomp` como teto pela nossa regra;
+2. usar `"wold"`, que é menos agressivo que o mínimo puro, se o senhor o
+   considerar mais próximo da regra de um erro-padrão;
+3. reimplementar a busca de intervalos por fora, para que a regra seja a
+   mesma em todos os braços, abrindo mão da implementação de referência.
 
 **Resposta:**
 
@@ -181,6 +225,92 @@ senhor prefere:
 Pergunto agora porque o pipeline dá quatro semanas aos braços clássicos,
 e descobrir isso com os três braços prontos seria exatamente o
 "descobrir em outubro e refatorar" que o senhor me alertou em 27/08.
+
+**Resposta:**
+
+---
+
+### 12. Que critério deve escolher o número de intervalos do iPLS? — [trava o Estágio 2]
+Aberta em: 2026-09-28
+
+Implementei a escolha de `int.num` com a mesma regra de um erro-padrão do
+PLS: entre os candidatos dentro de um erro-padrão do mínimo, fica o menor.
+No PLS isso é parcimônia — menos componentes, modelo mais simples. No iPLS
+**o sinal se inverte**, e eu não tinha percebido: menos intervalos
+significa intervalos mais largos, logo mais bandas retidas. Medido no
+Tecator, `seed_split` 0:
+
+| `int.num` | largura | bandas selecionadas |
+|---|---|---|
+| 10 | 10 | 30 |
+| 20 | 5 | 10 |
+| 30 | 3 | 6 |
+
+O menor `int.num` é o **menos** parcimonioso na grandeza que importa num
+método de seleção, que é o número de variáveis. Nesse mesmo `seed_split` o
+menor erro de CV estava em 25, a regra escolheu 10, e o R² no teste externo
+caiu de 0,9710 (com 20) para 0,9415.
+
+Não mudei nada, de propósito: trocar o critério depois de ver esses números
+seria escolher regra olhando resultado. Deixei a regra atual declarada no
+[ADR 012](../ADR/012-ipls-via-mdatools.md) com o defeito exposto, para o
+senhor decidir entre:
+
+1. manter como está (menor `int.num` dentro de um erro-padrão), aceitando a
+   inversão como consequência declarada;
+2. inverter o desempate — entre os candidatos dentro de um erro-padrão,
+   ficar com o **maior** `int.num`, ou seja, o de menos bandas;
+3. desempatar diretamente pelo número de bandas retidas, e não pelo número
+   de intervalos;
+4. argmin puro do erro de CV, sem regra de um erro-padrão neste
+   hiperparâmetro.
+
+Se a regra mudar, os números do iPLS no Tecator que registrei precisam ser
+refeitos.
+
+**Resposta:**
+
+---
+
+### 13. Escalonamento na seleção de intervalos do iPLS — [afeta a H5]
+Aberta em: 2026-09-28
+
+O `mdatools` pontua os intervalos com `center = TRUE, scale = FALSE`, que é
+o default dele. O `PLSRegression` que ajusta o modelo final autoescala, que
+é o default do scikit-learn e o que o nosso PLS (A1) usa. Então os
+intervalos são escolhidos sob uma métrica e o modelo é ajustado sob outra.
+
+Medi o tamanho do efeito no Tecator, `int.num = 20`, seis `seed_split` da
+faixa exploratória:
+
+| `seed_split` | Jaccard entre as duas seleções | R² (FALSE) | R² (TRUE) |
+|---|---|---|---|
+| 0 | 0,333 | 0,9710 | 0,9669 |
+| 1 | 0,500 | 0,9549 | 0,9526 |
+| 2 | 0,750 | 0,9735 | 0,9712 |
+| 3 | 1,000 | 0,9722 | 0,9722 |
+| 4 | 0,182 | 0,9685 | 0,9651 |
+| 5 | 1,000 | 0,9710 | 0,9710 |
+
+Na acurácia não muda nada — terceira casa decimal, sem vencedor
+consistente. Mas o Jaccard médio entre as duas configurações é 0,63: mais
+de um terço do conjunto de bandas muda só por causa dessa opção.
+
+É isso que me preocupa. A H5 é sobre reprodutibilidade do conjunto de
+bandas, medida por Jaccard. Se uma opção de escalonamento não declarada
+move o Jaccard nessa magnitude, parte do que eu atribuiria ao método pode
+ser efeito de um default de pacote.
+
+Deixei `scale` como parâmetro, com o default `FALSE` do pacote preservado,
+sem mudar nada. Eu defenderia alinhar o seletor ao regressor
+(`scale = TRUE`), porque o intervalo deveria ser escolhido sob a mesma
+geometria em que o modelo será julgado. O argumento contrário é que
+`FALSE` é o default da implementação de referência, e o pipeline manda
+preferir implementação estabelecida. O senhor prefere qual?
+
+(Descartei desligar o autoescalonamento do nosso PLS no A3: aí o A3
+deixaria de usar o mesmo regressor do A1, e a decomposição perderia a
+propriedade de os braços diferirem por exatamente uma característica.)
 
 **Resposta:**
 

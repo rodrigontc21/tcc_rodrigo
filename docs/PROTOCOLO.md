@@ -79,13 +79,20 @@ foi tomada.
   14/09/2026, que o seletor usava argmin puro. Foi essa correção que
   reverteu a escolha de pré-processamento (ver "Pré-processamento").
 
-**Parcialmente resolvido ([ADR 011](ADR/011-selecao-por-fold-observavel.md),
-28/09/2026).** `FittedArm` passou a expor `cv_selections` — as bandas
-escolhidas dentro de cada fold —, e com isso a armadilha central do
-Estágio 2 virou verificável: `assert_selection_is_fold_local`, em
+**Parcialmente resolvido em código, com o ADR ainda `proposto`
+([ADR 011](ADR/011-selecao-por-fold-observavel.md), 28/09/2026).**
+`FittedArm` passou a expor `cv_selections` — as bandas escolhidas dentro
+de cada fold —, e com isso a armadilha central do Estágio 2 virou
+verificável: `assert_selection_is_fold_local`, em
 `tests/test_selection_leakage.py`, falha se a seleção de um fold mudar
 quando as linhas de validação daquele fold são perturbadas. O campo não
 entra no `Result`: auditoria de fold é contrato, não métrica.
+
+Ressalva de status, para esta subseção não ser lida como decidida: o
+ADR 011 **não foi aprovado pela orientação** — o código está implementado
+e testado, e a aprovação é pendente, como nos ADRs 008, 009, 010 e 012.
+O cabeçalho "(decidido)" desta seção vale para as folds derivarem de
+`seed_split`, que é o ADR 001, aceito.
 
 **Em aberto**
 - O caso grosseiro do achado do ADR 001 é detectado (um braço cujo
@@ -346,10 +353,12 @@ Referência às perguntas pendentes em `docs/estudo_rodrigo/PERGUNTAS.md`:
 | 7 | Cálculo do prior dentro da CV interna, como os selecionadores clássicos | Estágio 3 |
 | 8 | Semente algorítmica na grade principal — diagonal vs. média sobre réplicas | Estágio 5 |
 | 9 | Divisão 48/12 do Gasoline no protocolo da literatura — `train_test_split(test_size=0.2, random_state=42)`, inferida pela reprodução dos números publicados ([ADR 010](ADR/010-divisao-de-literatura-do-gasoline.md), proposto) | Portão de validação do Estágio 2 (ADR 010) |
-| 10 | Critério de número de componentes no iPLS — o `mdatools` só oferece argmin e Wold, não a regra de um erro-padrão que o `PLSArm` usa ([ADR 012](ADR/012-ipls-via-mdatools.md), proposto) | Portão de validação do Estágio 2 (ADR 012) |
+| 10 | Critério de componentes DENTRO da busca de intervalos do iPLS — o `mdatools` decide por intervalo pelo `ncomp.selcrit`, e trocá-lo muda a seleção; o `glob.ncomp` da nossa regra é só teto ([ADR 012](ADR/012-ipls-via-mdatools.md), proposto) | Portão de validação do Estágio 2 (ADR 012) |
 | 11 | O portão do Estágio 2 é executável como está escrito? Busca preliminar não achou RMSEP publicado de iPLS nem de CARS no Tecator ou no Gasoline — os artigos originais usam cerveja e milho | Critério de aceitação do Estágio 2 |
+| 12 | Critério de escolha do número de intervalos do iPLS — a regra em vigor fica com o menor `int.num`, que retém MAIS bandas: a parcimônia está invertida ([ADR 012](ADR/012-ipls-via-mdatools.md), proposto) | Estágio 2 (ADR 012) |
+| 13 | Escalonamento na seleção de intervalos — o mdatools pontua sem autoescalonamento e o PLS final autoescala; Jaccard médio de 0,63 entre as duas configurações, o que atinge a H5 ([ADR 012](ADR/012-ipls-via-mdatools.md), proposto) | Estágio 2 e leitura da H5 |
 
-Das nove, as nº 4 e 5 têm decisão registrada até o momento: ADR 004 e
+Das treze, as nº 4 e 5 têm decisão registrada até o momento: ADR 004 e
 ADR 006 aceitos; ADR 007 aprovado com pendência (distribuição dos 488). Fora
 dessa fila numerada, a Tarefa D — dois modos de protocolo — também já foi
 decidida, em reunião de orientação e não por pergunta escrita

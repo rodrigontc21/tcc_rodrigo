@@ -22,5 +22,11 @@ results/*
 # mensagens privadas e anexos de terceiros, entre eles o TCC de outro
 # aluno — o repositório é público. Fica no disco, fora do versionamento.
 docs/orientacao/
+# código-fonte do pgsg (repositório do grupo, cedido pela orientação em
+# 29/09/2026): é material de terceiros e traz manuscritos de revisão ainda
+# não publicados, além dos CSVs de espectros. Serve de consulta — a
+# proveniência do que for usado entra em ADR, como no ADR 004. Não é nosso
+# para republicar num repositório público.
+docs/fontes/prior-guided-spectral-gating-main/
 docs/PERGUNTAS.md
 commit_msg.txt

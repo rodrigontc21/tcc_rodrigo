@@ -108,38 +108,164 @@ canais cada; no Gasoline (p=401), 20; no Mango (p=306), 15; no bioprocess
 (p=1870), 93. Isso é deliberado — o número de intervalos é o parâmetro
 ajustável, não a largura.
 
-**Número de componentes.** `ncomp.selcrit` do mdatools não é usado para
-decidir complexidade. Em vez disso, `glob.ncomp` é fixado no valor que a
-regra de um erro-padrão do `PLSArm` escolhe sobre o mesmo `X_train` e as
-mesmas folds. Assim a regra de complexidade é a mesma em
-todos os braços, e o mdatools faz o que ele faz bem — a busca de
-intervalos.
+**O valor pedido não é sempre o executado** (medido em 28/09/2026, achado
+de vistoria independente). O mdatools converte o número de intervalos em
+largura, arredonda essa largura, e recalcula quantos intervalos cabem em
+`p`. Nos três conjuntos com `p` conhecido:
 
-Ressalva declarada, e é séria: um subconjunto de intervalos tem menos
-variáveis que o espectro inteiro, e o número de componentes justificável
-muda com isso. Fixar pelo ajuste de espectro completo pode ser generoso
-demais para um subconjunto pequeno. A alternativa — aplicar a regra de um
-erro-padrão dentro de cada candidato de intervalo — exigiria reimplementar
-por fora a busca do mdatools, o que anula a razão de usar o pacote.
+| conjunto | pedido → executado |
+|---|---|
+| Tecator (p=100) | 15 → 14, 30 → 33 |
+| Mango (p=306) | 25 → 26, 30 → 31 |
+| Gasoline (p=401) | 30 → 31 |
 
-**`int.ncomp` é recortado pela largura do intervalo, e isso limita a
-afirmação acima.** Um PLS com mais componentes que variáveis é
-degenerado, e com `int.num` alto os intervalos ficam estreitos — no
-Tecator (p=100), `int.num = 30` dá intervalos de 3 canais. O código usa
-`int.ncomp = min(glob.ncomp, largura)`. A consequência, declarada porque
-enfraquece a uniformidade prometida: **nos candidatos maiores da faixa, a
-complexidade dentro do intervalo fica abaixo do valor da regra de um
-erro-padrão**, enquanto o A1 usa o valor cheio. A regra é a mesma; o valor
-efetivo nem sempre. A alternativa seria restringir a faixa de `int.num`
-para que a largura nunca desça abaixo de `glob.ncomp`, o que amarraria a
-faixa ao conjunto e ao alvo — mais arbitrário que o recorte.
+A faixa realmente avaliada, portanto, não é `{10, 15, 20, 25, 30}` em
+todos os conjuntos. O objeto devolvido pelo pacote carrega o valor
+executado, e é ele que vai ao `hyperparams`, no campo
+`int_num_executed`, ao lado do pedido: registrar só o pedido descreveria
+um experimento que não aconteceu. Nenhuma correção é aplicada ao valor —
+forçar o número exato exigiria passar `int.limits` à mão, o que
+substituiria a divisão do pacote pela nossa e sairia do "usar
+implementação estabelecida".
 
-(Uma primeira versão deste ADR dizia que `int.ncomp` também era fixado no
-valor da regra, o que o código nunca fez. Corrigido em 28/09/2026, numa
-vistoria do próprio dia.)
+**Regra de desempate entre candidatos** (acrescentada em 28/09/2026: o
+código a aplicava desde o início e este ADR não a declarava — omissão
+apontada por vistoria independente).
 
-O critério é **parâmetro do braço**, com o valor acima como default
-proposto. Trocá-lo é mudança de uma linha.
+O `int_num` é escolhido pela mesma regra de um erro-padrão do `PLSArm`:
+entre os candidatos cujo RMSE de CV fica dentro de um erro-padrão do
+mínimo, fica o **menor** `int_num`.
+
+**Essa regra tem o sinal invertido, e fica registrada como problema, não
+como decisão defendida.** No `PLSArm`, "menor candidato" significa menos
+componentes, logo modelo mais simples — a regra faz sentido. Aqui, menos
+intervalos significa intervalos **mais largos**, logo **mais** bandas
+retidas. Medido no Tecator, `seed_split` 0:
+
+| `int.num` | largura | bandas selecionadas |
+|---|---|---|
+| 10 | 10 | 30 |
+| 15 | 6 | 35 |
+| 20 | 5 | 10 |
+| 25 | 4 | 8 |
+| 30 | 3 | 6 |
+
+O menor `int_num` é o menos parcimonioso em número de variáveis, que é a
+grandeza que importa num método de seleção. No mesmo `seed_split`, o menor
+erro de CV estava em `int.num = 25`, a regra escolheu 10, e o resultado no
+teste externo caiu de R² 0,9710 (com 20 fixo) para 0,9415.
+
+**Nada é alterado agora, deliberadamente.** Trocar o critério depois de
+ver esses números seria escolher regra olhando resultado, que é o que o
+pré-registro proíbe. A regra em vigor continua declarada como está, com o
+defeito exposto, e a escolha vai à orientação (**pergunta 12**). Se ela
+mudar, os números do Tecator registrados no DIARIO de 28/09 precisam ser
+refeitos, e isso está anotado lá.
+
+**Número de componentes — o que o pacote realmente faz.** Esta seção foi
+reescrita em 28/09/2026, depois de uma vistoria independente mostrar que a
+versão anterior descrevia o mecanismo errado. O registro do erro fica no
+fim da seção, porque ele afeta o que já foi perguntado à orientação.
+
+Dentro de `ipls.forward`, **cada intervalo candidato é ajustado e pontuado
+com o `ncomp.selcrit`**, que por padrão é `"min"`; o vencedor de cada
+passada sai do RMSE calculado com o `ncomp.selected` daquele intervalo. Ou
+seja, a complexidade usada na seleção é escolhida **por intervalo, pelo
+critério do mdatools**, e não fixada por fora. O `glob.ncomp` define o
+modelo global — que não participa da escolha dos intervalos — e serve de
+**teto** via `int.ncomp`.
+
+Evidência (Tecator, `seed_split` 0, teto 8, `int.num` 20):
+
+| `ncomp.selcrit` | nComp escolhido por intervalo | bandas selecionadas |
+|---|---|---|
+| `"min"` | 5, 5, 4, 6, 4 | 20 |
+| `"wold"` | 4, 2, 3, 5, 4, 3, 3 | 30 |
+
+Os dois fatos que isso estabelece: o número de componentes **varia entre
+intervalos**, logo não está fixado; e **trocar o critério muda a seleção**,
+logo ele não é inerte. Com o teto 3 que a regra de um erro-padrão devolve
+na `seed_split` 0 o efeito não aparece, o que explica por que passou
+despercebido.
+
+**Decisão.** `glob.ncomp` continua fixado no valor da regra de um
+erro-padrão do `PLSArm`, como teto — isso é real e continua valendo. Mas a
+afirmação de que "a regra de complexidade é a mesma em todos os braços"
+**não se sustenta**: dentro da busca de intervalos, quem decide é o
+`ncomp.selcrit`. O parâmetro fica exposto no braço, com `"min"` como
+default do pacote, e a escolha vai à orientação (pergunta 10).
+
+Alinhar de verdade exigiria aplicar a regra de um erro-padrão dentro de
+cada candidato de intervalo, o que significa reimplementar por fora a
+busca do mdatools — e anula a razão de usar o pacote. É a tensão que a
+pergunta 10 leva à orientação.
+
+**`int.ncomp` é recortado pela largura do intervalo.** Um PLS com mais
+componentes que variáveis é degenerado, e com `int.num` alto os intervalos
+ficam estreitos — no Tecator (p=100), `int.num = 30` deixa cerca de 3
+canais por intervalo pela conta do braço, e 33 intervalos pela do pacote
+(ver "O valor pedido não é sempre o executado", acima). O código usa
+`int.ncomp = min(glob.ncomp, largura)`, com a largura calculada pelo braço
+como `p // int.num`, então o teto
+efetivo cai nos candidatos maiores da faixa. A alternativa seria restringir
+a faixa de `int.num` para que a largura nunca desça abaixo de
+`glob.ncomp`, o que amarraria a faixa ao conjunto e ao alvo — mais
+arbitrário que o recorte.
+
+**Registro do erro.** Até 28/09/2026 este ADR afirmava que o
+`ncomp.selcrit` "não é usado para decidir complexidade" e que `glob.ncomp`
+e `int.ncomp` eram fixados no valor da regra de um erro-padrão. As três
+afirmações eram falsas: o `selcrit` decide, o `int.ncomp` sempre foi
+recortado pela largura, e o `glob.ncomp` é teto e não valor efetivo. A
+evidência já estava à vista desde o spike — a coluna `nComp` do `int.stat`
+mostrava valores diferentes por linha — e não foi lida. A **pergunta 10**
+foi escrita sobre essa premissa e teve de ser reescrita antes de ir à
+orientação.
+
+**Escalonamento — seletor e regressor otimizam geometrias diferentes.**
+O `mdatools` pontua os intervalos com `center = TRUE, scale = FALSE`, que
+é o default do pacote. O `PLSRegression` que ajusta o modelo final
+autoescala, que é o default do scikit-learn e o que o `PLSArm` (A1) usa.
+Ou seja, os intervalos são escolhidos sob uma métrica e o modelo entregue
+é ajustado sob outra.
+
+Efeito medido no Tecator, `int.num = 20`, seis `seed_split` da faixa
+exploratória, comparando a seleção com `scale = FALSE` e com
+`scale = TRUE`:
+
+| `seed_split` | bandas (FALSE) | bandas (TRUE) | Jaccard | R² (FALSE) | R² (TRUE) |
+|---|---|---|---|---|---|
+| 0 | 10 | 10 | 0,333 | 0,9710 | 0,9669 |
+| 1 | 15 | 30 | 0,500 | 0,9549 | 0,9526 |
+| 2 | 20 | 15 | 0,750 | 0,9735 | 0,9712 |
+| 3 | 10 | 10 | 1,000 | 0,9722 | 0,9722 |
+| 4 | 50 | 15 | 0,182 | 0,9685 | 0,9651 |
+| 5 | 10 | 10 | 1,000 | 0,9710 | 0,9710 |
+
+**O efeito é desprezível na acurácia e grande na seleção.** As diferenças
+de R² ficam na terceira casa e sem vencedor consistente. Já o Jaccard
+médio entre as duas configurações é 0,63 — mais de um terço do conjunto de
+bandas muda por causa de uma opção de escalonamento que ninguém declarou.
+
+Isso importa desproporcionalmente neste trabalho: a **H5 é sobre
+reprodutibilidade do conjunto de bandas, medida por Jaccard**. Uma escolha
+de implementação que move o Jaccard nessa magnitude não pode ficar
+implícita, sob pena de o efeito atribuído ao método ser, em parte, efeito
+de um default de pacote.
+
+**Nada é alterado agora.** `scale` vira parâmetro do braço, com o default
+`False` do pacote preservado, e a escolha vai à orientação
+(**pergunta 13**). A proposta que eu defenderia é alinhar o seletor ao
+regressor (`scale = TRUE`), porque o intervalo deveria ser escolhido sob a
+mesma geometria em que o modelo final será julgado; o argumento contrário
+é que `FALSE` é o default da implementação de referência, e o pipeline
+manda preferir implementação estabelecida. Não é decisão que eu deva tomar
+sozinho.
+
+Descartada de saída uma terceira via — desligar o autoescalonamento do
+`PLSRegression` no A3 —, porque aí o A3 deixaria de usar o mesmo regressor
+do A1 e a decomposição perderia a propriedade de os braços diferirem por
+exatamente uma característica.
 
 **Seleção aninhada.** O `mdatools::ipls` escolhe os intervalos pela CV
 agregada sobre todas as folds, então uma chamada devolve **uma** seleção,

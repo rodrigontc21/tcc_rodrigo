@@ -70,11 +70,18 @@ def _select_intervals(
     segments: np.ndarray,
     int_num: int,
     glob_ncomp: int,
-) -> tuple[set[int], int]:
+    scale: bool = False,
+) -> tuple[set[int], int, int]:
     """Uma execução do `mdatools::ipls`.
 
-    Devolve `(canais selecionados, ajustes consumidos)`. Índices
-    convertidos de 1-based (R) para 0-based (Python) na saída.
+    Devolve `(canais selecionados, ajustes consumidos, int_num executado)`.
+    Índices convertidos de 1-based (R) para 0-based (Python) na saída.
+
+    `scale` controla o escalonamento por coluna que o mdatools usa para
+    pontuar os intervalos. O default `False` é o do pacote; o
+    `PLSRegression` que ajusta o modelo final autoescala. Ou seja, seletor
+    e regressor otimizam geometrias diferentes — ver a seção
+    "Escalonamento" do ADR 012 e a pergunta 13.
 
     O segundo valor existe porque contar 1 por chamada tornaria o `n_fits`
     do iPLS incomparável com o do PLS — uma auditoria em 28/09/2026 mediu
@@ -129,20 +136,54 @@ def _select_intervals(
             "method": "forward",
             "cv": segments_r,
             "silent": True,
+            "scale": scale,
         },
     )
     selected = np.asarray(model.rx2("var.selected"), dtype=int)
 
-    # Iterações da busca forward = linhas de int.stat. Na iteração k
-    # (1-based) restam int_num - (k-1) intervalos candidatos, e cada um é
-    # avaliado por CV sobre os segmentos.
+    # O `int.num` PEDIDO nem sempre é o executado: o mdatools converte o
+    # número de intervalos em largura, arredonda, e daí recalcula quantos
+    # intervalos cabem em p. Medido em 28/09/2026, com os p dos quatro
+    # conjuntos:
+    #   Tecator  (p=100): 15 -> 14, 30 -> 33
+    #   Mango    (p=306): 25 -> 26, 30 -> 31
+    #   Gasoline (p=401): 30 -> 31
+    # O objeto devolvido carrega o valor executado, e é ele que vai ao
+    # `hyperparams` — registrar o pedido descreveria um experimento que
+    # não aconteceu.
+    executed_int_num = int(np.asarray(model.rx2("int.num"))[0])
+
+    # Passadas da busca forward. `nrow(int.stat)` = 1 (modelo global) +
+    # intervalos aceitos, e a busca que aceita s intervalos faz s + 1
+    # passadas; os dois valores coincidem. Em cada passada os intervalos
+    # ainda não escolhidos são avaliados, e cada avaliação custa um ajuste
+    # por segmento de CV MAIS um ajuste de calibração sobre o bloco
+    # inteiro — é esse "+1" que a primeira versão desta conta esquecia.
+    #
+    # Uma vistoria independente mediu os ajustes reais com um trace no R
+    # (28/09/2026) e achou 20 a 26% de subestimação. O que faltava era o
+    # ajuste de calibração de cada avaliação e o modelo global, ambos
+    # acrescentados aqui. Remedido com trace sobre `mdatools:::pls.cal`
+    # depois da correção:
+    #
+    #   p=30, int_num=5,  3 segmentos:  56 reais contra  49 estimados (0,88)
+    #   p=48, int_num=8,  3 segmentos:  92 reais contra  85 estimados (0,92)
+    #   p=60, int_num=10, 4 segmentos: 145 reais contra 136 estimados (0,94)
+    #
+    # Continua subestimando de 6 a 12%. A diferença que sobra não foi
+    # localizada, e fechá-la exigiria instrumentar o interior do pacote —
+    # por isso o valor segue declarado como ESTIMATIVA. Para o uso a que
+    # se destina, comparar ordens de grandeza de orçamento entre braços,
+    # 6 a 12% não muda conclusão nenhuma.
     n_iterations = int(np.asarray(ro.r("nrow")(model.rx2("int.stat")))[0])
     n_segments = int(segments.max())
     n_fits = sum(
-        max(1, int_num - k) * n_segments for k in range(n_iterations)
+        max(1, executed_int_num - k) * (n_segments + 1)
+        for k in range(n_iterations)
     )
+    n_fits += 1  # o modelo global de espectro completo
 
-    return {int(j) - 1 for j in selected}, n_fits
+    return {int(j) - 1 for j in selected}, n_fits, executed_int_num
 
 
 def _fit_pls(X: np.ndarray, y: np.ndarray, bands: set[int], n_components: int):
@@ -261,7 +302,7 @@ class IPLSArm:
         for index, (fold_train, _fold_val) in enumerate(cv_folds):
             inner_folds = _inner_folds(cv_folds, index)
             segments = _segments_from_folds(len(fold_train), inner_folds)
-            bands, n_inner_fits = _select_intervals(
+            bands, n_inner_fits, _executed = _select_intervals(
                 X_train[fold_train],
                 y_train[fold_train],
                 segments,
@@ -294,19 +335,25 @@ class IPLSArm:
             )
 
         segments = _segments_from_folds(len(y_train), cv_folds)
-        final_bands, n_final_fits = _select_intervals(
+        final_bands, n_final_fits, executed_int_num = _select_intervals(
             X_train, y_train, segments, int_num, glob_ncomp
         )
         budget.increment(n_final_fits)
         model, columns, n_components = _fit_pls(
             X_train, y_train, final_bands, glob_ncomp
         )
+        budget.increment()  # o ajuste do modelo entregue
 
         return _FittedIPLSArm(
             _model=model,
             _columns=columns,
             _hyperparams={
+                # `int_num` é o candidato pedido; `int_num_executed` é o
+                # que o mdatools de fato usou depois de arredondar a
+                # largura. Os dois entram porque a busca escolhe o
+                # primeiro e o experimento roda o segundo.
                 "int_num": int_num,
+                "int_num_executed": executed_int_num,
                 "glob_ncomp": glob_ncomp,
                 "n_components": n_components,
                 "n_bands": len(columns),

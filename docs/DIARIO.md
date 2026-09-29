@@ -1021,18 +1021,33 @@ a verificar o **mecanismo** — que o valor fixo corta a busca, conferido
 pelo orçamento — e não o sintoma.
 
 **Custo medido no Tecator** (`seed_split=0`), que era a dúvida aberta
-sobre a seleção aninhada:
+sobre a seleção aninhada. Tabela **remedida ao fim do dia**, depois das
+correções do `n_fits` e do `int.num` executado — os valores da primeira
+versão desta entrada estavam com a contagem antiga, e três números
+inconsistentes dela foram apontados por vistoria independente:
 
-| braço | R² | RMSEP | n_fits | tempo |
-|---|---|---|---|---|
-| A1 `pls_full` | 0,9660 | 2,2605 | 101 | 0,2 s |
-| A3 `ipls(int_num=20)` | 0,9710 | 2,0893 | 106 | 6,3 s |
-| A3 `ipls` (busca) | 0,9415 | 2,9656 | 151 | 23,7 s |
+| braço | R² | RMSEP | n_fits | tempo | × fits | × tempo |
+|---|---|---|---|---|---|---|
+| A1 `pls_full` | 0,9660 | 2,2605 | 101 | 0,2 s | 1,0 | 1,0 |
+| A3 `ipls(int_num=20, glob_ncomp=3)` | 0,9710 | 2,0893 | 2.189 | 4,0 s | 21,7 | 22,3 |
+| A3 `ipls(int_num=20)` | 0,9710 | 2,0893 | 2.289 | 3,3 s | 22,7 | 18,1 |
+| A3 `ipls` (busca) | 0,9415 | 2,9656 | 9.056 | 14,3 s | 89,7 | 79,1 |
 
-Viável no Tecator. **Não** extrapolar daqui: o bioprocess tem n=6.472 e
-p=1.870, e o custo precisa ser medido lá antes de qualquer promessa sobre
-a grade. E os R² são de **uma** partição — não são resultado, são prova de
-que o encanamento funciona.
+As razões em ajustes e em tempo ficam da mesma ordem em cada linha, que é
+o que o `n_fits` existe para permitir aferir. A busca custa cerca de 90×
+o PLS de espectro completo — é o preço da seleção aninhada, e é
+exatamente o tipo de número que o pipeline quer na tabela de custo.
+
+**Correção das inconsistências apontadas.** A versão anterior desta
+entrada dizia "1.757 contra 101" e "6 contra 101" para o mesmo braço,
+misturando execuções com `glob_ncomp` fixo e buscado, e citava a razão de
+tempo como 25×, 24,6× e 30× em lugares diferentes. Os números acima
+substituem todos eles, medidos numa única execução com o código atual.
+
+**Não** extrapolar daqui: o bioprocess tem n=6.472 e p=1.870, e o custo
+precisa ser medido lá antes de qualquer promessa sobre a grade. E os R²
+são de **uma** partição — não são resultado, são prova de que o
+encanamento funciona.
 
 Suíte: 84 passed, 1 skipped (5 testes novos, pulados onde não há R).
 
@@ -1060,16 +1075,18 @@ validação das folds externas**, reindexados. A garantia é herdada de
 
 **Bug 2 — o `n_fits` do iPLS era incomparável com o do PLS.** Cada chamada
 do `ipls` contava 1 ajuste, quando ela ajusta centenas de modelos por
-dentro. Medido: `n_fits` 6 para o A3 contra 101 do A1, com o A3 gastando
-~25× mais tempo. A tabela de custo do manuscrito diria o oposto da
+dentro: 6 ajustes contados para o A3 contra 101 do A1, com o A3 gastando
+mais de 20× o tempo. A tabela de custo do manuscrito diria o oposto da
 verdade, e o pipeline é explícito quanto ao propósito do campo ("se o
 GA-PLS consumir 40× mais ajustes que o MLP, isso precisa aparecer na
 tabela"). Passou a ser estimado a partir do que o mdatools reporta —
-iterações da busca forward em `int.stat`, intervalos restantes por
-iteração, segmentos de CV. Agora: 1.757 contra 101, razão de 17,4× em
-ajustes contra 24,6× em tempo, que é a ordem de grandeza certa. Declarado
-como **estimativa**, não contagem exata: o interior do pacote não é
-instrumentado.
+passadas da busca forward em `int.stat`, intervalos restantes por passada,
+segmentos de CV. Declarado como **estimativa**, não contagem exata: o
+interior do pacote não é instrumentado.
+
+(A estimativa foi refinada mais tarde no mesmo dia, depois de uma vistoria
+independente medir que ela ainda subestimava; os números finais estão na
+tabela de custo remedida, adiante nesta entrada.)
 
 Nenhum dos dois mudou o resultado no Tecator (R² 0,9710, RMSEP 2,0893
 antes e depois), o que era esperado — o bug 1 não se manifesta nesse
@@ -1159,7 +1176,383 @@ encontraria mais rápido, e não há como saber o que continua invisível pelo
 mesmo motivo. Uma vistoria em sessão nova, como a de 27/08, continua
 valendo.
 
+**Vistoria independente, em sessão nova sem o histórico de quem escreveu o
+código** — o mesmo procedimento de 27/08. Ela achou dez itens, e os dois
+mais graves eu reproduzi antes de aceitar. Os dois são erros meus que a
+auto-vistoria da tarde não pegou, o que é o argumento a favor de repetir
+esse procedimento.
+
+**Erro 1 — o ADR 012 descrevia errado como o mdatools escolhe
+complexidade.** Eu havia escrito que o `ncomp.selcrit` "não é usado para
+decidir complexidade" e que fixar `glob.ncomp` deixava a regra igual em
+todos os braços. Falso. Dentro do `ipls.forward`, cada intervalo candidato
+é pontuado com o `ncomp.selcrit`, e o vencedor sai do RMSE calculado com o
+número de componentes que aquele critério escolheu **para aquele
+intervalo**. O `glob.ncomp` é só teto. Reproduzido no Tecator
+(`seed_split` 0, teto 8, 20 intervalos): com `"min"`, componentes 5, 5, 4,
+6, 4 e 20 bandas; com `"wold"`, 4, 2, 3, 5, 4, 3, 3 e 30 bandas. O número
+varia entre intervalos, e trocar o critério muda a seleção.
+
+A evidência estava à vista desde o spike — a coluna `nComp` do `int.stat`
+já mostrava valores diferentes por linha — e eu não li. Com o teto 3 que a
+regra de um erro-padrão devolve na `seed_split` 0, o efeito não aparece, o
+que explica por que passou.
+
+Consequência séria: a **pergunta 10**, escrita para ir à orientação, estava
+sobre premissa falsa. Reescrita.
+
+**Erro 2 — a regra que escolhe `int_num` inverte a parcimônia, e nem estava
+declarada.** O código aplica a regra de um erro-padrão e fica com o menor
+`int_num`, chamando isso de mais parcimonioso. No PLS a analogia vale —
+menos componentes, modelo mais simples. No iPLS não: menos intervalos são
+intervalos mais largos, logo **mais** bandas. Medido no Tecator,
+`seed_split` 0: `int.num` 10 → 30 bandas, 20 → 10 bandas, 30 → 6 bandas.
+No mesmo split o menor erro de CV estava em 25, a regra escolheu 10, e o R²
+no teste externo caiu de 0,9710 para 0,9415 — é o "A3 (busca)" da tabela
+acima.
+
+**Nada foi alterado no código.** Trocar o critério depois de ver esses
+números seria escolher regra olhando resultado, que é o que o pré-registro
+proíbe. A regra em vigor ficou declarada no ADR 012 com o defeito exposto,
+e a escolha virou **pergunta 12**. Se ela mudar, os números do iPLS no
+Tecator registrados acima precisam ser refeitos.
+
+Corrigidos hoje: a seção "Número de componentes" do ADR 012, a regra de
+desempate de `int_num` (que passou a estar declarada), as perguntas 10 e
+12, e a tabela de decisões do `PROTOCOLO.md`, que estava fora de ordem e
+ainda dizia "das nove".
+
+**Os outros oito achados da vistoria, ainda abertos:** a faixa de `int.num`
+declarada não é a executada (o mdatools arredonda a largura e recalcula o
+número de intervalos); sete mutações passam verdes, entre elas remover a
+injeção de `cv` — que reabre o risco do ADR 001 que este ADR diz ter
+fechado — e o teste de regressão das folds internas, que chama o helper em
+vez do braço; seleção e regressão usam escalonamentos diferentes
+(`center=TRUE, scale=FALSE` no mdatools contra o autoescalonamento do
+`PLSRegression`); o `n_fits` subestima o custo real em 20 a 26%; números
+inconsistentes entre o DIARIO e o ADR (17,4× contra 18,4×, "6 contra 101"
+onde a tabela mostra 106, razão de tempo citada como 25×, 24,6× e 30×);
+docstrings do verificador que ficaram obsoletos quando a perturbação passou
+a ser dirigida; e o fato de o Estágio 2 ter começado sem o critério que o
+próprio DIARIO de 21/09 fixou (aprovação dos ADRs 007 e 009).
+
+**As sete lacunas de teste, fechadas.** Cada mutação que a vistoria
+reportou como sobrevivente agora faz a suíte falhar, conferido reaplicando
+as sete e restaurando com hash. Suíte: 96 passed, 1 skipped;
+`tests/test_ipls.py` foi de 8 para 15 testes.
+
+O mecanismo que fecha três delas de uma vez é uma sonda, `_IplsSpy`, que
+registra o que de fato atravessa a ponte para o R. A lição: aqueles
+invariantes não são observáveis na saída do braço — as bandas selecionadas
+continuam plausíveis mesmo com o mdatools usando as próprias folds —, então
+testá-los exigia olhar a chamada, não o resultado.
+
+| Mutação que sobrevivia | Teste que a pega agora |
+|---|---|
+| Remover a injeção de `cv` (reabre o risco do ADR 001) | `test_folds_of_the_protocol_are_injected_into_mdatools` |
+| Folds internas contíguas escritas dentro do braço | `test_inner_folds_reaching_r_never_split_a_group` |
+| `int.ncomp` sem o recorte pela largura | `test_int_ncomp_is_capped_by_the_interval_width` |
+| `n_fits` sem o fator `n_segments` | `test_budget_counts_the_cv_segments` |
+| argmin no lugar da regra de um erro-padrão | `test_int_num_uses_the_one_standard_error_rule_not_argmin` |
+| Modelo final com a seleção do fold 0 | `test_final_model_uses_the_selection_of_the_whole_training_set` |
+| Resultado da busca do `glob_ncomp` ignorado | `test_searched_glob_ncomp_is_the_one_se_value` |
+
+**Duas passaram na primeira tentativa, por defeito do meu teste.** Vale
+registrar porque é o mesmo padrão de sempre:
+
+- o teste do orçamento comparava 3 contra 5 folds externas, mas aí muda
+  também o **número de chamadas** ao iPLS, e a contagem cresce mesmo sem o
+  fator `n_segments`. Refeito direto em `_select_intervals`, com os mesmos
+  dados e o mesmo `int_num`, variando só os segmentos;
+- o teste do modelo final rodava num fixture em que a seleção do fold 0 era
+  **idêntica** à do treino inteiro, então trocar uma pela outra não mudava
+  nada. Refeito com um cenário de dois blocos informativos de força
+  parecida (coeficientes 1,00 e 0,95), em que as duas divergem, e o teste
+  afirma explicitamente que o cenário discrimina antes de verificar o
+  invariante.
+
+Os dois testes novos que dependem de cenário discriminante — este e o da
+regra de `int_num` — seguem o padrão do `tests/test_pls.py`: afirmam
+primeiro que o cenário de fato distingue as alternativas, e só então qual
+delas o código aplica. Sem essa primeira asserção, um fixture que deriva
+para o caso degenerado transforma o teste em decoração sem ninguém notar.
+
+O teste da regra de `int_num` verifica **qual regra está implementada**,
+não que ela seja a certa: a parcimônia invertida continua sendo a
+pergunta 12, e se a orientação mudar a regra o teste muda junto.
+
+**Achado 3 — a faixa de `int.num` declarada não é a executada.** O
+mdatools converte o número de intervalos em largura, arredonda, e
+recalcula quantos cabem em `p`. Medido: Tecator (p=100) 15 → 14 e
+30 → 33; Mango (p=306) 25 → 26 e 30 → 31; Gasoline (p=401) 30 → 31. O
+`hyperparams` registrava o pedido, descrevendo um experimento que não
+aconteceu. Passou a registrar os dois, com `int_num_executed` vindo do
+objeto que o pacote devolve. Nada é corrigido à força: fixar o número
+exato exigiria passar `int.limits` à mão e substituir a divisão do pacote
+pela nossa, o que sai do "usar implementação estabelecida".
+
+Efeito colateral: a estimativa de `n_fits` passou a usar o número
+executado — antes contava intervalos que não existiam. E o ADR ganhou uma
+correção de passagem: eu afirmava que `int.num = 30` no Tecator dá
+intervalos de 3 canais; o pacote reporta 33 intervalos, e os 3 canais são
+a conta do braço (`p // int.num`), que é a que alimenta o recorte do
+`int.ncomp`. As duas contas agora estão distinguidas.
+
+**Achado 6 — o `n_fits` subestimava o custo real.** A vistoria mediu os
+ajustes de verdade com um trace no R e achou 20 a 26% a menos do que a
+estimativa. Faltavam o ajuste de calibração de cada avaliação de intervalo
+e o modelo global; o ajuste do modelo final também não era contado.
+Corrigidos os três. Remedido com trace sobre `mdatools:::pls.cal`:
+
+| cenário | ajustes reais | estimados | razão |
+|---|---|---|---|
+| p=30, `int_num`=5, 3 segmentos | 56 | 49 | 0,88 |
+| p=48, `int_num`=8, 3 segmentos | 92 | 85 | 0,92 |
+| p=60, `int_num`=10, 4 segmentos | 145 | 136 | 0,94 |
+
+Continua subestimando de 6 a 12%, e a diferença que sobra não foi
+localizada — fechá-la exigiria instrumentar o interior do pacote. O valor
+segue declarado como estimativa, e para o uso a que se destina, comparar
+ordens de grandeza de orçamento entre braços, 6 a 12% não muda conclusão
+nenhuma. Está escrito no código, com os números.
+
+**Achado 5 — seletor e regressor otimizam geometrias diferentes.** O
+mdatools pontua os intervalos com `center = TRUE, scale = FALSE`, default
+do pacote; o `PLSRegression` do modelo final autoescala, default do
+scikit-learn e o que o A1 usa. A vistoria apontou lendo o código e não
+mediu o efeito. Medido agora, no Tecator, `int.num = 20`, seis
+`seed_split` da faixa exploratória:
+
+| `seed_split` | Jaccard entre as duas seleções | R² (FALSE) | R² (TRUE) |
+|---|---|---|---|
+| 0 | 0,333 | 0,9710 | 0,9669 |
+| 1 | 0,500 | 0,9549 | 0,9526 |
+| 2 | 0,750 | 0,9735 | 0,9712 |
+| 3 | 1,000 | 0,9722 | 0,9722 |
+| 4 | 0,182 | 0,9685 | 0,9651 |
+| 5 | 1,000 | 0,9710 | 0,9710 |
+
+**O efeito é desprezível na acurácia e grande na seleção.** As diferenças
+de R² ficam na terceira casa, sem vencedor consistente. O Jaccard médio
+entre as duas configurações é 0,63 — mais de um terço do conjunto de
+bandas muda por causa de uma opção de escalonamento que ninguém declarou.
+
+Isso pesa muito mais aqui do que pesaria em outro trabalho: a **H5 é sobre
+reprodutibilidade do conjunto de bandas, medida por Jaccard**. Se um
+default de pacote move o Jaccard nessa magnitude, parte do que seria
+atribuído ao método é efeito de implementação. Se eu tivesse fechado o
+achado como "documentação imprecisa", como ele estava classificado, isso
+teria passado.
+
+`scale` virou parâmetro, com o default `FALSE` do pacote preservado, e
+nada foi alterado no comportamento. A escolha virou **pergunta 13**.
+Descartada de saída a terceira via — desligar o autoescalonamento do PLS
+no A3 —, porque aí o A3 deixaria de usar o mesmo regressor do A1 e a
+decomposição perderia a propriedade de os braços diferirem por exatamente
+uma característica.
+
+**Achados 7, 8 e 9 — o passe de documentação, e os dez estão fechados.**
+
+- **7, números inconsistentes**: a tabela de custo do Tecator foi remedida
+  numa única execução com o código atual, e substitui os valores soltos
+  que apareciam em pontos diferentes desta entrada ("1.757 contra 101",
+  "6 contra 101", razão de tempo como 25×, 24,6× e 30×). Eles vinham de
+  execuções distintas — uma com `glob_ncomp` fixo, outra com busca —
+  apresentadas como se fossem a mesma medição.
+- **8, docstrings obsoletos**: quando a perturbação do verificador passou
+  a ser dirigida, os textos que mandavam dimensionar `n_spurious_bands`
+  conforme a granularidade do método ficaram falsos — a largura deixou de
+  importar. Reescritos, com o histórico das três tentativas preservado,
+  porque a sequência (uma banda → intervalo inteiro → destruir o vencedor)
+  é o que explica por que o desenho atual é o que é.
+- **9, processo**: o `PROTOCOLO.md` tratava o ADR 011 como resolvido
+  dentro de uma seção marcada "(decidido)", quando o ADR está `proposto` e
+  sem aprovação da orientação. A ressalva de status entrou no lugar.
+
+**Sobre o critério de fechamento do Estágio 1.** A vistoria observou, com
+razão, que o DIARIO de 21/09 fixou "o Estágio 1 fecha quando os ADRs 007 e
+009 forem aprovados; depois, Estágio 2", e que o trabalho de hoje começou
+o Estágio 2 sem isso. Fica registrado como está: os dois ADRs continuam
+sem aprovação, a orientação não respondeu desde 17/09, e a decisão de
+seguir assim mesmo foi minha. O mesmo vale para o ADR 008, já anotado
+acima. Nenhum status de ADR foi alterado por causa disso.
+
+**Erro no ADR 008: o `plsVarSel` não tem CARS.** Preparando a reunião de
+amanhã, fui conferir os pacotes no próprio ambiente. O `plsVarSel` 0.10.0
+exporta 31 funções e **nenhuma é CARS** — tem `ga_pls`, `VIP`,
+`mcuve_pls`, `spa_pls`, `bve_pls`, entre outras. O `mdatools` 0.16.0
+também não tem; tem `ipls` e `vipscores`. O ADR 008 afirmava, desde
+16/09, que o `plsVarSel` implementava CARS, GA-PLS e VIP. Escrevi sem
+verificar, e a pergunta 4 enviada à orientação em 21/09 foi construída
+sobre essa premissa.
+
+**Onde o CARS existe de verdade.** Três candidatos: o `carsAlgo`, pacote
+no CRAN que se descreve como *"inspired from the work of Li et al.
+(2009)"*; o `auswahl`, em Python; e o **`libPLS`**, a biblioteca do grupo
+de **Hongdong Li**, primeiro autor do artigo que define o CARS. O libPLS
+tem artigo próprio publicado no *Chemometrics and Intelligent Laboratory
+Systems*, site oficial em `libpls.net`, e a pasta `R/` do repositório traz
+`carspls.r` e `carsplsorigin.r`.
+
+**Decisão tomada, não perguntada: libPLS.** Como "implementação
+estabelecida", no sentido em que o pipeline usa a expressão, não há
+candidata mais forte que a dos próprios autores do método, publicada e
+revisada. As outras duas são reimplementações de terceiros — e o portão
+existe justamente para validar a implementação, então referência de
+terceiros é o que menos serve ali. A escolha vai ao ADR 008 com a
+justificativa escrita, que é como a orientação pediu em 14/09 ("eu aprovo
+o ADR, não a escolha solta numa mensagem"), e não como pergunta de
+reunião.
+
+**Duas ressalvas registradas no ADR.** O libPLS não é pacote R: são 17
+arquivos `.r` soltos, sem `DESCRIPTION` nem `NAMESPACE`, então não há
+versão a fixar por gerenciador — a proveniência fica por **commit fixo com
+`sha256`**, a mesma disciplina do tarball do `pls` e do CSV do Mango. E a
+biblioteca é primariamente MATLAB: o porte em R é secundário, e **não foi
+verificado se roda**. Se não rodar, a escolha volta à orientação.
+
+**Correção conceitual de passagem.** O pipeline **nunca menciona R** — nem
+`rpy2`, nem pacote nenhum. Ele diz apenas "prefira implementações
+estabelecidas a reescrever", e todos os blocos de código dele são Python.
+A escolha de linguagem sempre foi inferência do ADR 008, não exigência do
+pipeline, e isso não estava escrito. Passou a estar, junto com a
+consequência: o critério é **por método**, e nada obriga a uma linguagem
+única — o VIP já era Python por esse mesmo raciocínio.
+
+A pergunta 4 (nº 6 da `PERGUNTAS.md`) foi reescrita sobre o mecanismo
+correto, e o que ela pergunta encolheu: só o aval para o caminho em R no
+iPLS e no GA-PLS, mais a chance de ele objetar ao libPLS.
+
 **Próximo**
 Medir o custo do `IPLSArm` nos outros três conjuntos, sobretudo no
-bioprocess, antes de seguir para o CARS. Se a seleção aninhada não couber
-lá, isso é resultado e vira decisão de protocolo.
+bioprocess (n=6.472, p=1.870), antes de seguir para o CARS. Se a seleção
+aninhada não couber lá, isso é resultado e vira decisão de protocolo.
+
+## 2026-09-29
+
+**A orientação cedeu o código do paper.** O repositório
+`prior-guided-spectral-gating-main` foi disponibilizado em 29/09, e está em
+`docs/fontes/prior-guided-spectral-gating-main/` — **fora do
+versionamento**, no `.gitignore`, porque é material de terceiros e traz
+manuscritos de revisão ainda não publicados (`revision_r2`,
+`revision_talanta`), além dos CSVs de espectros. O repositório deste
+trabalho é público.
+
+### A divisão treino/teste, respondida na fonte
+
+`src/data/preprocessing.py`, `preprocessing_fixed.py` e
+`preprocessing_multi.py` — os três fazem:
+
+```python
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42
+)
+```
+
+Aleatória com semente 42, **nos dois conjuntos**. Isso:
+
+- **confirma o ADR 010**, cuja divisão do Gasoline era inferência pelos
+  números e agora tem fonte no código;
+- **derruba a divisão do Tecator em uso**. O modo "protocolo da
+  literatura" usa 172/43 sequencial, aprovado em 01/09 (ADR 005). O paper
+  não usou sequencial.
+
+Protocolo completo reproduzido, com os dados e o código deles — Z-score de
+X e y ajustado no treino, `PLSRegression` do sklearn, H = 10 e H = 5:
+
+| conjunto | obtido | publicado |
+|---|---|---|
+| Tecator | R² 0,9191 / RMSE 0,2957 | 0,919 / 0,296 |
+| Gasoline | R² 0,9752 / RMSE 0,1453 | 0,975 / 0,145 |
+
+Quatro métricas, terceira casa decimal.
+
+### Achado grave: o alvo do Tecator no paper é água, não gordura
+
+Em `data/raw/tecator/targets.csv` daquele repositório, o cabeçalho não
+corresponde ao conteúdo:
+
+| coluna rotulada | faixa real | o que é de fato |
+|---|---|---|
+| **Fat** | 39,30 – 76,60 | **água** |
+| **Water** | 0,90 – 49,10, média 18,14 | **gordura** |
+| Protein | 11,00 – 21,80 | proteína |
+
+As faixas canônicas estão fixadas no ADR 004, conferidas em Python e em R,
+e confirmadas pela orientação em 03/09. A coluna "Water" daquele arquivo é
+idêntica, linha a linha, ao `y` que o nosso loader carrega do `skfda` — e
+o `X` dos dois é idêntico também.
+
+Todos os scripts do repositório selecionam `y_train[:, 0]`, a coluna
+rotulada "Fat" — `baseline_pls.py` (com o comentário `# Fat normalizado`),
+os de treino do modelo, e o `one_se_analysis.py` da rodada de revisão.
+
+Rodando o protocolo deles nas três colunas:
+
+| coluna | conteúdo real | R² | RMSE |
+|---|---|---|---|
+| 0 "Fat" | água | **0,9191** | **0,2957** |
+| 1 "Water" | gordura | 0,9489 | 0,2365 |
+| 2 "Protein" | proteína | 0,9182 | 0,3088 |
+
+Só a coluna 0 bate nas duas métricas. (A proteína bate no R² por
+coincidência; o RMSE separa.) E o 0,9489 da gordura é exatamente o número
+que já tínhamos medido em 21/09 ao testar a semente 42 no Tecator —
+achávamos que era desacordo com o paper, e era o valor correto da gordura.
+
+**O que fecha a identificação:** `revision_r1/one_se_output.txt`, saída da
+rodada de revisão (manuscrito CHEMOLAB-D-26-00658R1, Revisor #2), registra
+`H_min = 14`, `RMSECV = 0,2093`, `SE = 0,0269`, `H* = 10` e
+`H = 10 (paper): R2 = 0.9191  RMSE = 0.2957`. A Seção 4.2 do artigo
+publicado traz exatamente esses números. O script que gerou esse arquivo
+declara na linha 9: *"baseline_pls.py-compatível (y_train[:, 0],
+PLSRegression default)"*.
+
+Três evidências independentes, portanto: a aritmética das faixas, o código
+que seleciona a coluna, e o arquivo de saída da revisão que reproduz o
+texto publicado.
+
+**O que permanece sem explicação.** Em 03/09 a orientação inspecionou o
+loader em `revision_pgsg_0_r1` e reportou que o CSV do OpenML nomeia as
+colunas moisture, fat, protein, e que o `y` bruto tinha min 0,9, max 49,1,
+média 18,14 — a faixa da gordura. Isso é verdade sobre o arquivo que ela
+olhou. Em algum ponto entre aquele download e este `targets.csv`, as
+colunas foram gravadas numa ordem e o cabeçalho escrito noutra. Quem
+resolve essa parte é a orientação; o achado não depende dela.
+
+**Por que passou despercebido.** Gordura e água têm correlação −0,988 no
+Tecator, então prever uma ou outra dá desempenho parecido. Nada quebra,
+nada dá erro, e o resultado parece bom. É exatamente o mecanismo que a
+orientação descreveu em 03/09 ao levantar a hipótese de coluna trocada —
+hipótese que ela descartou conferindo o cabeçalho de um CSV diferente. Neste
+arquivo, conferir o cabeçalho era justamente a checagem que não funcionava.
+
+**Relação com o corrigendum.** Em 03/09 a orientação disse avaliar um
+corrigendum cobrindo a razão amostras-por-parâmetro, **a faixa da gordura**
+e a proveniência, com a conclusão de que "nenhum resultado do artigo está
+comprometido". Se o achado se confirmar, a premissa se inverte: a faixa
+"7% a 76%" não é erro de prosa — 76,6 é o máximo da coluna que foi de fato
+usada. Corrigir apenas a prosa tornaria o texto internamente consistente e
+apagaria a única pista visível da troca.
+
+**Verificação reproduzível:** `~/verificar_alvo.py`, fora do repositório,
+imprime as quatro checagens. Escrito em 29/09 para levar à orientação.
+
+### Consequências para este trabalho, a decidir com a orientação
+
+- **ADR 005 e 010**: a divisão de literatura do Tecator deixa de ser
+  172/43 sequencial e passa a ser a aleatória com semente 42. O ADR 010
+  ganha fonte no código para o Gasoline.
+- **ADR 004**: a conclusão "nenhum resultado do paper está comprometido"
+  precisa ser revisitada.
+- **Portão do Estágio 2**: reproduzir o número publicado do Tecator passa a
+  significar prever água.
+- **Estágio 3**: o braço B4 deve reproduzir o modelo publicado — que foi
+  treinado em água.
+
+Nada foi alterado no código ou nos ADRs por causa disso. O achado vai à
+orientação primeiro.
+
+**Próximo**
+Levar o achado à orientação, com a verificação rodada. Depois, medir o
+custo do `IPLSArm` nos outros três conjuntos.

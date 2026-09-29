@@ -137,8 +137,10 @@ def assert_selection_is_fold_local(
 ) -> None:
     """Falha se a seleção de algum fold enxergar a partição de validação.
 
-    Para cada fold `i`, injeta uma correlação espúria forte nas linhas de
-    `fold_val[i]` e reajusta. A seleção do fold `i` tem que sair idêntica:
+    Para cada fold `i`, perturba as linhas de `fold_val[i]` e reajusta —
+    arruinando as bandas que aquele fold havia escolhido e injetando
+    correlação espúria numa banda de ruído. A seleção do fold `i` tem que
+    sair idêntica:
     aquelas linhas não são treino dele. As seleções dos demais folds mudam
     — e devem mudar, porque para eles aquelas linhas são treino.
 
@@ -147,20 +149,23 @@ def assert_selection_is_fold_local(
     todas as folds, e a perturbação poderia trocá-lo — mudando a seleção
     do fold `i` por agregação da CV, não por vazamento (ADR 011).
 
-    `n_spurious_bands` é a LARGURA da perturbação, em bandas contíguas a
-    partir de `SPURIOUS_BAND`, e precisa ser escolhida conforme a
-    granularidade do método sob teste. Métodos que selecionam banda a
-    banda são pegos com uma banda só. Métodos que selecionam INTERVALOS
-    inteiros, como o iPLS, não: uma banda perturbada dentro de um
-    intervalo perdedor não faz aquele intervalo vencer, e a seleção sai
-    idêntica mesmo com vazamento — o verificador passa por construção.
-    Para esses, a perturbação tem que cobrir pelo menos um intervalo
-    inteiro.
+    A perturbação tem duas partes, e a que faz o trabalho é a **dirigida**:
+    as bandas que o fold escolheu são arruinadas nas linhas de validação
+    dele. `n_spurious_bands` controla só a parte complementar — quantas
+    bandas de ruído contíguas a partir de `SPURIOUS_BAND` recebem sinal
+    espúrio —, e o default de uma banda basta em todos os casos testados
+    até aqui, inclusive para métodos que selecionam intervalos inteiros.
 
-    Isso foi descoberto por mutação em 28/09/2026: com o `IPLSArm`
+    Histórico, porque a sequência é instrutiva. A primeira versão do
+    verificador tinha só a parte espúria, com uma banda. Com o `IPLSArm`
     selecionando deliberadamente sobre todo o `X_train` — o vazamento que
-    o Estágio 2 proíbe — a suíte inteira continuava verde com a
-    perturbação de uma banda.
+    o Estágio 2 proíbe — a suíte inteira continuava verde: o iPLS escolhe
+    intervalos, e uma banda perturbada dentro de um intervalo perdedor não
+    o faz vencer. Alargar a perturbação para cobrir um intervalo inteiro
+    **também não resolveu**: uma perturbação que alcança um terço das
+    linhas não faz um intervalo ruim superar um bom. O que resolveu foi
+    inverter a ideia — em vez de promover um perdedor, destruir o
+    vencedor. Tudo em 28/09/2026.
     """
 
     def fit(X, y):
@@ -236,10 +241,14 @@ def selection_problem():
     a banda 2 saiu com |r| = 0,03 apesar do coeficiente 1,2, e uma banda
     de ruído ocupou o lugar dela no top-3. Com colunas ortogonais,
     |r_j| = |coef_j| / ||y|| é previsível e não depende da sorte da
-    semente: ~0,80, ~0,52 e ~0,31 para as três informativas, contra
-    ~0,45 que a perturbação consegue injetar (ela só alcança 20% das
-    linhas) e ~0,03 do ruído. A perturbação desloca a terceira
-    informativa, e só ela.
+    semente: ~0,80, ~0,52 e ~0,31 para as três informativas, contra ~0,03
+    do ruído.
+
+    A parte espúria da perturbação alcança só as linhas de validação de um
+    fold, e por isso sozinha nem sempre desloca uma banda informativa — foi
+    o que levou o verificador a passar por construção contra o iPLS. Quem
+    faz o trabalho é a parte dirigida, que arruína as bandas escolhidas; a
+    espúria ficou como reforço.
     """
     rng = np.random.default_rng(0)
     n, p = 100, 20
