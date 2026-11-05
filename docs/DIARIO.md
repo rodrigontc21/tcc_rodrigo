@@ -3243,3 +3243,27 @@ bioprocess não têm nenhum par assim separado.
 - **Conferido sem a marca (`--runxfail`):** falha com "20 de 22 réplicas
   em grupos diferentes".
 - **Suíte:** 136 passed, 1 skipped, 1 xfailed.
+
+### Correção: os hashes dos commits de hoje mudaram
+
+Nos comandos de commit de hoje entrou uma linha `Co-Authored-By: Claude`,
+e com ela o GitHub passou a listar a conta "claude" como colaboradora do
+repositório. Eu não queria isso. Reescrevi as mensagens dos quatro commits
+sem essa linha (`git filter-branch --msg-filter`) e enviei com
+`git push --force-with-lease`. Antes de enviar, conferi:
+- o conteúdo é idêntico ao de antes, contra uma branch de backup;
+- sou o único autor, com os mesmos horários;
+- nenhum commit do `main` ficou com a linha.
+
+Os hashes mudaram:
+
+| antes | agora |
+|---|---|
+| `59c983e` | `2a4dfae` |
+| `5cd970f` | `634bc92` |
+| `83be854` | `2729c1b` |
+| `fd849a9` | `6e94b75` |
+
+As entradas de 04 e 05/11 que citam `5cd970f` e `83be854` valem com os
+hashes novos. O link do DIARIO mandado à orientação (fixado em `83be854`)
+foi substituído pelo fixado em `2729c1b`.
