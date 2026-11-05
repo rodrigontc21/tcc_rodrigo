@@ -3159,3 +3159,87 @@ Conferido de três formas:
   constrói um modelo com `state_dict` igual ao da posicional, para os três
   formatos.
 - **Suíte:** 133 passed, 1 skipped. Não ficou `__pycache__` no pgsg.
+
+### Envio à orientação (05/11)
+
+Respondi às mensagens de 29/10 e 30/10. Os anexos saíram às 14:39 (ADR
+013, PROTOCOLO, relatórios 3 e 3b, na versão do commit `83be854`), e
+depois cinco mensagens:
+- os documentos;
+- o decaimento na porta, a H8 e os dois B4;
+- o Gasoline e as perguntas do B5;
+- o custo do iPLS, com a máquina e o link do DIARIO fixado em `83be854`;
+- o bioprocess, os ADRs e os scripts dele.
+
+Ficaram perguntados:
+- o B3 e o B5 com a porta isenta;
+- a base do critério do `c`;
+- se posso versionar os scripts dele.
+
+Para o iPLS, apresentei duas saídas: paralelismo ou OpenBLAS. O
+checklist temporário dessas duas mensagens foi fechado e apagado. O
+registro de cada item está nas entradas de 04/11 e 05/11.
+
+### O `PENDENCIAS.md` fecha, e o A1 vai para o ADR 009
+
+O `docs/PENDENCIAS.md` era o arquivo de trabalho da auditoria de 30/09,
+nunca versionado. Conferi bloco por bloco antes de apagar:
+- **B1 a B5:** aplicados ou registrados em 30/09.
+- **Bloco C:** entrou nos relatórios 1, 3 e 3b, já enviados. Conferi por
+  amostragem, não item por item.
+- **A1 (as réplicas do Tecator neste trabalho):** continuava aberto e
+  nunca foi levado à orientação.
+
+Medi de novo, no loader deste trabalho:
+- **São 22 pares de espectros idênticos,** todos com `y` idêntico. O ADR
+  009 agrupa só 2 e separa 20.
+- **No `evaluate()`,** de 3 a 11 pares atravessam treino/teste por
+  semente (mediana 8), em todas as 30 sementes de exploração.
+- **Na divisão 172/43 do modo da literatura,** 7 atravessam. Isso
+  contradiz uma frase das Consequências do ADR 009, que eu não tinha
+  medido.
+
+O A1 virou um adendo datado no ADR 009, que segue proposto. O código não
+mudou: agrupar também por espectro idêntico muda as partições do Tecator,
+e a decisão é da orientação. A "Ressalva obrigatória" do ADR 013, que
+apontava para o `PENDENCIAS.md` (arquivo que a orientação não tem), agora
+aponta para o adendo. O docstring de `verificar_replicas_tecator.py` foi
+atualizado. As entradas antigas deste diário que citam o `PENDENCIAS.md`
+ficam como estão. O que ele dizia está aqui e no ADR 009.
+
+Falta levar o A1 à orientação. Ainda não decidi se vai junto com os ADRs
+dos braços ou antes, numa mensagem curta.
+
+### A1: quanto o vazamento das réplicas pesa no PLS
+
+Antes de levar o A1 à orientação, medi o tamanho do efeito com
+`scripts/verificar_vazamento_replicas_tecator.py`. São 30 sementes do
+`evaluate()` com o `PLSArm` e a partição atual. Comparei o mesmo modelo e
+o mesmo teste, com e sem os espectros cujo gêmeo idêntico ficou no
+treino. A referência foi tirar do teste o mesmo número de amostras sem
+gêmeo, em 200 sorteios. Rodei duas vezes, com saída idêntica, em 19 s.
+
+- **O efeito é pequeno:** o vazamento infla o R² do teste em +0,0010 na
+  mediana (faixa −0,0040 a +0,0056).
+- **Não se distingue do acaso:** ficou positivo em 19 das 30 sementes
+  (teste do sinal, p = 0,20).
+- **É pequeno perto da variação entre partições:** o R² varia de 0,9515 a
+  0,9821 entre as sementes.
+
+No PLS, o efeito no teste é pequeno. Ficam sem medida a CV interna, onde
+de 4 a 13 pares por semente estão em folds diferentes, e os outros
+braços. Registrado no adendo do ADR 009.
+
+### A1: um teste que guarda o defeito
+
+`tests/test_data.py::test_identical_spectra_with_identical_target_share_a_group`
+exige que espectro e alvo idênticos fiquem no mesmo grupo, nos quatro
+conjuntos. Antes, medi que só o Tecator tem o problema: Gasoline, Mango e
+bioprocess não têm nenhum par assim separado.
+- **No Tecator,** o teste entra como falha esperada estrita (`xfail`,
+  `strict=True`), com o motivo apontando para o adendo do ADR 009. A
+  suíte continua verde, e quando a correção entrar o teste passa e obriga
+  a tirar a marca.
+- **Conferido sem a marca (`--runxfail`):** falha com "20 de 22 réplicas
+  em grupos diferentes".
+- **Suíte:** 136 passed, 1 skipped, 1 xfailed.

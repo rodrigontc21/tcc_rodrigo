@@ -1,6 +1,7 @@
 """Replicas do Tecator: pares de espectros identicos e o efeito na ancora do PLS.
 
-Sustenta a "Ressalva obrigatoria" do ADR 013 e o item A1.
+Sustenta a "Ressalva obrigatoria" do ADR 013 e o adendo de 05/11 do ADR 009
+(antigo item A1 do docs/PENDENCIAS.md, apagado).
 
 Uso: python verificar_replicas_tecator.py
 """

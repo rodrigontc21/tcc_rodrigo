@@ -248,7 +248,9 @@ seja ela, o relatório do Δ declara se a porta do B4 sofreu decaimento.
 ## Ressalva obrigatória
 
 Os valores desta âncora foram medidos **antes** de resolver o problema das
-réplicas do Tecator registrado em `docs/PENDENCIAS.md`, item A1: o conjunto
+réplicas do Tecator registrado no adendo de 05/11 do
+[ADR 009](009-particao-agrupada-por-amostra-fisica.md) (antes, num arquivo
+de trabalho fora do git, `docs/PENDENCIAS.md`, item A1): o conjunto
 tem 22 pares de espectros idênticos, e a partição aleatória com semente 42
 deixa 7 desses pares atravessarem a divisão treino/teste. Os 22 pares têm
 também o `y` idêntico: são réplicas da mesma amostra, não coincidência de

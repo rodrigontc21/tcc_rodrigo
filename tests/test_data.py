@@ -168,6 +168,42 @@ def test_replicates_never_straddle_train_test(any_dataset):
         assert not shared, f"seed_split={seed_split}: {len(shared)} grupos dos dois lados"
 
 
+@pytest.mark.parametrize(
+    "name",
+    [
+        "gasoline",
+        pytest.param(
+            "tecator",
+            marks=pytest.mark.xfail(
+                strict=True,
+                reason=(
+                    "ADR 009, adendo de 05/11/2026: 20 dos 22 pares de espectros "
+                    "idênticos do Tecator ficam em grupos diferentes. A correção "
+                    "espera a orientação; quando entrar, este teste passa e o "
+                    "strict obriga a tirar esta marca."
+                ),
+            ),
+        ),
+        "mango",
+        "bioprocess",
+    ],
+)
+def test_identical_spectra_with_identical_target_share_a_group(name):
+    """Espectro idêntico, bit a bit, com o mesmo alvo é a mesma amostra
+    medida duas vezes, e não pode cair em grupos diferentes. Num conjunto
+    sem grupos, não pode haver nenhum par assim."""
+    ds = load(name)
+    blocks: dict[tuple[bytes, float], list[int]] = {}
+    for i, (x, y) in enumerate(zip(ds.X, ds.y)):
+        blocks.setdefault((x.tobytes(), float(y)), []).append(i)
+    replicated = [rows for rows in blocks.values() if len(rows) > 1]
+    if ds.groups is None:
+        assert not replicated, f"{len(replicated)} réplicas num conjunto sem grupos"
+        return
+    split = [rows for rows in replicated if len({ds.groups[j] for j in rows}) > 1]
+    assert not split, f"{len(split)} de {len(replicated)} réplicas em grupos diferentes"
+
+
 @pytest.fixture(scope="module")
 def tecator():
     return load("tecator")

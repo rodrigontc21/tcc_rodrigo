@@ -104,3 +104,73 @@ conservadora.
 Proposta pendente de aprovação da orientação. O código já está
 implementado, e os números do protocolo e os arquivos de resultados já
 foram atualizados.
+
+## Adendo (05/11/2026): as réplicas do Tecator que esta regra não pega
+
+Achado de 30/09/2026, registrado até aqui num arquivo de trabalho fora do
+git (`docs/PENDENCIAS.md`, item A1) e trazido para cá. **Nada foi alterado
+no código.** A correção muda as partições do Tecator e obriga a regenerar
+os resultados dele, então espera a palavra da orientação, a quem o achado
+ainda não foi levado.
+
+**A premissa do Tecator está errada.** O Contexto diz que repetições em
+linhas distantes "são compatíveis com coincidência". Não são. O Tecator tem
+22 pares de espectros idênticos bit a bit, nos 100 canais, e nos 22 o
+(fat, water, protein) também é idêntico. São réplicas da mesma amostra.
+Só 2 desses pares estão em linhas vizinhas, e só esses 2 a regra agrupa.
+Os outros 20 ficam em grupos diferentes.
+
+Medido em 05/11 no loader deste trabalho (`load("tecator")`, 215 linhas,
+208 grupos) e conferido com `scripts/verificar_replicas_tecator.py`:
+
+| o que | medido |
+|---|---|
+| pares de espectros idênticos | 22, todos com `y` idêntico |
+| no mesmo grupo do ADR 009 | 2 |
+| separados pelo ADR 009 | 20 |
+| atravessam treino/teste no `evaluate()`, `seed_split` 0–29 | de 3 a 11 por semente, mediana 8; em todas as 30 |
+| atravessam a divisão 172/43 do modo da literatura | 7 |
+
+**Também a frase das Consequências está errada.** Lá se lê que "nenhum par
+de réplicas do Tecator atravessa essa fronteira" (172/43). Isso vale só
+para os pares vizinhos. Dos 22 pares idênticos, 7 atravessam.
+
+**O que isso atinge:** todo número do Tecator deste trabalho calculado com
+a partição atual, inclusive o piso de ruído, a comparação de
+pré-processamento e os braços do Estágio 2 (PLS, iPLS, VIP e GA-PLS).
+Quanto, não foi medido nos braços. Duas medidas parciais:
+- Na âncora do artigo (ADR 013, "Ressalva obrigatória"), o efeito sobre o
+  PLS foi pequeno: a gordura vai de 0,946 para 0,943.
+- Em 28/10 (DIARIO), agrupar os pares na comparação de pré-processamento
+  não mostrou otimismo sistemático no H\*, mas o teste ficou confundido,
+  porque mudar os grupos muda também a partição.
+
+**O tamanho do efeito no teste, medido em 05/11** com
+`scripts/verificar_vazamento_replicas_tecator.py` (duas execuções
+idênticas):
+- **Como foi medido.** `evaluate()` com o `PLSArm` e a partição atual,
+  `seed_split` 0–29. Em cada semente, o mesmo modelo e o mesmo teste, com
+  o R² de dois jeitos: no teste inteiro, e sem os espectros cujo gêmeo
+  ficou no treino (de 3 a 11 por semente, mediana 8).
+- **A referência.** Tirar do teste o mesmo número de amostras sem gêmeo,
+  em 200 sorteios por semente, porque mudar o teste muda o R² mesmo sem
+  vazamento.
+- **Resultado:** o vazamento infla o R² do teste em +0,0010 na mediana
+  (faixa de −0,0040 a +0,0056). Ficou positivo em 19 das 30 sementes, o
+  que não se distingue do acaso (teste do sinal, p = 0,20). O R² do
+  próprio teste inteiro varia de 0,9515 a 0,9821 entre as sementes, cerca
+  de trinta vezes a mediana do efeito.
+- **No PLS, então, o efeito no teste é pequeno perto da variação entre
+  partições.** Duas coisas ficam sem medida:
+  - os pares que ficam os dois no treino, em folds diferentes da CV
+    interna (de 4 a 13, mediana 9), e que podem otimizar a escolha do
+    número de componentes;
+  - os outros braços. Um braço que seleciona bandas, ou uma rede, pode
+    aproveitar o gêmeo mais do que o PLS.
+
+**Teste que guarda o defeito (05/11).** `tests/test_data.py::test_identical_spectra_with_identical_target_share_a_group` exige que espectro e alvo idênticos fiquem no mesmo grupo, nos quatro conjuntos. Passa no Gasoline, no Mango e no bioprocess. No Tecator falha com "20 de 22" e está marcado como falha esperada estrita: quando a correção entrar, ele passa, e a marca tem de sair.
+
+**Correção proposta, a decidir com a orientação:** agrupar também por
+espectro idêntico. No Tecator, a amostra passaria a ser a união de linhas
+vizinhas com alvos idênticos e de linhas com espectro idêntico. Depois,
+regenerar os resultados do Tecator e declarar a mudança.
