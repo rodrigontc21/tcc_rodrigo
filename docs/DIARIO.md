@@ -1535,8 +1535,9 @@ comprometido". Se o achado se confirmar, a premissa se inverte: a faixa
 usada. Corrigir apenas a prosa tornaria o texto internamente consistente e
 apagaria a única pista visível da troca.
 
-**Verificação reproduzível:** `~/verificar_alvo.py`, fora do repositório,
-imprime as quatro checagens. Escrito em 29/09 para levar à orientação.
+**Verificação reproduzível:** `scripts/verificar_alvo.py` imprime as quatro
+checagens. Escrito em 29/09 para levar à orientação. Depende do repositório
+da orientação em `docs/fontes/`, que não é versionado.
 
 ### Consequências para este trabalho, a decidir com a orientação
 
@@ -1553,6 +1554,1563 @@ imprime as quatro checagens. Escrito em 29/09 para levar à orientação.
 Nada foi alterado no código ou nos ADRs por causa disso. O achado vai à
 orientação primeiro.
 
+### A orientação aceitou o achado, no mesmo dia
+
+Achado levado por mensagem em 29/09, com a saída da verificação. Resposta
+no mesmo dia, ainda em 29/09. O registro bruto está em `docs/orientacao/`,
+fora do versionamento.
+
+**Ela conferiu outro artefato em 03/09.** Nas palavras dela: abriu o loader
+do `pgsg_1`, que lê o CSV do OpenML com cabeçalho `moisture, fat, protein`
+e seleção em `-2`; ali o alvo é gordura de fato, e o 0,9 / 49,1 / 18,14 que
+reportou estava correto **para aquele arquivo**. Mas aquele não é o código
+que gerou o artigo — o `targets.csv` do `prior-guided-spectral-gating-main`
+é o código-fonte declarado na publicação. São artefatos diferentes, e ela
+conferiu o errado. Isso fecha o que a entrada acima deixou como "permanece
+sem explicação".
+
+**O mecanismo, identificado por ela.** O `targets.csv` tem conteúdo na ordem
+do StatLib/OpenML (umidade, gordura, proteína) com cabeçalho escrito na
+ordem do `skfda` (Fat, Water, Protein). A troca aconteceu **na exportação
+do CSV, não no carregamento** — por isso nenhum teste de carregamento
+pegaria.
+
+**Ela aceita a conclusão.** Quatro números na precisão reportada não
+coincidem por acaso; a leitura mais direta é que os resultados do Tecator
+no artigo publicado foram calculados sobre umidade, não gordura.
+
+**O escopo mudou, na avaliação dela.** Deixa de ser corrigendum de prosa:
+Tabela 1, Seção 4.2, Fig. 2 e Fig. 3 na parte do Tecator passam a reportar
+um alvo diferente do declarado. E atinge a Seção 5.2, o argumento central
+de interpretabilidade — a banda de 931 nm é atribuída ao estiramento C–H da
+gordura, mas com ρ = −0,988 ela apareceria de qualquer forma. O argumento
+que ela usou em setembro a favor ("o resultado não distingue os alvos")
+corta ao contrário: a banda não valida a escolha do alvo, e a frase que
+atribui a seleção à gordura foi escrita sobre um modelo que previa água.
+Palavra dela: precisa ser **reformulado**, não corrigido. O Gasoline não é
+afetado; o método também não, e o PLS com gordura real dá 0,9489, o que
+alarga a distância para o PGSG.
+
+**Três verificações pedidas**, nessa ordem e com prioridade sobre o resto:
+
+1. Confirmar que o `targets.csv` é mesmo o insumo das rodadas publicadas —
+   data de modificação, histórico do git daquele repositório, e qual script
+   o gerou a partir de qual fonte. Se houver script de exportação, ele
+   mostra a troca literalmente.
+2. Conferir a identidade da coluna 0 contra a água do `fda.usc` elemento a
+   elemento, não só por mínimo e máximo, e confirmar o alinhamento das 215
+   linhas entre `targets.csv` e a matriz X.
+3. Rodar o pipeline completo com a coluna correta — PGSG inclusive, não só
+   o PLS — para medir a extensão do que muda.
+
+### Decisão da orientação: o portão do Estágio 2 muda de âncora
+
+Palavra dela: o portão de validação do Estágio 2 previa comparação contra
+os valores publicados do Tecator, e **esses valores estão suspensos até a
+verificação fechar**. A âncora passa a ser a própria reexecução do protocolo
+do artigo com o alvo correto, e isso deve ser registrado em ADR.
+
+E a ordem de prioridade: **os ADRs 006 e 007 podem esperar; as verificações
+vêm primeiro.**
+
+Nada foi alterado ainda. O ADR da nova âncora sai depois das verificações,
+que é quando se sabe o que ele deve fixar.
+
+### Verificação 1, fechada: o `targets.csv` é o insumo das rodadas publicadas
+
+Rodada em 29/09. O script é `scripts/verificar_origem_targets.py`.
+
+**O zip não respondia.** Todos os arquivos com data 29/09 09:44, que é a
+extração; a pasta enviada não tem `.git`. Os dois primeiros itens do pedido
+eram impossíveis com aquele material.
+
+**O repositório público resolveu.** O manuscrito declara o código em
+`github.com/clarimar/prior-guided-spectral-gating`, e o link está acessível.
+Clonado em `~/pgsg-github`, fora deste repositório, com
+`--filter=blob:none --no-checkout`. São 18 commits, de 23/05/2026 a
+09/09/2026.
+
+- `data/raw/tecator/targets.csv` e `spectra.csv` entraram no **commit
+  inicial** (`42c0b30`, 23/05/2026 10:01) e **nunca foram alterados**.
+  Atravessaram intactos as três rodadas de revisão — R1 em julho, R2 em
+  agosto, Talanta em setembro.
+- Os dois arquivos do GitHub são **byte a byte idênticos** aos do zip,
+  conferido por `sha256` do blob contra o arquivo
+  (`targets.csv`: `3115d049…`, `spectra.csv`: `cc8b2b09…`).
+- **Nenhum script de exportação foi apagado** em toda a história do
+  repositório; as únicas exclusões são intermediários de LaTeX, em agosto.
+
+Com a reprodução dos quatro números, isso fecha a pergunta: o arquivo é o
+insumo das rodadas publicadas, e não um artefato gerado depois.
+
+**A fonte declarada não existe.** Os dois scripts de download
+(`src/data/download.py`, `src/data/download_old.py`) e o
+`scripts/download_tecator.R` chamam `data(meatspec, package="pls")`. O
+pacote `pls` não tem esse conjunto — só `gasoline`, `mayonnaise`,
+`oliveoil` e `yarn`, conferido no R desta máquina —, e nenhum pacote
+instalado aqui o tem. Esses scripts caem no `except` e não poderiam ter
+gerado os arquivos. O `spectra.csv` confirma por outro lado: tem cabeçalho
+`850nm, 852nm, ...`, enquanto aquele código grava `pd.DataFrame(X)`, que
+daria `0, 1, 2, ...`.
+
+**A fonte de fato é o `skfda` ou o `fda.usc`, indistinguíveis pelos dados.**
+O `spectra.csv` é idêntico linha a linha ao X de `fetch_tecator()` — e
+também ao `tecator$absorp` do `fda.usc`, porque **o X das duas bibliotecas é
+idêntico entre si** (conferido em 29/09). Logo o X bater com o skfda não
+identifica qual das duas foi usada; identifica apenas que não foi o
+`meatspec`. O `targets.csv` é o mesmo `y`, com as colunas 0 e 1 **trocadas**
+em relação à ordem das duas bibliotecas:
+
+| no `targets.csv` | conteúdo | posição na biblioteca |
+|---|---|---|
+| 0, rotulada `Fat` | água | 1, `water` |
+| 1, rotulada `Water` | gordura | 0, `fat` |
+| 2, rotulada `Protein` | proteína | 2, `protein` |
+
+**O que identifica o modo de geração:** o cabeçalho do `spectra.csv` é
+`850nm, 852nm, ..., 1047nm, 1050nm`. Os `argvals` das duas bibliotecas são
+`850,0 / 852,0202 / 854,0404 / ... / 1047,9798 / 1050,0` — o
+`linspace(850, 1050, 100)` registrado no adendo do ADR 004. O cabeçalho é
+esse eixo **truncado para inteiro**: 1047,9798 virou `1047nm`, não 1048. Um
+CSV do StatLib ou do OpenML não traria esses valores quebrados para truncar.
+O arquivo foi, portanto, gerado por código a partir de uma dessas duas
+bibliotecas.
+
+É o mecanismo que a orientação descreveu. O que muda é a origem: uma das
+duas bibliotecas, não o CSV do OpenML.
+
+**O script que fez a troca não está no repositório e nunca esteve.** Não há
+menção a `skfda` ou `scikit-fda` em lugar nenhum, nem no `requirements.txt`,
+que lista `rpy2` com o comentário "R integration (for Tecator download)".
+
+**Achado lateral:** a declaração de disponibilidade de dados do manuscrito
+(`revision_r1/manuscript_R2.tex`, linha 538) afirma que os dois conjuntos
+vêm do pacote R `pls`. O Tecator não vem.
+
+### Verificação 2, fechada: a coluna é a água, e as linhas estão alinhadas
+
+Rodada em 29/09. O script é `scripts/verificar_alinhamento_tecator.py`. O
+`fda.usc` não estava instalado nesta máquina — o ADR 004 registra o uso dele
+em 03/09, mas a instalação não persistiu —, e foi instalado agora.
+
+**Identidade elemento a elemento, nas 215 linhas, contra o `tecator$y` do
+`fda.usc`:**
+
+| coluna do `targets.csv` | casa com | linhas iguais | maior diferença |
+|---|---|---|---|
+| 0, `Fat` | `Water` | 215/215 | 0,00e+00 |
+| 1, `Water` | `Fat` | 215/215 | 0,00e+00 |
+| 2, `Protein` | `Protein` | 215/215 | 0,00e+00 |
+
+Diferença exatamente zero. Não é semelhança de faixa: são os mesmos valores.
+
+**As linhas não foram embaralhadas.** O `spectra.csv` é idêntico ao
+`tecator$absorp` linha a linha, e o `targets.csv` bate com o `tecator$y` sem
+reordenar linhas. A linha *i* do espectro corresponde à linha *i* do alvo. O
+erro está só na ordem das **colunas** de `y`, o que limita o estrago e torna
+a correção mecânica.
+
+**Duas fontes independentes concordam.** O `y` do `fda.usc` (R) e o do
+`scikit-fda` (Python) têm o mesmo conteúdo. A identificação das colunas não
+depende da biblioteca.
+
+**Sobre qual lado foi alterado.** As colunas do `tecator$y` no `fda.usc` se
+chamam `Fat, Water, Protein`, na mesma ordem em que o cabeçalho do
+`targets.csv` foi gravado — e é também a ordem do `skfda`. O conteúdo, por
+outro lado, está em água, gordura, proteína. Qual dos dois lados foi
+mexido não se decide pelos arquivos: sem o script, "cabeçalho correto sobre
+conteúdo permutado" e "conteúdo numa ordem de origem com cabeçalho escrito
+de outra" explicam igualmente o resultado. A evidência do eixo truncado
+(verificação 1) favorece a primeira leitura, já que o gerador leu de uma
+biblioteca cuja ordem é gordura, água, proteína — mas isso é inferência, não
+prova. O efeito é o mesmo, e é o que a orientação descreveu.
+
+**Em aberto, para olhar depois — réplicas no Tecator.** A checagem de
+unicidade feita de passagem mostrou **22 espectros repetidos linha a linha**
+no Tecator, e a mesma contagem aparece na fonte (`fda.usc`), então não é
+artefato do CSV. Conferido um par: as linhas 185 e 214 têm X idêntico e y
+idêntico — são réplicas da mesma amostra física. O ADR 009 deste trabalho é
+justamente sobre partição agrupada por amostra física; se essas réplicas
+existem e o Tecator é particionado aleatoriamente, há vazamento entre treino
+e teste. Nada foi alterado; fica registrado para avaliação.
+
 **Próximo**
-Levar o achado à orientação, com a verificação rodada. Depois, medir o
-custo do `IPLSArm` nos outros três conjuntos.
+Verificação 3: rodar o pipeline completo com a coluna correta, PGSG
+inclusive, para medir a extensão do que muda. Depois o ADR da nova âncora do
+portão do Estágio 2, e a medição do custo do `IPLSArm` nos outros três
+conjuntos.
+
+## 2026-09-30
+
+Dia da verificação 3, de duas auditorias independentes sobre as três
+verificações, e das correções que elas produziram. O material para a
+orientação ficou em `results/`, e a decisão que ela pediu virou o ADR 013.
+
+### Verificação 3, fechada: a extensão do que muda com o alvo correto
+
+Script: `scripts/verificar_pipeline_tecator.py`. Reimplementa o pipeline do
+artigo — não roda os scripts deles — importando os modelos e refazendo o
+protocolo de `preprocessing_fixed.py`, `train_light.py`, `train_with_vip.py`,
+`train_with_rf.py`, `train_random.py`, `cross_validate.py` e
+`train_proper.py`. Conferido linha a linha contra os originais; as contagens
+de parâmetros batem com o manuscrito nos três modelos (1.765, 6.882,
+109.221), o que fixa o mapeamento. O `torch` foi instalado no `~/venv-tcc`
+para isto (2.14.1+cpu).
+
+**Tabela 1 do Tecator**, mediana e faixa entre 10 réplicas — o pipeline
+original não fixa semente em lugar nenhum:
+
+| linha | publicado | col 0 = água | col 1 = gordura |
+|---|---|---|---|
+| PLS | 0,919 | 0,919 | **0,946** |
+| PLS, 5-fold | 0,921 | 0,922 | 0,955 |
+| Ours (ANOVA), teste único | 0,941 | 0,922 [0,80;0,96] | 0,922 [0,84;0,94] |
+| Ours (ANOVA), 5-fold | 0,862 | 0,869 [0,82;0,89] | 0,868 [0,68;0,89] |
+| Ours (VIP) | 0,903 | 0,909 | 0,930 |
+| Ours (RF) | 0,938 | 0,933 | 0,937 |
+| Random init | 0,871 | 0,888 | 0,912 |
+| Plain CNN | 0,235 | −0,019 [−2,59;0,21] | 0,005 [−0,53;0,17] |
+
+A coluna 0 reproduz o publicado — PLS 0,919/0,296 no teste único e 0,922 em
+5-fold contra os 0,921 do manuscrito. É o protocolo do artigo, não uma
+aproximação.
+
+**O H do PLS teve de ser refeito.** `manuscript_R2.tex:386` determina
+"Reported PLS results use H* throughout", com H* pela regra de um erro-padrão
+sobre LOO. O H=10 é o H* **da água**. Para a gordura a regra dá **H\*=12** e
+R² **0,946** — e não 0,9489, que é o valor com H=10 e foi o número citado pela
+orientação na mensagem de 29/09. A implementação se valida contra
+`revision_r1/one_se_output.txt`: reproduz H_min=14, RMSECV 0,2093, SE 0,0269,
+H\*=10 na coluna 0.
+
+**A distância entre PGSG e PLS**, comparando 5-fold com 5-fold, que é o
+número justo e está no próprio manuscrito (linha 388):
+
+| | PLS 5-fold | PGSG 5-fold | lacuna |
+|---|---|---|---|
+| água | 0,922 | 0,869 | 5,7% |
+| gordura | 0,955 | 0,868 | 9,1% |
+
+Cresce cerca de 60%, **não dobra**. O mecanismo: o PGSG vai de 0,869 para
+0,868 (Wilcoxon pareado p=0,846; Mann-Whitney p=0,910) — trocar o alvo não o
+move. Quem muda é o PLS, determinístico, de 0,919 para 0,946. O aumento da
+lacuna vem inteiramente do PLS.
+
+**O prior ANOVA contra a inicialização aleatória**, por Mann-Whitney:
+
+| coluna | ANOVA | aleatório | diferença | p |
+|---|---|---|---|---|
+| 0, água | 0,922 | 0,888 | +0,033 | **0,021** |
+| 1, gordura | 0,922 | 0,912 | +0,010 | 0,307 |
+
+Na coluna publicada a vantagem existe; na gordura, some no ruído. Com a
+ressalva de que os dois braços usam critérios de parada diferentes.
+
+**Nenhum número desta tabela é medida limpa de desempenho.** Os braços de
+teste único param observando o próprio conjunto de teste e ficam com o modelo
+da última época; o 5-fold tem o mesmo problema contra a fold de validação, e
+além disso usa um prior calculado sobre os 172 do treino, que contêm as folds
+de validação. O protocolo foi reproduzido como está, de propósito.
+
+### Entregas em `results/`
+
+Três relatórios em Markdown, gerados por
+`scripts/gerar_relatorio_verificacao.py`, cada um com o enunciado do pedido,
+a resposta em prosa e a saída bruta como anexo. A orientação lê documento,
+não terminal.
+
+- `verificacao_1_procedencia_do_targets.md`
+- `verificacao_2_alinhamento_do_tecator.md`
+- `verificacao_3_pipeline_com_o_alvo_correto.md`
+
+### ADR 013 — a âncora do portão do Estágio 2
+
+Escrito, status **proposto**. Fixa o protocolo da âncora (partição semente
+42, Z-score de X e y, H\* por LOO+1SE refeito por coluna, alvo por nome) e os
+valores de referência com a gordura. Mantém a coluna da água como controle.
+Registra a ressalva das réplicas.
+
+### Duas auditorias independentes, e o que elas derrubaram
+
+Duas sessões separadas auditaram as três verificações. Tudo que segue foi
+**conferido rodando** antes de entrar aqui.
+
+**Erros meus, corrigidos:**
+
+- O H do PLS estava fixo em 10 para as duas colunas (acima).
+- A lacuna usava média e desvio entre réplicas. Duas réplicas colapsam na
+  gordura — sementes 5 e 7, uma fold cai para ~0 em cada. Passou a mediana e
+  faixa, e o script agora lista as réplicas anômalas.
+- A lacuna comparava PGSG em 5-fold contra PLS em teste único. O número justo
+  está no manuscrito e passou a ser usado.
+- O teste ANOVA × aleatório era Wilcoxon pareado por semente. Não vale:
+  semente igual não emparelha nada entre os dois braços, porque as camadas
+  seguintes partem de pesos diferentes. Passou a Mann-Whitney.
+- O script gravava `__pycache__` dentro da árvore da orientação, contra a
+  promessa do próprio cabeçalho. Removido, e `sys.dont_write_bytecode = True`
+  antes do primeiro import.
+- O cabeçalho dizia que só as linhas de teste único eram otimistas; o 5-fold
+  também é.
+
+**Afirmações minhas que caíram:**
+
+- "as 20 maiores do Gasoline vão de 150 a 261, não contíguas" — **19 das 20
+  são exatamente as bandas 150–168**. O texto publicado erra por uma banda; eu
+  exagerei a discrepância.
+- "9 das 10 maiores aparecem em todas as folds, não 8" — veio de uma semente.
+  Nas dez: 9, 8, 7, 8, 9, 10, 9, 10, 10, 8. O 8 publicado aparece em três.
+- "a ablação de bandas não reproduz" — cai pela metade. Com a leitura
+  "retreinar sem as bandas" dá 0,28–0,72 e 0,83–0,87, perto dos 0,431 e 0,794
+  publicados. Eu havia testado só a leitura "zerar a entrada no teste".
+  Os números definitivos são os do relatório da Seção 5.2, medidos no
+  script em dez sementes e nas duas variantes do retreino (ver "Revisão do
+  relatório da Seção 5.2", adiante).
+
+### Correções à entrada de 29/09
+
+Não reescrevo a entrada anterior; as correções ficam aqui.
+
+- **"Duas fontes independentes concordam" está errado.** O
+  `skfda.datasets.fetch_tecator` chama `_fetch_fda_usc("tecator")`: lê do
+  próprio `fda.usc`. Conferir os dois mostra que o resultado não depende do
+  caminho de leitura, e nada além. Fonte de fato independente seria o OpenML
+  505. O resultado da verificação 2 não muda.
+- **"A fonte declarada não existe" é forte demais.** O `meatspec` existe no
+  pacote R `faraway`, onde traz só a gordura e não as três colunas. O certo é
+  "não existe no pacote declarado".
+- **A data original existe.** O `overleaf_submission.zip` preserva a data de
+  cada entrada: as figuras da submissão são de **21/05/2026 17:45**, dois dias
+  antes do commit inicial do GitHub (23/05). Logo o git **não cobre** o
+  período em que os resultados foram gerados. "É o insumo das rodadas
+  publicadas" continua valendo, mas pela reprodução numérica exata, não pelo
+  histórico.
+- **Onde o script de exportação pode estar:** `src/data/download.py:73`,
+  `README_1.md` e `setup_project.py` apontam para
+  `~/Dropbox/chemometric-band-selection/`, o projeto anterior. "Nunca esteve"
+  vale só para o repositório do GitHub.
+
+### A Seção 5.2 reporta a inicialização
+
+**Correção de escopo, feita ainda em 30/09.** Eu havia classificado isto como
+"achado não pedido" e deixado fora dos relatórios. Errado: a mensagem da
+orientação enumera o que o achado atinge — "a Tabela 1, a Seção 4.2, a Fig. 2
+e a Fig. 3... **E atinge a Seção 5.2**, que é o argumento central de
+interpretabilidade... precisa ser reformulado, não só corrigido" — e em
+seguida pede o pipeline completo "para saber a extensão do que muda". A
+Seção 5.2 está dentro do pedido, e é a parte que ela mais destacou.
+
+Medido em `scripts/verificar_secao52_pgsg.py`.
+
+As gates de um modelo **sem um único passo de treino** reproduzem os valores
+publicados, nos dois conjuntos:
+
+| | sem treinar | treinado | publicado |
+|---|---|---|---|
+| Tecator, banda topo | 931 nm | 931 nm | 931 nm |
+| Tecator, peso | 0,215 | 0,219 | 0,215 |
+| Tecator, corr. com o prior | **0,348** | 0,335 | **0,348** |
+| Tecator, região C–H | 7,389% | 7,213% | 7,4% |
+| Tecator, região O–H | 3,536% | 3,535% | 3,5% |
+| Gasoline, banda topo | 154 | 154 | 154 |
+| Gasoline, peso | **0,130** | 0,107 | **0,130** |
+| Gasoline, corr. com o prior | **0,507** | 0,495 | **0,507** |
+
+O `analyze_gates.py` cria um modelo novo e lê as gates; não há `torch.load`
+ali, e nenhum script do pipeline do Tecator chama `torch.save`. A Fig. 1
+publicada, extraída do `overleaf_submission.zip`, coincide com a
+inicialização ponto a ponto, inclusive no vale de 862 nm.
+
+Isso falsifica a frase da legenda (linha 473): "The moderate correlation with
+the ANOVA prior (r=0.35) **confirms genuine data-driven refinement rather
+than mere reproduction of initialization**".
+
+**E há um mecanismo, que explica o pico.** O prior é normalizado min-max,
+então o máximo vale **exatamente 1**, e o `clip(1 − 1e-7)` o manda para logit
+16,12. A banda vizinha, com prior 0,9905 — 1% menos —, fica em 4,65:
+
+| banda | prior | logit | gate |
+|---|---|---|---|
+| 40 | 1,000000 | 16,12 | 0,2148 |
+| 39 | 0,990542 | 4,65 | 0,0217 |
+| 41 | 0,975696 | 3,69 | 0,0179 |
+
+Gate dez vezes maior por 1% de diferença no prior. O "dramatic sharpening of
+the peak at 931 nm" (linha 481), apresentado como aprendizado, é consequência
+mecânica de `(p−min)/(max−min)` → `clip` → `logit`. O mesmo mecanismo produz
+o vale em 862 nm, onde o prior mínimo vira −16,12.
+
+Consequência: a banda campeã começa **11,5 logits** à frente da segunda,
+enquanto o deslocamento **medido** de cada logit em 200 épocas fica entre
+1,47 e 1,93. (O passo do Adam é da ordem do *learning rate*, o que dá ~2,0
+em 200 passos, mas isso é uma referência, não um teto rígido — o que
+sustenta a conclusão é a medida.) **O topo não tem como mudar.** As posições
+de baixo, onde os logits estão próximos, reordenam — o que explica a
+estabilidade entre folds sem que ela seja evidência de aprendizado.
+
+**Duas afirmações do manuscrito que não fecham com o próprio material:**
+
+- linha 388 publica PLS 5-fold `0,921 ± 0,018`; o `one_se_output.txt` do autor
+  registra `0,9218 ± 0,0439` nas mesmas folds. A média bate, o desvio não.
+- linha 390 afirma semente fixa 42 e variação "<0,02 in R²". Nenhum script do
+  pipeline do Tecator chama `torch.manual_seed`, e o ANOVA em teste único
+  varia de 0,80 a 0,96 nas dez réplicas.
+
+**Onde mais a afirmação aparece:** `submission_package/highlights.txt`,
+`cover_letter.txt`, `paper_complete.txt` e `revision_r2/pgsg_1_R2.tex:358`.
+
+Nada disto foi enviado. Está em `docs/PENDENCIAS.md`, bloco C, para a
+orientação decidir quando e como.
+
+### Achado sobre ESTE trabalho: as réplicas do Tecator e o ADR 009
+
+O mais sério do dia, e não é sobre o artigo.
+
+```
+pares de espectros IDENTICOS no Tecator : 22
+pares que o ADR 009 põe no MESMO grupo  :  2
+pares que ele SEPARA                    : 20
+```
+
+O ADR 009 agrupa réplicas do Tecator por vizinhança de linha. Vinte dos 22
+pares idênticos estão em linhas distantes, caem em grupos diferentes, e podem
+cair em lados opostos da partição no `evaluate()`. **Isso atinge todo número
+do Tecator deste projeto** — piso de ruído, comparação de pré-processamento,
+iPLS.
+
+A premissa escrita no ADR 009, de que repetições distantes "são compatíveis
+com coincidência", é falsa: são espectros de 100 canais idênticos bit a bit.
+
+No artigo, 7 desses pares atravessam a partição publicada. O efeito medido
+sobre o PLS é pequeno — a gordura vai de 0,946 para 0,943 — e não foi medido
+sobre os demais braços.
+
+**Nada foi alterado.** O status do ADR 009 segue a palavra da orientação, e o
+achado vai a ela primeiro.
+
+### `docs/PENDENCIAS.md`
+
+Arquivo de trabalho, temporário, separado em: o que é deste trabalho (A),
+correções nos scripts (B) e material sobre o artigo (C). No fim do dia, B1 a
+B4 estão aplicados, o bloco C entrou no relatório da Seção 5.2, e só o A1
+segue aberto. O que for resolvido sai de lá e entra na entrada do DIARIO do
+dia.
+
+### Revisão do relatório da Seção 5.2
+
+Uma terceira leitura, depois de o relatório `verificacao_3b_secao_5_2.md`
+ficar pronto, achou nele duas afirmações que não se sustentavam, e uma
+lacuna no relatório 3:
+
+- **"A mediana entre sementes é 8, o valor publicado é o típico."** Com cinco
+  sementes (`9, 8, 7, 8, 9`) a mediana é 8; com dez, da mesma sequência
+  (`9, 8, 7, 8, 9, 10, 9, 10, 10, 8`), é 9. O número dependia de quantas se
+  rodavam. O script passou a dez sementes, e o relatório agora diz o que a
+  medida sustenta: o valor vai de 7 a 10, e o 8 publicado aparece em 3 das
+  10 — possível, não típico.
+- **O retreino da ablação mantinha o prior sem dizer.** Com o prior mantido,
+  a porta continua pondo ~21% do peso na banda 931, zerada, e o treino não
+  redistribui. É uma escolha que move o resultado, e ela não estava
+  declarada. Agora as duas variantes são medidas, com os mesmos sorteios:
+  mesmo prior 0,35 [0,18; 0,53], prior zerado 0,63 [0,28; 0,72], contra
+  0,431 publicado. O publicado cai dentro da faixa de ambas.
+- **A coluna "depois de treinar" era de uma semente.** Refeita em dez: o
+  treinado nunca chega aos valores publicados (Tecator, correlação 0,332 a
+  0,340 contra 0,348; Gasoline, peso 0,102 a 0,110 contra 0,130, correlação
+  0,487 a 0,500 contra 0,507).
+- **O relatório 3 não apontava para o 3b.** Quem lesse só o primeiro
+  concluiria que "o PGSG praticamente não muda" sem saber que as portas
+  publicadas são a inicialização. Ganhou uma remissão na resposta curta.
+
+Os dois relatórios foram regenerados pelo `gerar_relatorio_verificacao.py`.
+
+### Quarta auditoria, refazendo cada afirmação por outro caminho
+
+Sessão nova, com a instrução de não confiar nos scripts que geraram os
+relatórios: cada afirmação refeita por caminho diferente — R puro para a
+verificação 2, PLS e portas reimplementados do zero em numpy/sklearn, o
+código do artigo lido de novo, e o texto conferido contra o **PDF
+publicado**, não só contra o `manuscript_R2.tex`.
+
+**Confirmado:** histórico e `sha256` do repositório público (e ele não
+mudou desde o clone); identidade das colunas em R (`identical()`); PLS
+inteiro (H\* 10 e 12, 0,9191/0,2957, 0,9462/0,2428, 5-fold 0,922 e 0,955);
+as portas da inicialização nos dois conjuntos; a fidelidade da
+reimplementação do PGSG, receita por receita; o A1 contra os grupos do
+loader. Os quatro scripts rodados de novo deram saída idêntica aos anexos.
+Tudo o que os relatórios citam do manuscrito está também no PDF publicado.
+Fato novo: os 22 pares de espectros idênticos do Tecator têm também o `y`
+idêntico — são réplicas, não coincidência.
+
+**Corrigido nos relatórios:**
+
+- Relatório 3 dizia que a Plain CNN publicada caía "na cauda" da dispersão.
+  Está **fora** da faixa das 10 réplicas, em R² (0,235 contra [−2,59; 0,21])
+  e em RMSE (0,909 contra [0,93; 1,97]).
+- Relatório 3b dizia que a Fig. 1 "coincide com a inicialização ponto a
+  ponto". Nunca foi medido; a olho são iguais, mas a curva treinada também
+  seria. Deixou de ser usada como evidência.
+- Relatório 3b citava o deslocamento dos logits "entre 1,47 e 1,93": eram a
+  semente 0 de cada coluna, apresentadas como faixa. Em 10 sementes: 1,45 a
+  1,92 no Tecator, 1,22 a 1,79 no Gasoline. A conclusão se mantém.
+- Relatório 1 afirmava, sem conferir, que o `meatspec` do `faraway` só tem a
+  gordura. Conferido no `faraway` 1.0.9 do CRAN, lendo o arquivo de dados
+  sem instalar o pacote (a instalação exige CMake para uma dependência):
+  215 × 101, colunas `V1`–`V100` e `fat`.
+- Relatório 3 citava só o Wilcoxon pareado. Passou a citar os dois testes,
+  com a justificativa do pareamento — que aqui é legítimo, ao contrário do
+  que o item B3 do `PENDENCIAS.md` sugeria.
+
+### Varredura de treino: o que reproduz as portas publicadas
+
+A formulação que eu vinha usando dizia que treino muito curto, ou com lr
+cem vezes menor, reproduz o publicado. Isso nunca tinha sido medido em
+script. Medido agora em `scripts/verificar_varredura_treino.py`, com
+desenho e critério fixados no cabeçalho antes de rodar: 10 sementes,
+"reproduz" = peso da maior porta **e** correlação com o prior iguais ao
+publicado na terceira casa.
+
+- Sem treino: 10 de 10 nos dois conjuntos.
+- 1 a 5 épocas: 1 a 3 de 10 no Tecator, 0 a 1 de 10 no Gasoline.
+- lr 1e-4 no protocolo do artigo: 4 de 10 no Tecator, **0 de 10** no
+  Gasoline (peso 0,129 contra 0,130).
+- Protocolo declarado, e qualquer KL de 0 a 10: 0 de 10 nos dois.
+
+**A formulação caiu pela metade.** Treino curto ou com lr baixo deixa as
+portas a 0,001–0,002 do publicado — praticamente iguais à inicialização —,
+mas não as reproduz de forma consistente; só a inicialização reproduz em
+todas as sementes. O KL não aproxima em nenhum valor. O relatório 3b passou
+a dizer "correspondem à inicialização", com a tabela da varredura e a
+saída dela como segundo anexo.
+
+### Adendos datados, sem reescrever
+
+O achado de 29/09 desmentia três registros que seguiam como estavam: o ADR
+004 (aceito) dizia "dados do OpenML" e "nenhum resultado do paper está
+comprometido"; a pergunta 5 do `PERGUNTAS.md` e a linha 5 da tabela do
+`PROTOCOLO.md` diziam "erro de prosa". Os três ganharam adendo de 30/09. A
+decisão do ADR 004 para este trabalho não muda, e o status também não. A
+redação pode mudar quando a orientação responder.
+
+O ADR 013 passou a dizer como os 7 pares foram tirados no cálculo do
+0,946 → 0,943: dos dois jeitos dá o mesmo (0,9426 tirando do teste, 0,9428
+tirando do treino).
+
+### A fonte independente: OpenML 505
+
+A verificação 2 só tinha o `fda.usc` (o skfda lê dele). Refeita contra o
+OpenML 505 em `scripts/verificar_openml_tecator.py`, que entrou no
+relatório 2 como segundo anexo. O OpenML tem 240 amostras; as 215 do
+`spectra.csv` são as 215 primeiras, na mesma ordem, com espectro idêntico. A
+coluna rotulada `Fat` é a `moisture` do OpenML, 215/215 com diferença zero;
+`Water` é `fat`; `Protein` é `protein`. Duas rotulagens independentes, a
+mesma resposta — com a ressalva de que as duas distribuições descendem do
+mesmo arquivo do StatLib.
+
+O script errou na primeira execução, e a trava que eu tinha posto o parou:
+o teste de ordem buscava, para cada linha, "a linha mais parecida" do
+OpenML, e os 22 espectros repetidos fazem essa busca devolver a primeira
+ocorrência. Era defeito do teste, não dos dados — a diferença posição a
+posição já dava zero. Passou a comparar posição com posição.
+
+### Releitura do pedido: o que faltava no "pipeline completo"
+
+Relendo a mensagem de 29/09 frase por frase, e o artigo inteiro atrás de
+todo resultado do Tecator, apareceram dois lugares que os relatórios não
+cobriam:
+
+- **O resumo e a conclusão** repetem o argumento da Seção 5.2 ("*the moderate
+  correlation ... (0.35–0.51) confirms ... rather than merely reproducing
+  initialization*"). O relatório 3b só listava highlights, carta e textos
+  de fora do artigo.
+- **A Seção 3.4** (`manuscript_R2.tex:267`) afirma uma busca em grade do
+  peso do KL no Tecator: λ ≥ 0,01 "colapsa para o prior" (r > 0,85) e
+  λ ≤ 1e-4 fica "indistinguível da inicialização aleatória". Não há script
+  dela no repositório. Refeita em `scripts/verificar_kl_secao34.py`, com a
+  grade e o protocolo do texto, 50 treinos por λ: a correlação fica entre
+  0,331 e 0,351 em todos os λ, nenhum treino passa de 0,85, e com λ = 1e-4
+  as portas seguem agrupadas em 0,337, enquanto as da inicialização
+  aleatória vão de 0,17 a 0,50. Nenhuma das três afirmações se reproduz.
+
+Leitura de código, registrada como tal: o texto trata o prior como
+distribuição de probabilidade, mas o `band_select_net_light.py` usa os
+escores min-max sem normalizar a soma — o termo minimizado não é a KL da
+equação.
+
+Os dois entraram no relatório 3b, com o script como terceiro anexo.
+
+**Decisão minha, hoje:** a mensagem à orientação responde só ao que ela
+pediu em 29/09. O A1 — as réplicas do Tecator neste trabalho — fica para
+depois, numa mensagem própria.
+
+**Próximo**
+Enviar à orientação os quatro relatórios de `results/` e o ADR 013. Levar
+junto o item A1 — as réplicas do Tecator —, que é o que trava o Estágio 2
+deste trabalho. Depois, medir o custo do `IPLSArm` nos outros três
+conjuntos.
+
+## 2026-10-21
+
+Entrada de retomada, depois de 20 dias sem registro. Cobre o que aconteceu
+em 30/09 à noite e em 01/10, reconstituído do export do WhatsApp atualizado
+hoje (`docs/orientacao/`, agora com a pasta `files/`), e o que ficou parado
+desde então.
+
+### O envio de 30/09
+
+Enviados à orientação às 22:26 de 30/09: os quatro relatórios de `results/`
+e o ADR 013, com uma mensagem que resumia cada verificação e levava duas
+perguntas — se o H\* deve ser refeito por coluna, e se o script que gerou o
+`targets.csv` está no Dropbox do projeto anterior. O A1 ficou de fora, como
+decidido em 30/09. Conferido por `sha256`: os arquivos que estão no disco são
+idênticos aos que foram enviados.
+
+Correção à entrada de 30/09: o "Próximo" de lá dizia para levar o A1 junto.
+Isso foi revisto no mesmo dia, na seção "Releitura do pedido", e o A1 não
+foi.
+
+### O parecer da orientação (01/10, 10:39)
+
+Documento `.docx`, guardado em `docs/fontes/` e fora do versionamento
+(`.gitignore`), porque é avaliação privada do artigo dela. Em resumo, nas
+palavras do documento:
+
+- "O conjunto das quatro verificações é melhor do que o que foi pedido."
+  Trata os achados como estabelecidos, e não como hipótese.
+- O alvo trocado: a Tabela 1, a Seção 4.2 e as Figs. 2 e 3 passam a
+  reportar água; a lacuna para o PLS vai de 5,7% para 9,1%, e o H\* da
+  gordura é 12.
+- A Seção 5.2 "é de outra ordem": os oito valores da Tabela 2 são
+  reproduzidos pela inicialização, e a Seção 3.4 também não se reproduz.
+- "O mecanismo é o achado científico real": a cadeia min-max → clip →
+  logit torna a porta campeã imóvel por construção. Propõe correções:
+  escalar os logits, não recortar no extremo, ou usar a temperatura.
+- **Nova direção do TCC:** a hipótese passa a ser que o termo
+  Δ_aprendizado é nulo por construção. Três mudanças de desenho: desdobrar
+  o braço B4 em "inicialização pura, sem nenhum passo de treino" e "PGSG
+  treinado com o protocolo declarado"; acrescentar um braço com a
+  inicialização corrigida; e reinterpretar a H5 (Jaccard) no protocolo
+  pré-registrado antes de rodar a grade.
+- **ADR 013:** "A âncora do PLS está correta e aprovada." Falta um
+  parágrafo sobre o braço B4, com o desdobramento acima. "Com essa adição,
+  o ADR pode passar a aceito." O status segue **proposto** até a adição.
+
+**Não respondido até hoje.** Há uma dúvida a levar junto da resposta: o
+pipeline já tem um braço com porta fixa, o B2 (`mlp_weighted`, "ponderação
+fixa pelo prior, sem gradiente na porta"). Não está claro se a
+"inicialização pura" do parecer é o B2 com a porta congelada no valor
+inicial do PGSG, ou um braço novo. A escolha decide o parágrafo do B4.
+
+### A reprodução independente da orientação (01/10, 18:05)
+
+A orientação refez a reprodução no código do repositório dela.
+
+**Bate exatamente nos dois:** coluna 0 = água; PLS 0,9191 / 0,2957;
+RMSECV 0,2093 ± 0,0269 com H\* = 10; gordura com H\* = 12, 0,9462 /
+0,2428; as portas não treinadas reproduzindo os oito valores; Gasoline com
+H\* = 5, 0,9752 / 0,1453. Também a correlação treinada do Tecator e o
+deslocamento máximo dos logits.
+
+**Diverge nos braços de rede:**
+
+| braço | este trabalho | orientação |
+|---|---|---|
+| Plain CNN, gordura | 0,005 [−0,53; 0,17] | 0,410 [−0,02; 0,80] |
+| PGSG 5-fold, gordura | 0,868 | 0,859 |
+| PGSG ANOVA teste único, água | 0,922 | 0,932 |
+
+**Dois erros meus, apontados por ela e procedentes:**
+
+- O relatório 3b dizia que o protocolo declarado não reproduz "nenhum"
+  dos oito valores. Medido valor a valor, em 10 sementes, na precisão
+  publicada: a banda do topo (10/10 nos dois conjuntos), o peso do Tecator
+  (3/10) e o O–H (5/10) são compatíveis; a correlação do Tecator, o C–H e
+  o peso e a correlação do Gasoline são excluídos (0/10). São quatro
+  compatíveis e quatro excluídos. O erro veio de generalizar o critério da
+  varredura, que olhava só peso e correlação juntos, e de uma tolerância
+  frouxa no C–H (7,21% marcado "ok" contra 7,4%).
+- O relatório 3 passou a dizer, em 30/09, que o 0,235 da Plain CNN fica
+  fora da faixa. Com 50 sementes ele fica dentro, no percentil 96. A
+  "correção" de 30/09 foi conclusão de 10 sementes — a armadilha de sempre.
+
+**Três achados dela, a incorporar:** o `compute_priors.py` mapeia `'Fat'`
+para a coluna 0, então o próprio prior ANOVA foi calculado sobre a água; o
+± 0,018 da Seção 4.2 não corresponde a nenhuma dispersão (ela obtém 0,0439
+com ddof=0 e 0,0491 com ddof=1, os mesmos que eu havia medido na auditoria
+de 30/09, mais 0,022 de erro-padrão); e as Figs. 2 e 3 usam constantes
+consistentes com a Tabela 1 publicada.
+
+Ela pediu dois scripts e quatro conferências: semeadura, forma do `y` na
+perda, qual modelo é a Plain CNN, e contra qual conjunto a paciência
+observa. As quatro foram conferidas no código e estão iguais às dela:
+`torch.manual_seed(s)` antes de instanciar, `y` em 1-D, `BandSelectNet`
+com porta e prior (o mesmo do `create_model`), e paciência no teste para o
+teste único e na fold para o 5-fold.
+
+### Investigação da divergência, em 01/10
+
+Medido em scripts de rascunho, fora do repositório. **O código desses
+rascunhos se perdeu** (pasta temporária da sessão); os números abaixo
+ficam como registro e precisam ser refeitos em `scripts/` antes de entrar
+em qualquer relatório.
+
+- **Sensibilidade às sementes, 50 sementes, medianas por bloco de 10:**
+  ANOVA teste único na água, 0,921 a 0,924; PGSG 5-fold na gordura, em 30
+  sementes, 0,868 a 0,876; Plain CNN na gordura, −0,001 a 0,071, com
+  máximo de 0,17 em 50 sementes. As duas primeiras diferenças são pequenas,
+  mas ficam fora da variação entre blocos; a da Plain CNN é incompatível —
+  não é semente.
+- **Variações da Plain CNN na gordura, 10 sementes:** 100 épocas, sem
+  parada, paciência 30, weight decay 1e-4, receita do modelo leve,
+  lr 0,001, prior da água, `y` sem padronizar (o `preprocessing.py`, versão
+  sem "fixed", não padroniza o `y`) e guardar a melhor época. Nenhuma
+  chegou perto de 0,41; a mais próxima foi guardar a melhor época, com
+  mediana 0,161.
+
+Sem o script dela, não dá para saber de que lado está a diferença.
+
+### Os scripts enviados (01/10, 18:52)
+
+Enviados `scripts/verificar_pipeline_tecator.py` e
+`scripts/verificar_varredura_treino.py`, com instruções de uso, a
+admissão dos dois erros e o pedido do script dela. Antes do envio, os
+dois tiveram as docstrings e os comentários encurtados e os marcadores
+`# noqa` removidos. Nenhuma linha de cálculo nem de saída mudou: rodados
+depois da limpeza, a saída saiu idêntica, linha a linha, aos anexos dos
+relatórios.
+
+Resposta dela às 19:03: "Obrigado". **Nada mais até hoje** — nem o script
+dela, nem resposta à divergência.
+
+### Estado em 21/10
+
+- Os relatórios **ainda não foram corrigidos** (os dois erros acima e os
+  três achados dela). Foram segurados para corrigir tudo de uma vez depois
+  da comparação com o script dela.
+- O parecer não foi respondido, e o ADR 013 segue proposto.
+- Nada commitado desde `895e1f8`; o `main` local está 3 commits à frente do
+  `origin`, e nada foi enviado ao GitHub.
+- O congelamento do protocolo estava marcado para a semana 11, por volta de
+  27/10 (DIARIO de 25/08 e 28/09). O parecer exige que a reinterpretação da
+  H5 entre no protocolo antes da grade, e a pergunta 1, que trava o
+  congelamento, provavelmente nunca foi enviada.
+
+### Os testes de 01/10, refeitos em script
+
+Os três testes que tinham ficado só em rascunho agora estão em
+`scripts/verificar_divergencia_redes.py`, que usa as funções do
+`verificar_pipeline_tecator.py` para não haver diferença de protocolo. Os
+números saíram **idênticos** aos de 01/10, em todas as linhas: os oito
+valores (4 compatíveis, 4 excluídos), as medianas por bloco de sementes e
+as dez variações da Plain CNN, com a mais próxima, guardar a melhor época,
+ainda em mediana 0,161 contra os 0,410 da orientação. Levou 4,5 minutos.
+Suíte: 97 passed, 1 skipped.
+
+### ADR 013: o parágrafo do B4
+
+O parecer não pergunta, determina; por isso o parágrafo foi escrito sem
+consulta prévia, com a leitura adotada declarada no próprio ADR, para a
+orientação corrigir se discordar. Seção nova, "O braço B4":
+
+- o B4 se desdobra em **porta na inicialização** (porta fixa em
+  `softmax(logit(clip(s))/τ)`, sem gradiente, resto da rede treinado) e
+  **PGSG treinado** (protocolo declarado);
+- "sem nenhum passo de treino" é lido como a **porta** sem treino, porque
+  uma rede inteira sem treino não prevê;
+- com essa leitura, a porta na inicialização é o **B2** do pipeline, desde
+  que a ponderação fixa do B2 seja a porta inicial e não o prior bruto — e
+  não são a mesma coisa: no Tecator a porta inicial põe 21,5% do peso na
+  maior banda, o prior bruto normalizado põe 2,4% (medido hoje). O ADR fixa
+  a primeira, e `Δ_aprendizado = B4 − B2` passa a medir a hipótese do
+  parecer;
+- "reproduzir o modelo publicado" passa a ser feito por partes: as portas
+  publicadas contra a porta na inicialização, os R² publicados contra o PGSG
+  treinado, como faixa.
+
+Status: segue **proposto** até a orientação ler a adição.
+
+**Próximo**
+Pôr a nova direção do parecer no `PROTOCOLO.md`, antes do congelamento.
+Depois, mandar o ADR 013 à orientação, com a pergunta sobre o prazo de
+congelamento e um lembrete sobre o script dela.
+Depois corrigir os relatórios — os dois erros e os três achados dela —, com
+o novo script como anexo, de preferência já com a comparação contra o
+script dela.
+
+## 2026-10-27
+
+**A orientação escreveu hoje** ("Rodrigo, tudo bem?", 10:31), a primeira
+mensagem desde 01/10. Hoje é também a data em que o `PROTOCOLO.md` marcava
+o congelamento (semana 11). As semanas desde 01/10 foram tomadas pelo
+período de eleição no trabalho, no TRE.
+
+### Relatórios corrigidos, como prometido à orientação em 01/10
+
+- **Relatório 3b:** "o protocolo declarado não reproduz nenhum dos oito
+  valores" passou a "quatro compatíveis, quatro excluídos", com a tabela
+  valor a valor em 10 sementes. A causa do erro estava também no script: o
+  `verificar_secao52_pgsg.py` comparava com tolerâncias frouxas (0,3 ponto
+  no C–H, 0,005 no peso) e marcava "ok" o C–H treinado de 7,21% contra
+  7,4%. Passou a comparar na precisão publicada — arredonda o medido para
+  as mesmas casas do artigo —, o mesmo critério da orientação.
+- **Relatório 3:** a Plain CNN voltou a "na cauda": o 0,235 publicado fica
+  no percentil 96 em 50 sementes. A "correção" de 30/09 ("fora da faixa")
+  vinha de 10 sementes. Entraram os dois achados da orientação — o prior
+  ANOVA, VIP e RF também calculado sobre a água, e o ± 0,018 que não
+  corresponde a nenhuma dispersão — e uma seção sobre a divergência com a
+  reprodução dela, com o `verificar_divergencia_redes.py` como segundo
+  anexo. A divergência segue em aberto, à espera do script dela.
+
+**Correção à entrada de 21/10:** ali está "as dez variações da Plain CNN".
+São nove variações mais a receita original, e o peso do KL não foi variado
+sozinho — faz parte da "receita do modelo leve".
+
+### A nova direção no protocolo, como proposta
+
+A proposta (`docs/fontes/tcc_rodrigo.pdf`) só pôde ser lida hoje: o
+extrator improvisado embaralhava a fonte do arquivo. Instalado o `pypdf`
+6.21.3 no `~/venv-tcc`, só como ferramenta de leitura, fora do
+`requirements.txt`. Lidas as hipóteses H1–H7, duas coisas que eu supunha
+estavam erradas:
+
+- **Não existe hipótese para o Δ_aprendizado.** O H4 é outro termo
+  (Δ_vs-clássico: a porta contra a melhor seleção clássica). A hipótese do
+  parecer é, portanto, nova — entrou como **H8**.
+- **A H5 é "a hipótese positiva do trabalho"**, nas palavras da proposta, e é
+  justamente a que o parecer manda reinterpretar. A H6 (B4 contra B3 em
+  reprodutibilidade) é atingida pelo mesmo mecanismo, e o parecer não a cita.
+
+Seção nova no `PROTOCOLO.md`, "Hipóteses e braços: ajustes depois do
+parecer de 01/10/2026", com status **proposto**: a H8; a reinterpretação da
+H5 e, por inferência minha, da H6; o B4 desdobrado como no ADR 013; o B5
+com a inicialização corrigida — proposta: escalar os logits por `c < 1`,
+com a distância inicial entre os dois primeiros logits na ordem do que o
+treino move, e `c` fixado nas sementes de exploração; e um braço B2', a
+porta corrigida congelada, acréscimo meu, para o contraste com o B5 isolar
+o gradiente. Perguntas 14 (esses ajustes) e 15 (o prazo de congelamento)
+abertas no `PERGUNTAS.md` e na tabela do protocolo; a pergunta 3 ganhou
+adendo — o código do modelo de referência foi cedido em 29/09.
+
+Revisão final contra as duas mensagens de 01/10: a tabela principal do
+relatório 3 ainda trazia VIP, RF e Random init como ponto, sem a faixa entre
+sementes, contra o "valores de rede vão como faixa, não como ponto" da
+orientação. As faixas já estavam no anexo; passaram à tabela.
+
+Última leitura, como a orientação vai ler — só com os anexos na mão:
+
+- o ADR 013 apontava para o "DIARIO de 21/10", que ela não tem (nada foi ao
+  GitHub desde 21/09); passou a apontar para a seção do relatório 3;
+- o protocolo dizia que o Jaccard alto **entre partições** é o esperado de
+  modelos com "a mesma inicialização". Isso vale para as folds, que dividem
+  o mesmo prior; entre partições o prior é recalculado, e o quanto ele muda
+  nunca foi medido. A frase passou a ser atribuída ao parecer, com essa
+  ressalva, e a medida ficou como primeira tarefa do piloto;
+- o ADR 013 passou a dizer que o braço "porta na inicialização" treina o
+  resto da rede com o mesmo protocolo e orçamento do PGSG treinado, e que
+  os R² comparados à dispersão do PGSG treinado são os das redes;
+- o cabeçalho do protocolo deixou de dizer só "congela ~27/10": cita a
+  pergunta 15 e a H8 proposta.
+
+### Revisão de ponta a ponta
+
+**Reprodutibilidade:** os oito scripts de verificação, rodados do zero,
+deram saída idêntica, linha a linha, aos anexos dos quatro relatórios.
+Suíte: 97 passed, 1 skipped. Nenhum `__pycache__` no código do artigo.
+
+**Conferido pela primeira vez:** a afirmação de que nenhum script do
+pipeline do Tecator chama `torch.manual_seed` vinha das sessões anteriores
+sem conferência. Conferida: a única chamada em toda a árvore está em
+`revision_talanta/`, de outro artigo.
+
+**Três afirmações acima da medida, corrigidas nos relatórios:**
+
+- 3b: "o alvo correto não muda nada; a banda de 931 nm tem o mesmo valor" —
+  a própria tabela mostra 0,215 contra 0,217 e 0,348 contra 0,353. Passou a
+  "praticamente não muda".
+- 3b, Seção 3.4: "os logits andam no máximo ~2, qualquer que seja o peso do
+  termo" — o deslocamento só foi medido no λ do artigo; para os outros é a
+  conta do passo do Adam. Passou a dizer qual é medida e qual é conta.
+- 3: a comparação ANOVA × aleatório na gordura (p = 0,307) é de 10
+  sementes, e a mediana do ANOVA nessa coluna varia de 0,908 a 0,942 entre
+  blocos de 10. Ganhou a ressalva de que é frágil ali.
+
+**Releitura do ADR 013 — uma lacuna de conteúdo.** O "PGSG treinado" era
+definido como "o protocolo declarado no artigo", e no artigo a paciência
+observa o próprio conjunto de teste — o vazamento que o relatório 3 aponta.
+No protocolo deste trabalho o braço não vê o teste (contrato `Arm`). O ADR
+e a tabela de braços do protocolo passaram a dizer: hiperparâmetros do
+artigo, parada sobre uma fold de validação interna; a parada sobre o teste
+fica só na reexecução fiel, para comparação. Também no ADR 013: o item do
+ADR 004 dizia que a conclusão dele "precisa ser revisitada", quando o
+adendo de 30/09 já a registra como caída; e "os R² das redes caem na
+dispersão do PGSG treinado" passou a "de cada braço treinado", porque a
+Plain CNN não é o PGSG leve.
+
+### Checagem sistemática: cada número e cada citação contra a fonte
+
+Em vez de reler, cruzei por script todos os números do texto dos quatro
+anexos — ADR 013, a seção nova do protocolo, relatórios 3 e 3b — contra as
+saídas medidas dos scripts, o artigo e as mensagens da orientação, levando
+em conta o arredondamento; e cada citação, palavra por palavra, contra o
+parecer, o manuscrito, a carta e os highlights.
+
+**Números que estavam no texto sem nenhum script que os produzisse** — medidos
+em rascunhos que se perderam, ou num comando avulso:
+
+- ADR 013: o 0,946 → 0,9426 / 0,9428 das réplicas. Agora em
+  `scripts/verificar_replicas_tecator.py`, que reproduz também os 22 pares,
+  os 22 com `y` idêntico, os 2 agrupados pelo ADR 009 e os 7 que atravessam
+  a partição. Sustenta também o A1.
+- Relatório 3b: a tabela do pico (bandas 39–41: prior, logit, porta), o vale
+  de 862 nm e o 2,4% do prior bruto citado no ADR 013. Agora impressos pelo
+  `verificar_secao52_pgsg.py`, e batem.
+- Relatório 3: os erros-padrão 0,0196 e 0,0220 do ± 0,018. Saíram do texto;
+  ficaram os desvios 0,0439 e 0,0491, que a orientação obteve também.
+
+**Citações que não eram literais:** "8 of the top-10 bands appeared
+consistently in all 5 folds" (o texto real tem "in the top-10 selections
+of"); a frase da carta, citada sem "Tecator (…)" e "content"; e, no ADR 013,
+uma paráfrase do parecer junto de uma citação dele — agora citado como
+está ("o modelo publicado corresponde ao primeiro deles").
+
+Depois das correções, nenhum número dos quatro anexos fica sem fonte.
+Suíte: 97 passed, 1 skipped.
+
+**Próximo**
+Mandar à orientação o ADR 013 com o parágrafo do B4, os relatórios 3 e 3b
+corrigidos, o `PROTOCOLO.md` com a seção nova, a pergunta sobre o prazo e o
+pedido do script dela.
+
+### Envio à orientação (16:57–16:58)
+
+Mensagem de resposta ao "tudo bem?", explicando a pausa pelo período de
+eleição no TRE, com três anexos, na versão final do dia:
+
+- `docs/ADR/013-ancora-do-portao-do-estagio-2.md` — com a seção "O braço B4";
+- `results/verificacao_3_pipeline_com_o_alvo_correto.md` e
+  `results/verificacao_3b_secao_5_2.md` — corrigidos com os dois erros e os
+  três achados apontados por ela em 01/10.
+
+Dois pedidos: que ela diga se concorda com a leitura do B2 no ADR 013, e o
+script dela da reprodução, por causa da Plain CNN. Conferido pelo tamanho
+dos arquivos que os três enviados são as versões finais.
+
+**Decisão minha:** o `PROTOCOLO.md` — a seção nova "Hipóteses e braços" e a
+pergunta do prazo de congelamento — **não foi enviado** e fica para depois.
+A grade só roda no segundo semestre. A seção segue no arquivo, marcada como
+proposta, e as perguntas 14 e 15 seguem abertas e não enviadas. O prazo de
+~27/10 do protocolo passou sem congelamento.
+
+**Próximo**
+Esperar a resposta sobre o ADR 013 e o script dela. Enquanto isso, seguir o
+Estágio 2, que não depende dela: o custo do `IPLSArm` nos outros três
+conjuntos, e depois o CARS, o GA-PLS e o VIP.
+
+### Custo do iPLS nos quatro conjuntos — interrompido, parcial
+
+`scripts/medir_custo_ipls.py`, novo: `evaluate()` com o PLS completo e o
+`IPLSArm` em busca completa, `seed_split` 0, `seed_algo` 0. Os R² são de uma
+partição só — conferem o encanamento, não são resultado.
+
+| conjunto | PLS completo | iPLS, busca completa | razão |
+|---|---|---|---|
+| Tecator | 101 ajustes, 0,2 s | 9.056 ajustes, 16,0 s | 89,7× em ajustes, 71,3× em tempo |
+| Gasoline | 101 ajustes, 0,1 s | 15.749 ajustes, 27,4 s | 155,9× em ajustes, 234,1× em tempo |
+| Mango | 101 ajustes, 14,9 s, **H = 20** | **quebrou** | — |
+| bioprocess | — | **interrompido** aos ~50 min, sem resultado | — |
+
+O Tecator repete a medida de 28/09 (89,7× em ajustes): o braço não mudou.
+
+**Dois achados no Mango, a investigar antes de qualquer correção:**
+
+1. **O iPLS quebra:** o `mdatools::ipls` dá "system is exactly singular"
+   (`solve.default(crossprod(xloadings, weights))`) dentro da busca nas
+   folds. Hipótese, não conferida: o `glob_ncomp` vem do PLS completo, que
+   escolheu 20 componentes, e intervalos de ~30 bandas vizinhas, muito
+   colineares depois do SNV, não sustentam tantos componentes. O recorte
+   atual do `int.ncomp` é pela largura do intervalo, não pelo posto.
+2. **O PLS completo bateu no teto:** `MAX_COMPONENTS = 20` em
+   `src/tcc/arms/pls.py`, e no Mango a regra de um erro-padrão escolheu
+   exatamente 20. Escolha no limite da grade sugere que o teto pode ser
+   baixo demais para n = 11.691. Mexe no A1, a referência de todos os
+   braços, e numa regra do protocolo — não alterar sem medir.
+
+**Próximo**
+Investigar os dois achados do Mango; rodar o bioprocess sozinho, sem o
+filtro que segurava a saída, para acompanhar o progresso; depois, o ADR 014
+do VIP, com o desenho proposto em 27/10 (limiar por CV entre 0,8, 1,0, 1,2 e
+1,5, parcimônia escolhendo o maior limiar, seleção aninhada por fold).
+
+## 2026-10-28
+
+### Custo do iPLS, refeito um conjunto por vez — e os dois achados do Mango
+
+Tecator e Gasoline refeitos: mesmos ajustes de 27/10 (9.056 e 15.749; 89,7×
+e 155,9× o PLS completo). O tempo varia de uma execução para outra.
+
+**O erro do iPLS no Mango tem causa nos dados.** Diagnóstico em rascunho,
+sobre o treino da `seed_split` 0:
+
+- o CSV do Mango cobre **285 a 1200 nm** (306 bandas, passo 3 nm), e o
+  loader usa todas as colunas numéricas;
+- **25 bandas são constantes** — o mesmo valor nas 11.691 amostras, desvio
+  exatamente zero: 285–306 nm (8) e 1152–1200 nm (17). O posto numérico do
+  espectro é 281 = 306 − 25;
+- Tecator, Gasoline e bioprocess não têm nenhuma banda constante;
+- o `mdatools::ipls` quebra ("system is exactly singular") sempre nos
+  intervalos das pontas, que contêm esses canais: o bloco não sustenta o
+  número de componentes pedido. Os intervalos do meio funcionam em todos os
+  `int_num` testados.
+
+**O PLS completo do Mango está limitado pelo teto de componentes.** Com
+`MAX_COMPONENTS = 20`, a regra de um erro-padrão escolhe 20 (RMSECV 1,034);
+com teto 40, escolhe **32** (RMSECV 0,919, cerca de 11% melhor). Tirar as 25
+bandas constantes não muda isso (H\* 32 também). São dois problemas
+independentes. O segundo atinge o A1, a referência de todos os braços:
+com o teto atual ele fica artificialmente pior no Mango. No Tecator e no
+Gasoline o teto não pesa (H\* = 3).
+
+**Nada foi alterado.** Correções possíveis, a decidir: tirar do Mango as
+bandas de variância zero (curadoria, mexe no ADR 006, aceito — vai como
+proposta); subir o `MAX_COMPONENTS` (muda o `n_fits` de referência do PLS e,
+provavelmente, testes que fixam 101). Pergunta maior, não verificada: a
+literatura do Mango parece usar só 684–990 nm — fica para a revisão
+dirigida e para a orientação.
+
+O bioprocess ainda não foi medido.
+
+### As duas correções do Mango, aplicadas
+
+**Canais mortos.** O `_load_mango()` remove as 25 bandas constantes, com
+trava que falha se a fonte mudar; Mango passa a 281 bandas (309–1149 nm).
+Adendo de 28/10 no ADR 006, com o novo `sha256`
+(`6c79f05e…26a3`). Decisão minha, não vista pela orientação; o status do
+ADR 006 segue "aceito" para a decisão original.
+
+**Teto de componentes.** `MAX_COMPONENTS` de 20 para 40 em
+`src/tcc/arms/pls.py`, e o `PLSArm` passou a avisar quando a escolha cai no
+teto. Adendo de 28/10 em "Validação cruzada interna", no `PROTOCOLO.md`.
+Decisão minha, não vista pela orientação.
+
+Testes novos: `test_no_constant_band` (quatro conjuntos) e o par
+`test_warns_when_choice_hits_the_ceiling` /
+`test_no_warning_when_choice_is_below_the_ceiling`. Os dois primeiros
+conferidos por mutação — tirar o aviso e deixar de remover as bandas fazem
+cada um falhar —, com os arquivos restaurados e o hash conferido. Suíte:
+**103 passed, 1 skipped**.
+
+**Efeito colateral do teto, medido.** A comparação de pré-processamento do
+Tecator (`compare_preprocessing_tecator.py`, versionada) foi refeita com o
+teto 40:
+
+- **SNV — o pré-processamento do protocolo — não muda:** R² médio 0,9686,
+  maior H\* 13, igual ao de antes, linha a linha.
+- **As variantes com derivada pioram em algumas sementes:** a busca vai a
+  21–31 componentes, o RMSECV cai e o R² no teste cai junto (pior caso
+  0,964 → 0,841, derivada, semente 4) — sinal de CV otimista com muitos
+  componentes. SNV→derivada passa de 0,9688 para 0,9676 de R² médio, abaixo
+  do SNV: a escolha de 17/09 se reforça.
+
+Hipótese testada e **não confirmada**: que o otimismo venha dos pares
+idênticos em folds diferentes (A1). Agrupando os pares, o H\* cai em quatro
+das sete linhas e sobe em três, e o teste é confundido — mudar os grupos
+muda também a partição.
+
+O arquivo versionado da comparação foi **restaurado à versão do git**: é a
+evidência da decisão de 17/09, citada no protocolo, e não deve ser trocado
+calado. Os números acima ficam só aqui. Decisão: manter o teto 40, porque
+corrige o Mango e não muda nada no que o protocolo usa.
+
+### Custo do iPLS: a tabela dos quatro conjuntos, com teto 40
+
+`scripts/medir_custo_ipls.py`, `seed_split` 0, `seed_algo` 0. O bioprocess
+terminou em 2 h 31 min, dentro do limite de 3 h que eu tinha deixado. Tecator
+e Gasoline foram refeitos depois, com o teto 40, para a tabela seguir uma
+regra só; no bioprocess, o PLS completo foi refeito sozinho com teto 40 (o
+iPLS tinha rodado com o código carregado antes da mudança).
+
+| conjunto | PLS completo | iPLS, busca completa | razão em ajustes |
+|---|---|---|---|
+| Tecator | H = 3, 201 ajustes, 0,4 s | 9.156 ajustes, 17,4 s | 45,6× |
+| Gasoline | H = 3, 176 ajustes, 0,3 s | 15.824 ajustes, 30,2 s | 89,9× |
+| Mango | H = 32, 201 ajustes, 116,8 s | 15.282 ajustes, 901,9 s | 76,0× |
+| bioprocess | H = 7, 201 ajustes, 274,8 s | 22.239 ajustes, 9.059,1 s (teto 20) | — |
+
+- **O `n_fits` do iPLS inclui a busca do PLS completo:** com o teto 40, o
+  iPLS do Tecator ganhou exatamente os 100 ajustes que o PLS ganhou (9.056 →
+  9.156), e o do Gasoline, 75 (15.749 → 15.824; o Gasoline para em 35
+  candidatos, pelo tamanho da menor fold). Por essa conta, o iPLS do
+  bioprocess com teto 40 daria 22.339 ajustes, cerca de 111× — **estimado,
+  não medido**. A escolha não muda: H = 7 fica abaixo dos dois tetos.
+- **O tempo é só ordem de grandeza.** O Mango e boa parte do bioprocess
+  rodaram ao mesmo tempo; a razão em tempo não entra na tabela.
+- R² de uma partição só, para conferir o encanamento: o iPLS do Tecator
+  repete o 0,9415 de 28/09; Gasoline, PLS 0,9839 e iPLS 0,9610;
+  bioprocess, PLS 0,8677 e iPLS 0,8712 (10 intervalos, 1.309 de 1.870
+  bandas).
+
+**O que isso pesa na grade:** com dez sementes, só o iPLS no bioprocess
+passa de 25 horas. Cabe, rodando por partes; o custo do GA-PLS e do CARS
+ainda não foi medido. A decisão (faixa menor de `int_num` no bioprocess,
+busca reduzida, ou aceitar o custo) é da orientação, antes de congelar o
+protocolo.
+
+### Braço VIP (ADR 014, proposto)
+
+**Fontes.** Tentei ler as referências primárias do VIP: Wold et al. 1993 e
+2001, Chong e Jun 2005, Mehmood et al. 2012 e 2020, Farrés et al. 2015.
+Nenhuma abriu, por ser paga ou porque o site bloqueou o acesso automático
+(Mehmood 2020 é aberta, mas a editora recusou). Não forcei o download. O que
+li: a documentação da Eigenvector (VIP "próximo de 1 ou maior" é importante;
+eliminar em rodadas é mal sustentado; cita Chong e Jun) e o código e o manual
+dos dois pacotes R já instalados. O ADR marca o que vem de fonte lida e o
+que não vem; a faixa de limiares {0,8; 1,0; 1,2; 1,5} é escolha minha, a
+conferir com Chong e Jun.
+
+**Achado: o `plsVarSel` e o `mdatools` não calculam o mesmo VIP.**
+`scripts/verificar_vip.py`, com SNV, autoescala e H = 5: o VIP do projeto
+bate com o `plsVarSel::VIP` até 1e-14 nos quatro conjuntos. Com o
+`mdatools::vipscores`, a diferença chega a 0,86 (Mango). Diagnóstico em
+rascunho, no Tecator: o `mdatools` usa os pesos do SIMPLS, `R = W(P'W)⁻¹`,
+e com eles a fórmula do projeto reproduz o pacote até 1,6e-12. A escolha
+muda a seleção (Gasoline, VIP ≥ 0,8: 339 bandas com `W`, 200 com `R`). O
+braço segue o `plsVarSel` (`W`). Adendo no ADR 008.
+
+**Implementação.** `src/tcc/arms/vip.py`: o VIP sai do mesmo `PLSRegression`
+autoescalado do A1, com H pela regra de um erro-padrão, e a seleção é
+aninhada por fold. O limiar é escolhido pela regra de um erro-padrão com
+desempate para o **maior** limiar (menos bandas), e um limiar que esvazie
+algum fold sai da disputa. O PLS final é reajustado nas bandas com o mesmo
+H, recortado. `band_scores` é o VIP.
+
+**Testes.** `tests/test_vip.py`, 13 testes, incluindo o verificador
+anti-vazamento do ADR 011 no braço e uma versão vazada que ele reprova. Cinco
+mutações conferidas, cada uma derrubando pelo menos um teste, com o arquivo
+restaurado e o hash conferido. Três delas passavam na primeira rodada:
+desempate pelo menor limiar, corte estrito e tirar a normalização de `w_a`.
+Os testes foram reforçados até as três caírem. Suíte: **116 passed, 1
+skipped**.
+
+**Custo e encanamento** (`scripts/medir_custo_vip.py`, `seed_split` 0):
+
+| conjunto | PLS: R², ajustes | VIP: R², ajustes | limiar | bandas |
+|---|---|---|---|---|
+| Tecator | 0,9660, 201 | 0,9658, 222 | 1,2 | 16 de 100 |
+| Gasoline | 0,9839, 176 | 0,9817, 202 | 1,0 | 108 de 401 |
+| Mango | 0,8676, 201 | 0,8570, 227 | 0,8 | 143 de 281 |
+| bioprocess | 0,8677, 201 | 0,8753, 227 | 1,2 | 345 de 1870 |
+
+O VIP custa cerca de 1,1 vez o PLS em ajustes; o iPLS, de 46 a 111 vezes. Os
+R² são de uma partição só e não são resultado. No Tecator, o limiar 1,5
+esvaziou algum fold e saiu da disputa.
+
+Decisão minha, não vista pela orientação.
+
+**Mehmood, Sæbø e Liland (2020), lido.** Consegui o PDF pela CAPES, e ele
+ficou fora do repositório. Ele confirma:
+- a fórmula do braço, com os *loading weights* `w_a` do NIPALS, e não os
+  pesos do SIMPLS;
+- a origem: Wold, Johansson e Cocchi (1993), com o nome VIP dado por
+  Eriksson et al. (2001);
+- o corte "geralmente aceito" em 1;
+- a validação cruzada dupla para ajustar o limiar de métodos de filtro, que
+  é o desenho aninhado do braço.
+
+No estudo de simulação deles, o limiar ajustado ficou em 0,90. ADR 014
+atualizado com seção e tabela de cada afirmação. Continuam sem leitura
+direta: Wold 1993 e 2001, Chong e Jun 2005 (de onde viria uma faixa de
+limiares) e Farrés 2015. Os valores 0,8, 1,2 e 1,5 seguem como escolha minha.
+
+**Próximo.** GA-PLS (`plsVarSel::ga_pls`) e depois o CARS (libPLS). Pegar
+pela CAPES o Wold 2001 e o Chong e Jun 2005, guardar fora do git (o
+repositório é público e os artigos são pagos) e conferir o ADR 014 contra
+eles.
+
+## 2026-10-29
+
+### Conferência do ADR 014 contra as fontes
+
+Cada afirmação do ADR 014 foi conferida contra o PDF de Mehmood et al.
+(2020), lido agora por inteiro, e contra as saídas dos scripts. Batem: a
+fórmula, a origem e o nome (referências 13 e 19), o corte em 1 (referências
+19 a 21: Eriksson 2001, Chong e Jun 2005, Gosselin 2010), o limiar 0,90 da
+Tabela 2, a validação cruzada dupla (Seção 4.3), a licença CC BY e todos os
+números da tabela de custo.
+
+**Correções à entrada de 28/10:**
+- **Diferença para o `plsVarSel`.** "Até 1e-14" era impreciso: a diferença
+  máxima foi 1,3e-14, o que continua sendo erro de arredondamento.
+- **Limiar 1,5 no Tecator.** Não esvaziou "algum fold": esvaziou os cinco.
+  Medido agora, na `seed_split` 0: o maior VIP por fold fica entre 1,26 e
+  1,30, e a conta fecha (200 da busca de H + 5 + 15 + 2 = 222 ajustes). A
+  afirmação de 28/10 tinha sido deduzida da contagem, sem medir.
+- **Custo do iPLS.** O 111 da faixa "46 a 111 vezes" é a estimativa do
+  bioprocess, não uma medida.
+- **Leituras pendentes.** A lista de 28/10 omitia Mehmood et al. (2012), que
+  também não foi lido.
+- **Wold 2001 e Chong e Jun 2005.** Conferi que esses dois só saem pagos. Não vão ser buscados por outra via. Ficam como citação
+  secundária, com os valores 0,8, 1,2 e 1,5 declarados como escolha minha.
+
+ADR 014 ajustado nesses pontos, e com mais um apoio: Mehmood et al.
+classificam o VIP como método de filtro, de uma passada (Seção 3.1), e
+chamam de *wrapper* a versão em rodadas (Seção 3.2). É a escolha do braço.
+
+Para o GA-PLS, o mesmo artigo descreve o algoritmo (Seção 3.2.1, atribuído a
+Hasegawa et al.) e traz a taxa de mutação ajustada no estudo deles (R0 =
+8,39, Tabela 2). Ainda não conferi o que isso significa na escala da função
+`ga_pls`.
+
+### GA-PLS: o `plsVarSel::ga_pls` não serve como está
+
+Antes de desenhar o braço, li o código do `ga_pls` (`plsVarSel` 0.10.0), da
+função que avalia cada cromossomo (`plsVarSel:::evaluateX`) e do motor
+genético (`genalg::rbga.bin`, 0.2.1). Depois conferi rodando, com
+`scripts/verificar_ga_pls_plsvarsel.py` (Tecator, SNV, `set.seed(1)`,
+defaults do pacote: `GA.threshold` 10, população 100, 5 gerações).
+
+1. **A seleção devolvida é o cromossomo com mais variáveis, não o de menor
+   erro.** A última linha do `ga_pls` faz `which.max(rowSums(population))`
+   e ignora as avaliações. Medido: devolveu 14 bandas com PRESS 1018,0, quando
+   a população final tinha um cromossomo de 9 bandas com PRESS 880,7. O PRESS
+   com as 100 bandas é 1025,1, então a seleção devolvida quase não melhora
+   sobre o espectro inteiro.
+2. **A avaliação usa folds próprias.** `plsr(validation = "CV")` sorteia
+   segmentos aleatórios, sem as folds do protocolo e sem os grupos do ADR 009.
+   Réplicas do Mango e do bioprocess cairiam em segmentos diferentes, o que dá
+   um PRESS otimista.
+3. **O número de componentes é fixo.** Por código, o PRESS é sempre o de 4
+   componentes (`ncomp = min(5, k)`, índice `ncomp - 1`), e não o da regra de
+   um erro-padrão. A avaliação também não autoescala, ao contrário do A1.
+4. **Cromossomo com menos de 2 variáveis recebe PRESS fixo 100.** Esse valor
+   não depende da escala de y. No Tecator ele é muito menor que qualquer PRESS
+   real (cerca de 880 a 1025), ou seja, um cromossomo de 1 banda "venceria" se
+   aparecesse. Na população medida, o menor tinha 4 bandas, então não
+   aconteceu.
+
+Com o mesmo `set.seed`, a seleção se repete; com sementes diferentes, muda.
+O mapeamento `seed_algo` → `set.seed` do ADR 008 funciona.
+
+O ADR 008 escolheu o `plsVarSel` para o GA-PLS sem ter lido esse código. Usar
+o `ga_pls` como está seria o "braço aleijado" que o pipeline proíbe. A saída
+muda a decisão do ADR 008 e precisa ser decidida antes de qualquer código.
+
+### GA-PLS: pacote GA com a nossa avaliação (ADR 015, proposto)
+
+**Decisão.** Motor genético do pacote R `GA` (Scrucca 2013, 3.2.5, instalado
+hoje), com avaliação e escolha final nossas. Era a opção que eu recomendei
+entre quatro: GA mais a nossa avaliação, `genalg` mais a nossa avaliação, o
+`ga_pls` como está, ou perguntar ao professor antes.
+
+**O custo, e como ficou viável.** Cada avaliação é uma CV com 4 PLS. Com o
+`PLSRegression`, medi 0,77 s no Mango e 3,18 s no bioprocess por avaliação.
+Com os padrões do pacote (50 × 100) e a seleção aninhada, isso daria cerca de
+5 h e 21 h por partição (estimativa). A saída foi calcular a avaliação por
+kernel PLS (Dayal e MacGregor 1997) sobre os produtos cruzados `X'X` e `X'y`
+de cada fold, feitos uma vez com todas as bandas. Conferido num rascunho
+contra o `_fit_pls` nos quatro conjuntos, com metade das bandas sorteada:
+
+| conjunto | maior dif. relativa no RMSE | avaliação antes | agora | ganho |
+|---|---|---|---|---|
+| Tecator | 1,2e-14 | 0,022 s | 0,0003 s | 82× |
+| Gasoline | 3,3e-14 | 0,005 s | 0,0017 s | 3× |
+| Mango | 3,8e-13 | 1,477 s | 0,0097 s | 152× |
+| bioprocess | 5,1e-15 | 1,995 s | 0,0641 s | 31× |
+
+Com isso, população e gerações vão à CV entre (30, 50) e (50, 100), como o
+pipeline pede, em vez de serem fixadas.
+
+**Primeira medição, com a população inicial padrão do GA** (cada bit com
+chance 0,5), `scripts/medir_custo_gapls.py`, `seed_split` 0:
+
+| conjunto | PLS: R² | GA-PLS: R² | bandas | ajustes | tempo |
+|---|---|---|---|---|---|
+| Tecator | 0,9660 | 0,9652 | 38 de 100 | 125.298 | 9,7 s |
+| Gasoline | 0,9839 | 0,9795 | 193 de 401 | 126.415 | 36,8 s |
+| Mango | 0,8676 | 0,8746 | 136 de 281 | 126.694 | 110,0 s |
+| bioprocess | 0,8677 | 0,8722 | 921 de 1870 | 127.289 | 2.579,8 s |
+
+Os quatro escolheram (50, 100). **O braço ficou perto da metade das bandas**
+(38 a 49%): a população começa com metade e a mutação do GA
+(`gabin_raMutation`) troca um bit por vez, então não desce. Lido no código
+do pacote, não suposto. Decisão: densidade inicial fixa em 0,1. Fica entre o
+padrão do `plsVarSel` (1 para 10, cerca de 9%) e o valor ajustado em Mehmood
+et al. 2020 (R0 = 8,39, cerca de 11%; que esse R0 seja o mesmo parâmetro é
+leitura minha). Testes e mutações refeitos; medição refeita abaixo.
+
+**Testes.** `tests/test_gapls.py`, 13 testes, entre eles:
+- o kernel PLS igual ao `_fit_pls`;
+- a seleção final sendo o melhor cromossomo;
+- a população inicial com cerca de 10%;
+- o verificador anti-vazamento, com uma versão vazada que ele reprova.
+
+Nove mutações, todas derrubando pelo menos um teste, com o arquivo
+restaurado e o hash conferido. Suíte: **129 passed, 1 skipped**.
+
+**Medição com densidade 0,1:**
+
+| conjunto | PLS: R² | GA-PLS: R² | (pop., ger.) | bandas | ajustes | tempo |
+|---|---|---|---|---|---|---|
+| Tecator | 0,9660 | 0,9646 | (30, 50) | 16 de 100 | 111.030 | 14,9 s |
+| Gasoline | 0,9839 | 0,9755 | (50, 100) | 40 de 401 | 126.415 | 18,4 s |
+| Mango | 0,8676 | 0,8794 | (50, 100) | 54 de 281 | 126.694 | 228,6 s |
+| bioprocess | 0,8677 | 0,8703 | (30, 50) | 185 de 1870 | 112.899 | 479,7 s |
+
+R² de uma partição, não resultado. O bioprocess rodou em 8 minutos. No
+Gasoline e no bioprocess, o número de bandas ficou em cerca de 10%, igual à
+densidade inicial: ela funciona como preferência forte pelo tamanho do
+subconjunto. Registrado no ADR 015 como fragilidade, a levar à orientação.
+
+ADR 015 escrito (proposto) e adendo no ADR 008: o GA-PLS deixa o `plsVarSel`.
+Decisão minha, não vista pela orientação.
+
+**Próximo.** CARS (libPLS), o último braço clássico.
+
+## 2026-11-04
+
+### As duas mensagens da orientação (29/10, 16:48, e 30/10, 13:55)
+
+**29/10**, com o script `verify_plaincnn.py`:
+- **A divergência da Plain CNN** (relatório 3, em aberto desde 01/10) foi um
+  erro de chamada na reprodução dele. `create_model_light(n_bands,
+  n_outputs=1, prior_path=None)` e `create_model(n_bands, n_outputs=1,
+  prior_type='anova', prior_path=None)` não têm a mesma assinatura. O
+  caminho do prior, passado como terceiro argumento posicional, caiu em
+  `prior_type` no modelo pesado, e a Plain CNN dele treinou sem prior. A
+  minha implementação (instanciando `BandSelectNet` direto) foi dada como
+  a certa.
+- **ADR 013:** o confundidor `fc1(x ⊙ g) = (W1·diag(g))·x`. O B2 alcança
+  qualquer primeira camada que o B4 alcance, reescalando W1, então
+  Δ = B4 − B2 ≈ 0 não distingue porta parada de porta absorvida pelo MLP.
+  Pediu também: reportar o Δ com o deslocamento da porta, o que o
+  Δ_ponderação passa a medir, o KL inerte no B2, e "mesmo orçamento" como
+  a mesma regra de parada. Palavras dele: "Com essas adições, o ADR 013
+  passa a aceito."
+- Argumento nomeado como regra no código.
+
+Respondi no mesmo dia (19:12–19:13). Disse que rodei o script e que a causa
+se confirma, mas que os números não saíram iguais aos dele. Avisei que, no
+`train_light`, o decaimento de peso pega os logits da porta. Perguntei se a
+H8 devia ser ajustada do mesmo jeito. E adiantei que o iPLS levou cerca de
+2,5 h numa partição do bioprocess.
+
+**30/10**, com o script `verify_wd_on_gate.py`:
+- **O decaimento na porta.** Ele mediu, e o deslocamento de 1,45 a 1,92 que
+  nós dois líamos como "o treino move a porta" é, na maior parte,
+  encolhimento L2 rumo ao uniforme. Pediu para corrigir isso no relatório
+  3b.
+- **H8:** ajustar com três mecanismos para o Δ ≈ 0 (porta que não anda,
+  MLP que absorve, encolhimento L2), nomeando as medidas que os separam.
+  Fixar o termo: no pgsg_0 o que trava o topo é a distância de 11,5
+  logits contra o passo do Adam, não atenuação de gradiente.
+- **B4 fiel ao artigo** (porta com decaimento) **e B4 limpo** (porta
+  isenta): escolher no protocolo, antes de rodar.
+- **Ambiente:** retirou a observação dele sobre a água (o prior "melhora",
+  0,100 contra 0,002), que aqui deu a direção oposta. Pediu uma linha no
+  relatório 3 dizendo que o mesmo script dá medianas diferentes em máquinas
+  diferentes.
+- **Custo do iPLS:** perfilar antes de otimizar; nada de reduzir semente
+  em silêncio; o custo é resultado; paralelismo, com a pergunta de que
+  máquina eu tenho; e, se for preciso cortar, um espectro por mistura no
+  bioprocess, que ele também apresenta como correção de vazamento.
+- Um teste que falhe se alguma fábrica for chamada com mais de dois
+  argumentos posicionais.
+
+### Os dois scripts dele, rodados aqui
+
+Rodei cada script duas vezes, fora do repositório e sem alterar nada. As
+duas rodadas deram resultado idêntico, e não ficou `__pycache__` na pasta
+do pgsg. Ambiente: torch 2.14.1+cpu, numpy 2.5.2, scikit-learn 1.9.0.
+
+**`verify_plaincnn.py`** (10 sementes por célula, mediana [mín; máx]):
+- **A causa se confirma.** Minha célula, porta ANOVA + `train_proper` na
+  gordura, dá 0,005 [−0,53; 0,17], o mesmo número que eu tinha. A célula
+  que reproduz a dele, sem prior + `train_light`, continua sendo a única da
+  gordura claramente acima de zero.
+- **Os números não batem com os dele.** Nessa célula da gordura ele mediu
+  0,361 [−0,02; 0,82], e aqui dá 0,226 [−0,02; 0,85].
+- **Na água, a direção inverte:** ANOVA + `train_proper` dá −0,019, contra
+  0,004 sem prior.
+
+Tabela completa no Anexo 3 do relatório 3.
+
+**`verify_wd_on_gate.py`** (modelo leve, 10 sementes):
+- **Deslocamento máximo com o decaimento do artigo:** 1,694 na água e
+  1,654 na gordura.
+- **Com a porta isenta:** 0,278 e 0,301, cerca de seis vezes menor. Ele
+  escreveu "sete vezes", com 1,81 e 1,69 no publicado.
+- **Estatísticas de direção:** batem com as dele. Fração encolhida 0,765
+  e 0,750; correlação com −θ₀ 0,806 e 0,810.
+- **O R² não bate:**
+  - com decaimento só no MLP, aqui dá 0,913 e 0,941, e ele mediu 0,887 e
+    0,920;
+  - com o decaimento do artigo, aqui dá 0,922 e 0,922, e ele mediu 0,925
+    e 0,924.
+
+  A conclusão dele, de que isentar a porta não custa desempenho, vale nas
+  duas máquinas.
+- **Sem decaimento nenhum,** o R² cai para 0,644 e 0,244.
+
+Tabela no Anexo 4 do relatório 3b.
+
+### O que mudou nos documentos
+
+- **Relatório 3:**
+  - fechei a seção da divergência, com a causa e a tabela das oito
+    células, dele e daqui;
+  - registrei a linha sobre máquinas diferentes e a observação da água
+    que ele retirou;
+  - deixei em aberto, sem causa, os PGSG 5-fold 0,868 contra 0,859 e a
+    ANOVA na água 0,922 contra 0,932.
+- **Relatório 3b:** corrigi a leitura do deslocamento como encolhimento,
+  com a tabela dos três decaimentos. O Gasoline (1,22 a 1,79) também tem o
+  decaimento na porta e não foi decomposto: só medi o Tecator.
+- **ADR 013:**
+  - **status "aceito (04/11/2026)"**, pela frase dele de 29/10, e com a
+    nota de que ele ainda não viu a parte do decaimento (30/10) nem a nota
+    da Plain CNN;
+  - nova seção "O que o Δ mede", com os acréscimos que ele pediu e os três
+    mecanismos;
+  - a frase antiga do "mede diretamente" ficou, com uma nota de correção.
+- **PROTOCOLO:**
+  - H8 reescrita, com Δ = R²(B4-limpo) − R²(B2), TOST, os três mecanismos e
+    as medidas;
+  - o termo "saturação" ficou só para o efeito do clip;
+  - o B4 foi dividido em B4-fiel e B4-limpo. Sem qualificador, "B4"
+    significa B4-limpo, exceto na comparação com o artigo;
+  - "mesmo orçamento" passou a significar a mesma regra de parada;
+  - a seção continua "proposto".
+- **Decisão minha, a confirmar com ele:** o B3 e o B5 com a porta isenta.
+  O critério do `c` do B5 foi escrito sobre o deslocamento com decaimento
+  (~2); com a porta isenta, ele cai para ~0,3. Vai à pergunta 14.
+
+### Argumento nomeado, com teste
+
+`tests/test_named_arguments.py` varre `src`, `scripts` e `tests` pela
+árvore sintática. O teste falha se uma classe de `src/tcc`, ou um
+classmethod dela, for chamada com mais de dois argumentos posicionais ou
+com `*args`.
+- **Na primeira passada,** ele achou as quatro chamadas
+  `_CrossProducts.of(...)` do GA-PLS (`src/tcc/arms/gapls.py` e
+  `tests/test_gapls.py`). Passaram a ser nomeadas.
+- **Mutação conferida:** um arquivo temporário com `VIPArm(1.0, 3, (0.8,
+  1.0))` foi pego. Apaguei o arquivo depois.
+- **Suíte:** 132 passed, 1 skipped (remedida hoje, depois da última mudança
+  num script).
+
+### Bioprocess: os números da mistura
+
+Conferi os 6.472 espectros e as 3.191 misturas da mensagem dele. Batem. Os
+3.433 do ADR 009 são das 6.960 linhas de antes do descarte dos sem glicose
+(ADR 007). Depois dele ficam 6.472 linhas e 3.191 grupos: 3.168 com 2
+espectros, 1 com 4 e 22 com 6.
+
+O agrupamento do ADR 009 já mantém as réplicas de uma mistura no mesmo
+fold, inclusive na CV interna. O vazamento que ele descreve não acontece no
+nosso código. Cortar para um espectro por mistura continua possível, mas
+agora só por custo. O comentário de `_load_bioprocess` cita as 3.433 junto
+do agrupamento das 6.472 linhas e merece uma nota.
+
+### Custo do iPLS: onde está
+
+Medi com `scripts/perfilar_custo_ipls.py` (bioprocess, `seed_split` 0, fold
+externo 0: 3.882 linhas, 4 segmentos internos, `glob_ncomp` 7).
+
+| int_num | tempo da chamada | ajustes estimados | ms por ajuste |
+|---|---|---|---|
+| 10 | 135,7 s | 226 | 600,7 |
+| 15 | 254,9 s | 496 | 513,8 |
+| 20 | 220,9 s | 721 | 306,4 |
+| 25 | 513,3 s | 1.296 | 396,1 |
+| 30 | 573,8 s | 1.726 | 332,4 |
+
+- **A decomposição bate com a medida de 28/10.** Os 5 candidatos × 5
+  folds, supondo os folds iguais ao 0, dão 8.493 s, contra 9.059 s
+  medidos. Ficaram de fora a chamada final e a diferença entre folds.
+- **O ajuste do mdatools é bem mais caro que o do `PLSRegression`.** Num
+  ajuste isolado, nas larguras de 62 a 187 bandas, ele custa de 44 a 168
+  ms, e o `PLSRegression` de 5 a 50 ms.
+- **Rprof** (int_num 10, num Rscript à parte, porque de dentro do rpy2 ele
+  não amostra): 77% do tempo em `crossprod`, que o R entrega ao BLAS.
+- **O BLAS e o LAPACK do R são os de referência,** de uma thread só.
+
+Então o custo vem das duas coisas: muitos ajustes, e cada ajuste caro
+porque cai num BLAS lento. Ainda não separei quanto do custo por ajuste é
+o BLAS e quanto é o que o mdatools calcula a mais em cada ajuste.
+
+**Paralelismo** (K processos, cada um com a chamada int_num 30):
+
+| K | vazão em relação a K=1 |
+|---|---|
+| 2 | 1,86× |
+| 4 | 2,92× |
+| 8 | 3,25× |
+
+Cada processo fica mais lento à medida que K sobe: 584 s com K=1, cerca de
+1.470 s com K=8.
+
+**Máquina:** Intel Core i5-13450HX, 16 threads, 24 GB de RAM (o WSL
+enxerga cerca de 11 GB). Até aqui o iPLS rodou uma partição por vez.
+
+**Em aberto:**
+- **OpenBLAS para o R.** Exige `sudo apt`, muda o ambiente e pode mexer nas
+  últimas casas dos números. Não testado. Se for feito, entra declarado.
+- **Nenhuma semente foi cortada.** Qualquer corte entra declarado antes de
+  rodar, como ele pediu.
+
+### Os scripts dele
+
+Não copiei `verify_plaincnn.py` nem `verify_wd_on_gate.py` para `scripts/`.
+O repositório é público, e os scripts são dele. Os relatórios citam os dois
+como "não versionado". Vou perguntar se posso versionar.
+
+**Próximo.** Responder à orientação: a máquina, o custo do iPLS, o
+B3/B5/B2' com a porta isenta e o critério do `c`, o ADR 013 marcado como
+aceito, o agrupamento do bioprocess e a permissão para versionar os
+scripts. Depois, o CARS.
+
+## 2026-11-05
+
+### Nota no comentário de `_load_bioprocess`
+
+O comentário citava "5.089 blocos vizinhos, 3.433 composições" junto do
+agrupamento das 6.472 linhas. Medi os dois números de novo, e os dois são
+das 6.960 linhas de antes do descarte dos sem glicose (ADR 007). Nas 6.472
+que ficam, são 4.734 blocos vizinhos e 3.191 composições, o número de
+grupos que `load("bioprocess")` devolve. Acrescentei uma nota ao comentário
+e não mudei código. O ADR 009 cita os mesmos dois números, mas ali o texto
+já diz que o descarte vem depois, então deixei como está.
+
+### Gasoline: o deslocamento da porta, decomposto
+
+O relatório 3b dizia que o deslocamento de 1,22 a 1,79 do Gasoline tinha o
+mesmo decaimento na porta, sem medir quanto dele era encolhimento. Medi
+com `scripts/verificar_decaimento_porta.py`. É um script meu, com a mesma
+receita e as mesmas medidas do `verify_wd_on_gate.py` da orientação, que
+não copiei. O Tecator entra como controle e reproduziu exatamente os
+números de 04/11. Rodei duas vezes, com saída idêntica, em 16 s cada uma, e
+não ficou `__pycache__` na pasta do pgsg.
+
+Gasoline, 10 sementes, mediana:
+
+| decaimento | maior deslocamento | fração encolhida | correlação com −θ₀ | R² |
+|---|---|---|---|---|
+| o do artigo | 1,344 [1,223; 1,789] | 0,995 | 0,724 | 0,945 |
+| nenhum | 0,612 | 0,213 | −0,172 | 0,943 |
+| só no MLP | 0,660 [0,487; 0,837] | 0,217 | −0,161 | 0,945 |
+
+O Gasoline não repete o Tecator:
+- **O encolhimento é cerca de metade do deslocamento,** contra cerca de
+  cinco sextos no Tecator.
+- **Com a porta isenta, a maioria das bandas se afasta de zero:** só cerca
+  de 22% encolhem, e a correlação com −θ₀ fica negativa.
+- **O R² não depende do decaimento.**
+- **O topo continua imóvel:** 0,66 contra uma distância de 12,2.
+
+Não medi por que os dois conjuntos diferem.
+
+Atualizei:
+- o relatório 3b (o parágrafo do Gasoline, com a tabela, e o Anexo 5);
+- o parágrafo "Por quê" e a nota do critério do `c` no PROTOCOLO, onde a
+  razão de "seis vezes" é a do Tecator;
+- o mecanismo (c) do ADR 013, que é aceito, com uma frase datada dizendo
+  que o peso do encolhimento muda entre os conjuntos. A orientação não viu
+  essa frase.

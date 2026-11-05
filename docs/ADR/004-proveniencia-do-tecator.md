@@ -74,3 +74,38 @@ faixa. A "banda de 931 nm" do paper é o canal 40 lido no eixo `linspace`
 vira 920–934 nm. Por isso, comparações com bandas publicadas no paper se
 ancoram no **índice do canal**, não no valor em nm. Teste:
 `test_tecator_axis_is_850_to_1048_in_2nm_steps` em `tests/test_data.py`.
+
+## Adendo (30/09/2026) — o alvo do paper era a água
+
+Registro de fato, sem mudar o status nem a decisão. A redação pode mudar
+quando a orientação se manifestar sobre o material de 29–30/09.
+
+Em 29/09, com o código-fonte do paper cedido pela orientação, ficou
+estabelecido que o `data/raw/tecator/targets.csv` do repositório declarado
+na publicação tem a coluna 0 rotulada `Fat` com o conteúdo da **água**, e
+que todos os scripts selecionam essa coluna. A orientação aceitou o achado
+no mesmo dia, por escrito, e o classificou como algo que deixa de ser
+corrigendum de prosa. Detalhes e evidência: DIARIO de 29/09 e 30/09 e
+`results/verificacao_1` a `verificacao_3b`.
+
+O que isso muda **no contexto** deste ADR:
+
+- **"Os dados do paper vieram do OpenML (base 505)"** vale para o loader
+  do pgsg_1 que a orientação inspecionou em 03/09, não para o código que
+  gerou o paper. Este foi gerado a partir de `skfda` ou `fda.usc` — o
+  cabeçalho do `spectra.csv` é o eixo dessas bibliotecas truncado para
+  inteiro —, com as colunas 0 e 1 de `y` trocadas em relação ao cabeçalho.
+- **"Nenhum resultado do paper está comprometido"** não se sustenta: os
+  resultados publicados do Tecator foram calculados sobre a água.
+- **"A faixa '7–76%' é erro de prosa"** perde a base: 76,6 é o máximo da
+  coluna que foi de fato usada. O 7 segue sem explicação documentada.
+- A **ressalva obrigatória** acima — "se a submissão original rodou em
+  outra base de código, isso permanece não verificado" — é exatamente o que
+  aconteceu: o artefato conferido em 03/09 não era o que gerou o paper.
+- O "top 10 de 921–935 nm" citado no adendo de 18/09 é o texto publicado;
+  medido sobre as portas que o paper reporta, as dez maiores vão de 923 a
+  1046 nm (`results/verificacao_3b_secao_5_2.md`).
+
+O que **não** muda: a **decisão** deste ADR. Este trabalho usa o Tecator
+canônico via `skfda`/`fda.usc`, com o alvo `fat` selecionado por nome — e
+selecionar por nome é justamente a regra que teria evitado a troca.

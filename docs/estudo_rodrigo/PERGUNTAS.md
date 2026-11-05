@@ -48,6 +48,13 @@ código do Guilherme Coelho?
 
 **Resposta:**
 
+**Adendo (27/10/2026).** Respondida na prática, sem resposta escrita à
+pergunta: a orientação cedeu o código-fonte do artigo em 29/09, guardado em
+`docs/fontes/prior-guided-spectral-gating-main/`, fora do versionamento. O
+repositório público declarado no artigo
+(`github.com/clarimar/prior-guided-spectral-gating`) também está acessível.
+Falta a vendorização com SHA-256 que o pipeline pede para o Estágio 3.
+
 ---
 
 ### 6. Linguagem dos braços clássicos
@@ -316,6 +323,40 @@ propriedade de os braços diferirem por exatamente uma característica.)
 
 ---
 
+### 14. Os ajustes do parecer de 01/10 no protocolo — [trava o congelamento e o Estágio 3]
+Aberta em: 2026-10-27
+
+O parecer de 01/10 pediu três mudanças de desenho. Elas estão no
+`PROTOCOLO.md`, seção "Hipóteses e braços", como proposta. Quatro pontos
+precisam do aval da orientação:
+
+1. **H8, nova:** Δ_aprendizado = R²(B4) − R²(B2) equivalente a zero por
+   TOST. A proposta não tinha hipótese para esse termo.
+2. **A correção do B5:** das três que o parecer oferece, a proposta é
+   escalar os logits iniciais por um fator `c < 1`, de modo que a distância
+   entre os dois primeiros logits fique na ordem do que o treino consegue
+   mover (~2, contra 11,5 hoje), com `c` fixado nas sementes de exploração.
+3. **O braço B2':** a porta corrigida congelada, acréscimo deste trabalho,
+   para que B5 e o braço com que é comparado difiram só pelo gradiente.
+4. **A H6:** o parecer pede para reinterpretar a H5; a mesma leitura parece
+   valer para a H6 (B4 contra B3 em reprodutibilidade), porque a vantagem
+   pode vir da saturação do prior.
+
+**Resposta:**
+
+---
+
+### 15. Prazo do congelamento do protocolo — [trava o congelamento]
+Aberta em: 2026-10-27
+
+O protocolo estava marcado para congelar na semana 11 (~27/10). O Estágio 2
+está incompleto (só o iPLS implementado), o Estágio 3 não começou, e a
+mudança de desenho do parecer ainda não foi aprovada. O prazo se mantém?
+
+**Resposta:**
+
+---
+
 ## Respondidas
 
 ### [x] 4. Conjuntos de dados 3 e 4
@@ -360,3 +401,12 @@ no `summary()` do R, 7,30 é o 1º quartil da gordura e 76,60 é o máximo da
 carregado — e a ressalva de que o loader inspecionado é o da rodada de
 revisão (`revision_pgsg_0_r1`); a submissão original permanece não
 verificada.
+
+**Adendo (30/09/2026).** A ressalva se confirmou. Com o código-fonte do
+paper, cedido em 29/09, ficou estabelecido que os resultados publicados do
+Tecator foram calculados sobre a **água**: a coluna 0 do `targets.csv`,
+rotulada `Fat`, contém a água. A orientação aceitou o achado em 29/09. Com
+isso, "erro de prosa" e "nenhum resultado do paper está comprometido" deixam
+de valer; a resposta acima fica como registro do que se sabia em 03/09. A
+decisão do ADR 004 para este trabalho não muda. Ver o adendo de 30/09 no
+[ADR 004](../ADR/004-proveniencia-do-tecator.md).

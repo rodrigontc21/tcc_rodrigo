@@ -16,6 +16,7 @@ results/*
 !results/bioprocess_missing_glucose_audit.csv
 !results/bioprocess_missing_glucose_audit.md
 !results/testes_estagio1.txt
+!results/verificacao_*.md
 .vscode/
 .DS_Store
 # registro bruto das conversas com a orientação (export do WhatsApp):
@@ -28,5 +29,8 @@ docs/orientacao/
 # proveniência do que for usado entra em ADR, como no ADR 004. Não é nosso
 # para republicar num repositório público.
 docs/fontes/prior-guided-spectral-gating-main/
+# parecer da orientação sobre as verificações do Tecator (01/10/2026):
+# documento privado, com avaliação do artigo dela ainda não tornada pública.
+docs/fontes/parecer-verificacoes-tecator-rodrigo.docx
 docs/PERGUNTAS.md
 commit_msg.txt
