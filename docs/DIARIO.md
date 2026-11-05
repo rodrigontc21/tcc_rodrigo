@@ -3267,3 +3267,267 @@ Os hashes mudaram:
 As entradas de 04 e 05/11 que citam `5cd970f` e `83be854` valem com os
 hashes novos. O link do DIARIO mandado à orientação (fixado em `83be854`)
 foi substituído pelo fixado em `2729c1b`.
+
+### CARS: as fontes, o artigo e a proposta (ADR 016)
+
+Antes de implementar o CARS, conferi a fonte que o ADR 008 escolheu.
+
+**O libPLS do GitHub não é a referência.**
+- **O repositório é mesmo do autor.** O perfil `lhdcsu` é do Hongdong Li e
+  aponta para `libpls.net`.
+- **Mas é um rascunho.** Tem só a pasta `R/`, com 3 commits de
+  15/11/2015, e o primeiro diz "very initial codes, which are not cleaned
+  up yet".
+- **O `carspls.r` não roda.** Conferi no R: `ceil` não existe.
+- **A distribuição oficial é o MATLAB.** O `libPLS_1.95.zip` (GPL v2) tem
+  como padrão `originalVersion = 0`, uma versão sem os dois sorteios.
+
+**O artigo.** Pela editora ele é pago, e pedi uma cópia ao autor por
+e-mail (hongdong@csu.edu.cn, com cópia para lhdcsu@gmail.com e
+qsxu@csu.edu.cn). Achei também a cópia pessoal que os autores publicaram no
+projeto `carspls` do Google Code (arquivado), junto com as versões antigas
+do código: `CARS.rar` (2010), `CARS_V1.50.rar` (2011) e o pacote R
+`carspls_1.0.0` (2009).
+- **O algoritmo descrito:** amostragem Monte Carlo (80–90%), pesos
+  |b|/Σ|b|, EDF com r_1 = 1 e r_N = 2/p, ARS com p sorteios com reposição,
+  e escolha pelo menor RMSECV.
+- **O código que bate com o artigo** é o `carspls.m` 1.50, igual ao
+  `originalVersion = 1` do 1.95, exceto que o 1.95 escolhe os componentes
+  pela regra de um desvio-padrão e ordena as amostras por `y` na CV.
+
+Os arquivos ficam na minha pasta Downloads, fora do repositório, com os
+`sha256` no adendo de 05/11 do ADR 008. Ao escrever esse adendo, um hash
+abreviado saiu errado. Troquei todos pelos hashes completos e conferi cada
+um contra o arquivo. O PDF é a cópia pessoal dos autores e não entra no
+git.
+
+**Proposta (ADR 016, proposto).** O CARS do artigo em Python, como o
+GA-PLS: motor do artigo, avaliação nas folds do protocolo, sorteios pelo
+`seed_algo`.
+- **Pesos** de um PLS só centrado, como no artigo.
+- **Modelo final** com o `PLSRegression` autoescalado.
+- **RMSECV dos subconjuntos** nas folds internas.
+- **Hiperparâmetros na CV interna:** N ∈ {50, 100} e razão ∈ {0,8, 0,9}.
+
+Ficam para a orientação:
+- a regra de componentes dentro do CARS;
+- a faixa de N e da razão;
+- centragem contra autoescala (a mesma da pergunta 13);
+- o portão de validação (pergunta 11).
+
+O `corn_m51.mat` do libPLS pode servir para conferir contra a Tabela 2 do
+artigo.
+
+Decisão minha: implementar antes da resposta da orientação, como fiz com o
+iPLS, o VIP e o GA-PLS.
+
+**Próximo.** Implementar o `CARSArm`, com testes, a conferência linha a
+linha contra o `carspls.m` e a medição de custo nos quatro conjuntos.
+
+### CARS implementado (ADR 016, proposto)
+
+Antes de implementar, acrescentei ao ADR 016 os dois modos:
+- **`protocolo`:** N e razão de amostragem na CV interna, e o modelo final
+  `PLSRegression` autoescalado;
+- **`fiel`:** N = 100 e razão 0,9, e o modelo final só centrado, com o
+  número de componentes de menor RMSECV, como o `carspls.m`.
+
+Os dois usam as folds do protocolo e a seleção aninhada. O `fiel` serve
+para o portão e para medir se as adaptações enfraquecem o método.
+
+**Código:** `src/tcc/arms/cars.py`, escrito a partir do artigo e conferido
+contra o `carspls.m` 1.50 e 1.95. Os pesos vêm de um PLS centrado
+(`PLSRegression(scale=False)`), e a curva de RMSECV de 1 a h componentes
+sai de um único ajuste.
+
+**Testes:** 25, em `tests/test_cars.py`.
+- **Dez mutações, todas pegas,** com o arquivo restaurado e o hash
+  conferido.
+- **Na primeira rodada, duas escaparam.** Uma era uma mutação mal escrita
+  por mim (refeita). A outra, tirar o valor absoluto dos pesos, mostrou
+  uma lacuna: nenhum teste tinha sinal com coeficiente negativo. Entrou
+  esse caso.
+- **Suíte:** 161 passed, 1 skipped, 1 xfailed.
+
+**Medição** (`scripts/medir_custo_cars.py`, `seed_split` 0, `seed_algo` 0;
+R² de uma partição, não resultado):
+
+| conjunto | PLS: R² | `protocolo`: R² | bandas | `fiel`: R² | bandas | ajustes (prot./fiel) | tempo (prot./fiel) |
+|---|---|---|---|---|---|---|---|
+| Tecator | 0,9660 | 0,9673 | 3 | 0,9665 | 12 | 20.118 / 8.123 | 4,5 / 1,9 s |
+| Gasoline | 0,9839 | 0,9864 | 174 | 0,9713 | 174 | 20.951 / 8.151 | 4,6 / 2,0 s |
+| Mango | 0,8676 | 0,8771 | 77 | 0,8759 | 77 | 109.364 / 41.228 | 187,2 / 102,0 s |
+
+No Gasoline e no Mango, a busca do `protocolo` escolheu (100; 0,9), que é a
+configuração do `fiel`. Com as mesmas sementes, os dois chegaram à mesma
+seleção, e a diferença de R² vem só do modelo final:
+- no Gasoline, o autoescalado teve 0,9864 e o centrado, 0,9713;
+- no Mango, 0,8771 e 0,8759.
+
+Uma partição não sustenta conclusão. O subconjunto escolhido saiu cedo no
+caminho do CARS: na execução 2 de 100 no Gasoline, na 3 no Mango e na 43
+de 50 no Tecator.
+
+O teto de componentes vem da regra do A1 (3 no Tecator e no Gasoline, 32
+no Mango). Um teto baixo pode estar prendendo o CARS; entrou no ADR 016
+como o quinto item em aberto. O bioprocess ainda não foi medido.
+
+### CARS: conferência nos dados do artigo, e o teto à CV interna
+
+Revi o `cars.py` passo a passo contra o `carspls.m` 1.50 e não achei erro
+de transcrição. A revisão mostrou que o teto padrão do `carspls.m` é A = 2,
+e o artigo não diz qual usou.
+
+**Nos dados do artigo** (`scripts/verificar_cars_milho.py`, com o
+`corn_m51.mat` dos autores fora do repositório: milho no m5, umidade,
+80 × 700). Os dois `corn_m51.mat` que baixei têm hashes diferentes, mas os
+números são idênticos. Receita do artigo: só centrado, 10 segmentos,
+N = 100, razão 0,9, 30 repetições.
+
+| teto | 1908 e 2108 nm juntas | RMSECV do CARS | RMSECV do PLS completo |
+|---|---|---|---|
+| 2 | 0 de 30 | 0,2467 ± 0,0005 | 0,2568 |
+| 5 | 27 de 30 | 0,0006 ± 0,0010 | 0,0564 |
+| 10 | 30 de 30 | 0,0003 ± 0,0000 | 0,0183 |
+
+- **No artigo,** as duas bandas saíram em 500 de 500 execuções, com
+  RMSECV 0,0006 contra 0,0229 do PLS completo.
+- **O algoritmo reproduz o artigo, e o teto decide o resultado.** Nos
+  conjuntos do projeto, o teto vindo do A1 era 3 no Tecator e no
+  Gasoline.
+
+**Mudança (decisão minha, ADR 016 revisto):**
+- **O teto passa a ser um fator ∈ {1, 2, 3} vezes o número de componentes
+  do A1,** recortado pelo teto da busca do `PLSArm`, e o fator vai à CV
+  interna junto com N e a razão: são 12 candidatos. O `fiel` usa o fator
+  3.
+- **O modelo final usa, nos dois modos, os componentes que o CARS escolheu**
+  para o subconjunto vencedor. Antes usava o teto, o que com fator 3 daria
+  componentes demais.
+- **Testes:** 27 do CARS, com 12 mutações, todas pegas. Uma escapou na
+  primeira vez (o modelo final usando o teto) e ganhou teste próprio.
+- **Suíte:** 163 passed, 1 skipped, 1 xfailed.
+
+**Medição de novo** (`seed_split` 0; R² de uma partição, não resultado):
+
+| conjunto | PLS | `protocolo`: R² (bandas, fator, comp.) | `fiel`: R² (bandas, comp.) | tempo prot. / fiel |
+|---|---|---|---|---|
+| Tecator | 0,9660 | 0,9673 (3; 1; 3) | 0,9666 (7; 7) | 14,2 / 2,4 s |
+| Gasoline | 0,9839 | 0,9667 (11; 2; 3) | 0,9706 (33; 7) | 15,7 / 2,7 s |
+| Mango | 0,8676 | 0,8771 (77; 1; 32) | 0,8788 (80; 39) | 481,9 / 96,4 s |
+
+- **No Gasoline,** nesta partição, os dois modos ficaram abaixo do PLS
+  completo. O `protocolo` escolheu 11 bandas: o desempate pelo menor
+  número de bandas puxa para poucas. Com o teto fixo em 3, antes da
+  mudança, tinha dado 0,9864 com 174 bandas.
+- **No Mango,** o teto do `fiel` bateu no limite de 40 (3 × 32 = 96).
+
+Uma partição não decide nada, mas o Gasoline merece olhar em várias
+sementes antes de tirar qualquer conclusão sobre o portão.
+
+**Custo:** o `protocolo` custa cerca de 40 vezes o tempo do PLS no Tecator
+e no Gasoline, e 482 s no Mango. O bioprocess ainda não foi medido; antes,
+preciso estimar o tempo.
+
+### CARS: revisão final do que mudou hoje
+
+Reli o código, os testes, os dois scripts, o ADR 016, o adendo do ADR 008
+e estas entradas. Não achei erro de lógica, mas achei textos que
+descreviam uma versão anterior do braço.
+
+**Corrigido:**
+- **Código:** a docstring do módulo não citava o fator do teto. O
+  hiperparâmetro `cars_ncomp` guardava o teto, mas tinha o mesmo nome da
+  variável com os componentes escolhidos; passou a se chamar
+  `ncomp_ceiling`. Os componentes escolhidos continuam em
+  `cars_best_ncomp`. As medições acima foram feitas antes da troca, e a
+  saída delas traz `cars_ncomp` com o sentido de teto.
+- **ADR 016:**
+  - o RMSECV é o PRESS somado nas folds, e não o "RMSECV médio";
+  - o custo não usa o kernel PLS do GA-PLS, e sim um ajuste por fold que
+    dá a curva inteira (`coef_path`);
+  - a auditoria de fold fixa (N, razão, fator) e os componentes do A1;
+  - o item 1 em aberto dizia que o modelo final usa a regra do protocolo,
+    mas ele usa os componentes que o CARS escolheu;
+  - o item 4 ainda tratava o milho como futuro.
+- **`medir_custo_cars.py`:** a docstring não citava o fator.
+- **ADR 008:** os dois `corn_m51.mat` entraram na tabela de proveniência,
+  com os hashes conferidos.
+
+As entradas anteriores de hoje ficam como estão: as mudanças estão
+registradas nelas na ordem em que aconteceram.
+
+**Suíte:** 163 passed, 1 skipped, 1 xfailed. Não ficou `__pycache__` no
+pgsg.
+
+### CARS: o resto do código dos autores, e duas correções
+
+Li o que faltava do código dos autores:
+- **O pacote R `carspls_1.0.0` (2009):** o `carspls.R` e o
+  `carsplsorigin.R` são idênticos aos do GitHub.
+- **Da versão 1.50, o `pls.m`, o `pls_nipals.m`, o `plscvfold.m` e o
+  `pretreat.m`.** Batem com o `cars.py`:
+  - coeficientes por W(P'W)⁻¹q, a mesma conta do `coef_path`;
+  - `'center'` só subtrai a média;
+  - RMSECV como raiz do PRESS somado sobre o total de amostras;
+  - componentes pelo menor RMSECV.
+
+**Correção 1, o `ceil`.** Escrevi hoje, no ADR 008, no ADR 016 e numa
+entrada acima, que o `carspls.r` "não roda" porque `ceil` não existe no
+R. Está incompleto. O pacote de 2009 declara `Depends: Hmisc, pls`, e o
+`Hmisc` tem um `ceil` com método padrão, pela documentação do CRAN. Sem o
+`Hmisc`, ele para; o GitHub não traz o `DESCRIPTION` que avisaria disso.
+Não instalei o `Hmisc` para conferir. A conclusão não muda: o `carspls.r`
+é a versão simplificada, sem os sorteios. Corrigi os dois ADRs.
+
+**Correção 2, os segmentos no milho.** O `plscvfold.m`, chamado pelo
+`carspls.m`, forma os segmentos com as amostras ordenadas por `y`, em
+rodízio. O `verificar_cars_milho.py` usava a ordem original. Corrigi e
+rodei de novo:
+
+| teto | 1908 e 2108 nm juntas | RMSECV do CARS | RMSECV do PLS completo |
+|---|---|---|---|
+| 2 | 0 de 30 | 0,2395 ± 0,0004 | 0,2505 |
+| 5 | 27 de 30 | 0,0006 ± 0,0010 | 0,0529 |
+| 10 | 30 de 30 | 0,0003 ± 0,0000 | 0,0191 |
+
+As conclusões ficam as mesmas da primeira rodada. Com teto 10, as bandas
+são 3,3 ± 2,1 e os componentes, 3,3 ± 2,1. O ADR 016 foi atualizado com
+estes números.
+
+**A divisão de segmentos é a única diferença de cálculo entre o `cars.py`
+e o `carspls.m`,** e é uma adaptação declarada: o braço usa as folds do
+protocolo. No script do milho, ela agora é a dos autores.
+
+### CARS: auditoria final do código novo
+
+Auditei o código novo de hoje: `cars.py`, `test_cars.py`,
+`medir_custo_cars.py` e `verificar_cars_milho.py`.
+- **Imports:** todos usados nos quatro arquivos. Não há linter instalado
+  no ambiente, então chequei pela árvore sintática.
+- **Argumento nomeado:** o teste passa.
+- **Única fragilidade:** o `run_cars` aceitava N = 1, que dá divisão por
+  zero na EDF, e razão de amostragem fora de (0, 1]. Nenhum candidato do
+  braço chega perto disso, mas quem chamasse a função direto não teria
+  proteção. Entrou a validação, com 3 casos de teste.
+
+**Suíte:** 166 passed, 1 skipped, 1 xfailed.
+
+### Arquivos do TCC organizados
+
+O que era do TCC e estava solto em Downloads foi para dentro da pasta do
+projeto:
+- **O material do CARS** (as duas versões do `carspls` do Google Code, o
+  libPLS 1.95, o libPLS do GitHub, o artigo e o pacote R de 2009) foi
+  para `docs/fontes/cars/`.
+- **O TCC do Mateus Peris e a nota de retomada de chat** foram para
+  `docs/privado/`.
+- **As duas pastas estão no `.gitignore`.** O PDF do CARS é a cópia pessoal
+  dos autores e não pode ir para o repositório público.
+- **Os hashes do ADR 008 continuam valendo** (mover não muda o conteúdo); o
+  adendo agora diz onde os arquivos ficam.
+
+Cinco arquivos em Downloads eram cópias idênticas, conferidas por hash, de
+arquivos já no projeto e foram para a Lixeira: `pgsg_0_paper.pdf`,
+`tcc_rodrigo.pdf`, `pipeline_tcc_rodrigo.md`, `verificar_alvo.py` e
+`verify_plaincnn.py`. O que não é do TCC ficou onde estava.

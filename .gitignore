@@ -34,3 +34,9 @@ docs/fontes/prior-guided-spectral-gating-main/
 docs/fontes/parecer-verificacoes-tecator-rodrigo.docx
 docs/PERGUNTAS.md
 commit_msg.txt
+# código e artigo dos autores do CARS (libPLS, projeto carspls), lidos mas
+# não executados nem republicados; o PDF é a cópia pessoal dos autores
+# (Elsevier). Proveniência por sha256 no adendo de 05/11/2026 do ADR 008.
+docs/fontes/cars/
+# material privado do TCC: TCC de terceiros e notas pessoais
+docs/privado/
