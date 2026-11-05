@@ -2,11 +2,9 @@
 
 ## Status
 
-**Provisório.** Congelamento previsto para a semana 11 (~27/10/2026); o
-prazo está em consulta à orientação (pergunta 15), porque a mudança de
-desenho do parecer de 01/10 ainda não foi aprovada. Até lá, qualquer item
-marcado como "decidido" reflete o que já está implementado e pode ainda
-mudar; qualquer item marcado como "em aberto" ou "provisório" é pendência
+**Provisório.** O congelamento espera a aprovação da mudança de desenho do
+parecer de 01/10 (pergunta 14). Até lá, qualquer item marcado como
+"decidido" reflete o que já está implementado e pode ainda mudar; qualquer item marcado como "em aberto" ou "provisório" é pendência
 declarada, não descuido.
 
 Depois de congelado, qualquer mudança exige declaração explícita e
@@ -273,6 +271,13 @@ desde já.
 **Limitação conhecida.** `n_fits` é autodeclarado, não verificável de
 fora — um braço que reporte errado não é detectável pelo protocolo.
 
+**O custo é resultado (orientação, 30/10/2026).** O `n_fits` e o
+`wall_time` de cada braço entram no trabalho como resultado, na figura de
+custo computacional por braço do pipeline (escala log), e não só como
+obstáculo. Nenhuma redução de sementes ou partições é feita em silêncio.
+Qualquer corte, por custo ou por outro motivo, entra declarado, com o
+motivo, antes de rodar.
+
 ---
 
 ## Piso de ruído de partição (medido nos 4 conjuntos)
@@ -528,10 +533,9 @@ Referência às perguntas pendentes em `docs/estudo_rodrigo/PERGUNTAS.md`:
 | 11 | O portão do Estágio 2 é executável como está escrito? Busca preliminar não achou RMSEP publicado de iPLS nem de CARS no Tecator ou no Gasoline — os artigos originais usam cerveja e milho | Critério de aceitação do Estágio 2 |
 | 12 | Critério de escolha do número de intervalos do iPLS — a regra em vigor fica com o menor `int.num`, que retém MAIS bandas: a parcimônia está invertida ([ADR 012](ADR/012-ipls-via-mdatools.md), proposto) | Estágio 2 (ADR 012) |
 | 13 | Escalonamento na seleção de intervalos — o mdatools pontua sem autoescalonamento e o PLS final autoescala; Jaccard médio de 0,63 entre as duas configurações, o que atinge a H5 ([ADR 012](ADR/012-ipls-via-mdatools.md), proposto) | Estágio 2 e leitura da H5 |
-| 14 | Os ajustes do parecer de 01/10 (seção "Hipóteses e braços", acima): a H8 nova; a correção do B5 — escalar os logits, com o critério para `c`; o braço B2', acréscimo deste trabalho; e a extensão da reinterpretação à H6 | Congelamento do protocolo e Estágio 3 |
-| 15 | Prazo do congelamento — marcado para a semana 11 (~27/10), com o Estágio 2 incompleto e a mudança de desenho do parecer ainda por aprovar | Congelamento do protocolo |
+| 14 | Os ajustes do parecer de 01/10 (seção "Hipóteses e braços", acima): a H8 nova; a correção do B5 — escalar os logits, com o critério para `c`, que precisa dizer em qual deslocamento se baseia (com ou sem decaimento na porta); a porta isenta de decaimento no B3 e no B5, como no B4-limpo; o braço B2', acréscimo deste trabalho; e a extensão da reinterpretação à H6 | Congelamento do protocolo e Estágio 3 |
 
-Das quinze, as nº 4 e 5 têm decisão registrada até o momento: ADR 004 e
+Das catorze, as nº 4 e 5 têm decisão registrada até o momento: ADR 004 e
 ADR 006 aceitos; ADR 007 aprovado com pendência (distribuição dos 488). Fora
 dessa fila numerada, a Tarefa D — dois modos de protocolo — também já foi
 decidida, em reunião de orientação e não por pergunta escrita

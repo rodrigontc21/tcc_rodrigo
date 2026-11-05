@@ -266,11 +266,13 @@ def main():
     print()
     for nome, m, pub in (
         ("Ours, Tecator (leve, 100 bandas)",
-         BandSelectNetLight(100, 1, None, 16, 0.5), 1765),
+         BandSelectNetLight(n_bands=100, n_outputs=1, prior_scores=None,
+                            hidden_dim=16, dropout=0.5), 1765),
         ("Ours, Gasoline (leve, 401 bandas)",
-         BandSelectNetLight(401, 1, None, 16, 0.5), 6882),
+         BandSelectNetLight(n_bands=401, n_outputs=1, prior_scores=None,
+                            hidden_dim=16, dropout=0.5), 6882),
         ("Plain CNN (pesada, 100 bandas)",
-         BandSelectNet(100, 1, None), 109221),
+         BandSelectNet(n_bands=100, n_outputs=1, prior_scores=None), 109221),
     ):
         n = sum(p.numel() for p in m.parameters())
         print(f"  {nome:<36} {n:>8,}  manuscrito {pub:>8,}  "

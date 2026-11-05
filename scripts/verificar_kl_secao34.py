@@ -71,7 +71,8 @@ folds = list(KFold(n_splits=5, shuffle=True, random_state=42).split(Xtr))
 
 def treinar(pri, kl, semente, tr, va):
     torch.manual_seed(semente)
-    m = BandSelectNetLight(100, 1, pri, 16, 0.5)
+    m = BandSelectNetLight(n_bands=100, n_outputs=1, prior_scores=pri,
+                           hidden_dim=16, dropout=0.5)
     Xa, ya = torch.FloatTensor(Xtr[tr]), torch.FloatTensor(ytr[tr])
     Xv, yv = torch.FloatTensor(Xtr[va]), torch.FloatTensor(ytr[va])
     crit = nn.MSELoss()

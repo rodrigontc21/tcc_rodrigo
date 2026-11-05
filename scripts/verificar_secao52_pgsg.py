@@ -85,7 +85,8 @@ def preparar(conjunto, coluna=0):
 
 def modelo(prior, p, semente=0):
     torch.manual_seed(semente)
-    return BandSelectNetLight(p, 1, prior, 16, 0.5)
+    return BandSelectNetLight(n_bands=p, n_outputs=1, prior_scores=prior,
+                              hidden_dim=16, dropout=0.5)
 
 
 def treinar(m, Xtr, ytr, Xav, yav, epocas=200, lr=0.01, kl=0.001,

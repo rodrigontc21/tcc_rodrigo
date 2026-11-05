@@ -66,7 +66,8 @@ def preparar(conjunto):
 def treinar(prior, Xtr, ytr, Xte, yte, semente, epocas, lr, kl, paciencia):
     # receita do train_light.py; paciencia=None = sem parada antecipada
     torch.manual_seed(semente)
-    m = BandSelectNetLight(Xtr.shape[1], 1, prior, 16, 0.5)
+    m = BandSelectNetLight(n_bands=Xtr.shape[1], n_outputs=1, prior_scores=prior,
+                           hidden_dim=16, dropout=0.5)
     logit0 = m.gating.gates.detach().clone().numpy()
     Xtr_t, ytr_t = torch.FloatTensor(Xtr), torch.FloatTensor(ytr)
     Xte_t, yte_t = torch.FloatTensor(Xte), torch.FloatTensor(yte)

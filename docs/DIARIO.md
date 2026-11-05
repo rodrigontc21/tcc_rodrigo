@@ -3114,3 +3114,48 @@ Atualizei:
 - o mecanismo (c) do ADR 013, que é aceito, com uma frase datada dizendo
   que o peso do encolhimento muda entre os conjuntos. A orientação não viu
   essa frase.
+
+### PROTOCOLO: a pergunta 15 sai
+
+Decisão minha: tirei do PROTOCOLO a pergunta 15 (prazo do congelamento na
+semana 11, ~27/10). A data já passou, e o congelamento depende da pergunta
+14. O Status do topo deixou de citar a data e a pergunta 15, e passou a
+dizer que o congelamento espera a aprovação da mudança de desenho do
+parecer de 01/10 (pergunta 14). A pergunta 15 continua no histórico do git
+e no `PERGUNTAS.md`, que não mexi.
+
+### PROTOCOLO: a pergunta 14 completa, e o custo como resultado
+
+- **Pergunta 14.** A linha da tabela e a seção 14 do `PERGUNTAS.md`
+  passaram a listar as duas questões que o texto do PROTOCOLO já mandava
+  para ela: em qual deslocamento se baseia o critério do `c` (com ou sem
+  decaimento na porta) e a porta isenta no B3 e no B5.
+- **Orçamento.** Acrescentei um parágrafo com o que a orientação disse em
+  30/10: o custo de cada braço é resultado e entra na figura de custo por
+  braço do pipeline, e nenhuma redução de sementes ou partições é feita em
+  silêncio. Até aqui isso só estava no DIARIO de 04/11.
+
+### Argumento nomeado também nas fábricas do pgsg
+
+Revisando as mensagens de 29 e 30/10, vi que o teste de 04/11 só cobria
+as classes do `src/tcc`. As fábricas do código do artigo, que são as do
+erro de 29/10, ficavam de fora. Achei seis chamadas posicionais a elas nos
+scripts de verificação:
+- `verificar_varredura_treino.py:69`
+- `verificar_secao52_pgsg.py:88`
+- `verificar_kl_secao34.py:74`
+- `verificar_pipeline_tecator.py:269`, `:271` e `:273`
+
+Pelas assinaturas, a ordem batia em todas, então nenhum resultado estava
+errado. Mesmo assim, as seis passaram a usar argumento nomeado. O teste
+ganhou a lista `PGSG_FACTORIES` (`BandSelectNet`, `BandSelectNetLight`,
+`SpectralGatingLayer`, `create_model`, `create_model_light`), escrita à
+mão porque o código do artigo não está no repositório.
+
+Conferido de três formas:
+- **O teste reprova as versões do commit `5cd970f`:** as seis chamadas
+  aparecem, e nenhuma nas versões novas.
+- **Os modelos são idênticos:** com a mesma semente, cada chamada nomeada
+  constrói um modelo com `state_dict` igual ao da posicional, para os três
+  formatos.
+- **Suíte:** 133 passed, 1 skipped. Não ficou `__pycache__` no pgsg.

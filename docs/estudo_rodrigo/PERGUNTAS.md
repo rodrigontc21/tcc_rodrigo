@@ -327,8 +327,8 @@ propriedade de os braços diferirem por exatamente uma característica.)
 Aberta em: 2026-10-27
 
 O parecer de 01/10 pediu três mudanças de desenho. Elas estão no
-`PROTOCOLO.md`, seção "Hipóteses e braços", como proposta. Quatro pontos
-precisam do aval da orientação:
+`PROTOCOLO.md`, seção "Hipóteses e braços", como proposta. Cinco pontos
+precisam do aval da orientação (o quinto acrescentado em 05/11):
 
 1. **H8, nova:** Δ_aprendizado = R²(B4) − R²(B2) equivalente a zero por
    TOST. A proposta não tinha hipótese para esse termo.
@@ -336,11 +336,19 @@ precisam do aval da orientação:
    escalar os logits iniciais por um fator `c < 1`, de modo que a distância
    entre os dois primeiros logits fique na ordem do que o treino consegue
    mover (~2, contra 11,5 hoje), com `c` fixado nas sementes de exploração.
+   **Acréscimo (05/11):** os ~2 são, na maior parte, encolhimento pelo
+   decaimento na porta. Com a porta isenta, o deslocamento é de ~0,3 no
+   Tecator e ~0,7 no Gasoline. O critério precisa dizer em qual dos dois
+   se baseia.
 3. **O braço B2':** a porta corrigida congelada, acréscimo deste trabalho,
    para que B5 e o braço com que é comparado difiram só pelo gradiente.
 4. **A H6:** o parecer pede para reinterpretar a H5; a mesma leitura parece
    valer para a H6 (B4 contra B3 em reprodutibilidade), porque a vantagem
    pode vir da saturação do prior.
+5. **Acréscimo (05/11): a porta isenta de decaimento no B3 e no B5.** O
+   PROTOCOLO separou o B4 em B4-fiel (porta com decaimento, como no artigo)
+   e B4-limpo (porta isenta). A proposta é que o B3 e o B5 usem a porta
+   isenta, porque nas comparações eles acompanham o B4-limpo.
 
 **Resposta:**
 
