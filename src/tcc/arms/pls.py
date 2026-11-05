@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass
 
 import numpy as np
@@ -9,7 +10,10 @@ from tcc.arms.base import Budget, CVFolds
 
 # Teto da busca por número de componentes latentes. O limite real é o
 # posto do bloco de treino, então a grade efetiva é recortada em fit().
-MAX_COMPONENTS = 20
+# Era 20 até 28/10/2026: no Mango a regra de um erro-padrão escolhia
+# exatamente 20, e com teto 40 escolhe 32 (RMSECV 1,034 -> 0,919). Ver o
+# adendo de 28/10 em "Validação cruzada interna", no PROTOCOLO.md.
+MAX_COMPONENTS = 40
 
 
 @dataclass(frozen=True)
@@ -146,6 +150,20 @@ class PLSArm:
         # `candidates` é crescente, esse é o menor n dentro do limiar
         # (n_min sempre satisfaz, então a busca nunca fica vazia).
         i_chosen = int(np.argmax(mean_rmse <= threshold))
+
+        # Escolha no último candidato, quando o teto é o MAX_COMPONENTS e não
+        # o posto, quer dizer que o ótimo pode estar acima da grade: foi o
+        # que aconteceu no Mango com teto 20. Avisa em vez de seguir calado.
+        if (
+            candidates[i_chosen] == candidates[-1]
+            and candidates[-1] == MAX_COMPONENTS
+        ):
+            warnings.warn(
+                f"PLSArm escolheu {MAX_COMPONENTS} componentes, o teto da "
+                "busca: o ótimo pode estar acima de MAX_COMPONENTS.",
+                RuntimeWarning,
+                stacklevel=2,
+            )
 
         # rmse_cv passa a ser a média dos RMSEs por fold do candidato
         # escolhido — coerente com a estatística que decidiu a escolha.

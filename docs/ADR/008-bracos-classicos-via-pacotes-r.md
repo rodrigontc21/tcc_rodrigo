@@ -110,3 +110,21 @@ testado (ADR 012), sob a proposta deste ADR e sem aprovação da orientação
 — decisão registrada no DIARIO de 28/09. `cars`, `ga_pls` e
 `vip_threshold` não existem ainda. A pergunta 4 enviada em 21/09 continua
 sem resposta, e foi reescrita depois da correção sobre o `plsVarSel`.
+
+**Adendo (28/10/2026).** O `vip_threshold` está implementado em Python, como
+decidido aqui ([ADR 014](014-vip-com-limiar.md), proposto). Ao conferir a
+fórmula contra os dois pacotes R, apareceu uma diferença que este ADR não
+previa: o `plsVarSel::VIP` e o `mdatools::vipscores` não calculam o mesmo
+VIP. O primeiro usa os pesos `W` do PLS, e o segundo, os pesos do SIMPLS. O
+VIP do projeto segue o `plsVarSel`, com o detalhe no ADR 014. "Fórmula
+fechada, sem risco relevante de divergência" valeu para a conta, mas não
+para a escolha de qual fórmula usar.
+
+**Adendo (29/10/2026).** O GA-PLS **não** usa mais o `plsVarSel::ga_pls`. Lido
+o código e conferido rodando (`scripts/verificar_ga_pls_plsvarsel.py`), ele
+devolve o cromossomo com mais variáveis em vez do de menor erro, avalia com
+folds próprias e com número de componentes fixo, e dá nota fixa a
+cromossomos de uma variável. O braço usa o motor do pacote R `GA` 3.2.5
+(Scrucca 2013) com avaliação própria ([ADR 015](015-ga-pls-com-pacote-ga.md),
+proposto). Proveniência acrescentada: `GA` 3.2.5. A decisão de usar o
+`plsVarSel` foi tomada em 16/09 sem ler esse código.

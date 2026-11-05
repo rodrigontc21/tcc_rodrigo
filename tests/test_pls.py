@@ -39,6 +39,30 @@ def flat_curve_problem():
     return X, y, _make_folds(n, 5, seed=0)
 
 
+def test_warns_when_choice_hits_the_ceiling(monkeypatch):
+    # Seis fatores latentes fortes e teto 2: o ótimo está acima do teto, e a
+    # escolha cai no último candidato. Foi o caso do Mango com teto 20.
+    import tcc.arms.pls as pls
+
+    rng = np.random.default_rng(1)
+    n, p = 80, 30
+    scores = rng.normal(size=(n, 6))
+    X = scores @ rng.normal(size=(6, p)) + 0.05 * rng.normal(size=(n, p))
+    y = scores @ np.array([3.0, -2.5, 2.0, -1.5, 1.0, 0.8])
+    monkeypatch.setattr(pls, "MAX_COMPONENTS", 2)
+    with pytest.warns(RuntimeWarning, match="teto da busca"):
+        n_components, _ = PLSArm()._search(X, y, _make_folds(n, 5, seed=0), Budget())
+    assert n_components == 2
+
+
+def test_no_warning_when_choice_is_below_the_ceiling(flat_curve_problem, recwarn):
+    # Controle: dois fatores reais e teto 10, a escolha fica abaixo do teto.
+    X, y, folds = flat_curve_problem
+    n_components, _ = PLSArm()._search(X, y, folds, Budget())
+    assert n_components < 10
+    assert not [w for w in recwarn if "teto da busca" in str(w.message)]
+
+
 def _argmin_choice(X, y, folds, candidates) -> tuple[int, float]:
     """Reimplementa o critério ANTIGO (argmin puro do RMSE médio) para
     servir de referência na comparação — o teste compara as duas regras

@@ -245,6 +245,25 @@ def _load_mango() -> Dataset:
 
     X = df[spectral_columns].to_numpy(dtype=float)
     axis = np.array([float(c) for c in spectral_columns])
+
+    # Canais mortos (adendo de 28/10/2026 ao ADR 006): o CSV vai de 285 a
+    # 1200 nm, e 25 bandas têm o mesmo valor em todas as amostras — 285-306
+    # nm e 1152-1200 nm. Não carregam informação e quebram o iPLS nos
+    # intervalos das pontas (matriz singular no mdatools). O critério não
+    # olha o alvo nem a partição: só "coluna constante no conjunto todo".
+    # A trava falha se a fonte mudar, em vez de cortar outra coisa calada.
+    constant = np.all(X == X[0], axis=0)
+    dead = axis[constant]
+    if not (
+        constant.sum() == 25
+        and np.all((dead <= 306) | (dead >= 1152))
+    ):
+        raise ValueError(
+            f"Mango: esperadas 25 bandas constantes em 285-306 e 1152-1200 "
+            f"nm, encontradas {constant.sum()}: {dead.tolist()}"
+        )
+    X, axis = X[:, ~constant], axis[~constant]
+
     y = np.asarray(pd.to_numeric(df["DM"]), dtype=float)
     # Preservada para o modo "protocolo da literatura" (ADR 006) — não
     # entra no sha256, que cobre só o conteúdo numérico já coberto acima.
@@ -317,6 +336,10 @@ def _load_bioprocess() -> Dataset:
     # muito acima do acaso, e a mesma composição reaparece em linhas
     # distantes (5.089 blocos vizinhos, 3.433 composições). Mesma composição
     # = mesma amostra, para nenhuma cair dos dois lados da partição.
+    # Esses dois números são das 6.960 linhas, antes do descarte dos sem
+    # glicose. Nas 6.472 que ficam, são 4.734 blocos vizinhos e 3.191
+    # composições, que é o número de grupos devolvido aqui (medido em
+    # 05/11/2026).
     groups = _composition_groups(targets[labeled])
 
     return Dataset(

@@ -12,12 +12,13 @@ ALL_DATASETS = ["gasoline", "tecator", "mango", "bioprocess"]
 # Pinos por dataset: (n, p, unit, y_min, y_max) conferidos contra as
 # fontes na ingestão de 14/09 (gasoline: 60/401 e octanagem 83,4-89,6 do
 # artigo; mango: CSV v3 traz 12.011 (safras 1-5), cortado para 11.691
-# (safras 1-4) pelo ADR 006; bioprocess: 6.960 espectros menos 488 sem
-# rótulo de glicose)
+# (safras 1-4) pelo ADR 006, e 306 bandas menos 25 constantes (adendo de
+# 28/10 ao ADR 006); bioprocess: 6.960 espectros menos 488 sem rótulo de
+# glicose)
 EXPECTED = {
     "gasoline": (60, 401, "nm", 83.4, 89.6),
     "tecator": (215, 100, "nm", 0.9, 49.1),
-    "mango": (11691, 306, "nm", 9.46, 24.58),
+    "mango": (11691, 281, "nm", 9.46, 24.58),
     "bioprocess": (6472, 1870, "cm-1", 0.0, 19.99),
 }
 
@@ -69,6 +70,13 @@ def test_expected_shape_unit_and_target_range(any_dataset):
     assert any_dataset.unit == unit
     assert any_dataset.y.min() == pytest.approx(y_min, abs=0.01)
     assert any_dataset.y.max() == pytest.approx(y_max, abs=0.01)
+
+
+def test_no_constant_band(any_dataset):
+    # Canal com o mesmo valor em todas as amostras não carrega informação e
+    # quebrou o iPLS no Mango (adendo de 28/10 ao ADR 006).
+    X = any_dataset.X
+    assert not np.any(np.all(X == X[0], axis=0))
 
 
 def test_load_is_deterministic(any_dataset):

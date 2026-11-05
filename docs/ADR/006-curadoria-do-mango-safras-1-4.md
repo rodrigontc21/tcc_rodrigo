@@ -73,3 +73,40 @@ coluna `Set` preservada em `Dataset.metadata`. Novo `sha256` do `Dataset`
 (cobre X, eixo e DM; a coluna `Set` não entra no hash), conferido como
 determinístico em duas cargas:
 `5b829645f407864de6b2a2c90ca2eee7ac0a963baef4aa76d8fca0bbaf8dbb36`.
+
+## Adendo (28/10/2026) — canais mortos nas pontas do espectro
+
+Registro de mudança na curadoria. **Decisão minha, ainda não vista pela
+orientação.** O status deste ADR ("aceito") vale para a decisão original, o
+corte da safra 5; este adendo pode mudar quando a orientação ler.
+
+**O achado.** O CSV v3 traz 306 bandas, de 285 a 1200 nm em passo de 3 nm,
+e o loader usava todas. **25 delas têm o mesmo valor em todas as 11.691
+amostras** (desvio-padrão exatamente zero): 285–306 nm (8 bandas) e
+1152–1200 nm (17 bandas). O posto numérico do espectro é 281 = 306 − 25.
+Tecator, Gasoline e bioprocess não têm nenhuma banda constante.
+
+**Por que importa.** Essas bandas não carregam informação nenhuma, e
+quebravam o `IPLSArm`: o `mdatools::ipls` dava "system is exactly singular"
+nos intervalos das pontas, que não sustentam o número de componentes
+pedido (medido em 28/10, `seed_split` 0; ver o DIARIO de 28/10).
+
+**Decisão.** O loader remove as colunas constantes. O critério não olha o
+alvo nem a partição — só "coluna com o mesmo valor no conjunto inteiro" —,
+então não há vazamento. Uma trava confere que são exatamente as 25
+esperadas, nas duas pontas, e falha se a fonte mudar, em vez de cortar
+outra coisa calada. O Mango passa a ter **281 bandas, de 309 a 1149 nm**.
+
+**O que muda.** Pino `EXPECTED["mango"]` de 306 para 281 bandas em
+`tests/test_data.py`; teste novo `test_no_constant_band`, que vale para os
+quatro conjuntos e foi conferido por mutação. Novo `sha256` do `Dataset`,
+determinístico em duas cargas:
+`6c79f05e8cacafa3ad64082a887aa7239cef134f8233db0a5364fd9e24e926a3`.
+O piso de ruído do Mango (`results/mean_baseline_mango.*`) não muda: o
+`MeanArm` não usa X. As medidas do ADR 012 para o Mango ("p = 306") são da
+curadoria anterior.
+
+**Em aberto, não verificado.** A literatura do Mango parece usar só a faixa
+de 684–990 nm, e não o espectro inteiro. Se for o caso, a escolha da faixa é
+uma decisão de curadoria maior que esta, e depende da revisão dirigida e da
+orientação. Este adendo remove só o que é inequivocamente sem informação.
