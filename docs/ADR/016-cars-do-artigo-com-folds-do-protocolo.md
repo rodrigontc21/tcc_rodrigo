@@ -149,10 +149,10 @@ vazam.
 Uso previsto:
 - **O portão:** o modo `fiel` nos dados de milho do artigo, para comparar
   com a Tabela 2. Feito em 05/11 com o algoritmo (ver Consequências).
-- **O efeito das adaptações:** os dois modos no Tecator, com as mesmas
-  sementes. Se o `protocolo` não ficar pior que o `fiel`, as adaptações
-  não enfraqueceram o método. Se ficar, a diferença vai medida à
-  orientação.
+- **O efeito das adaptações:** os dois modos com as mesmas sementes. Se o
+  `protocolo` não ficar pior que o `fiel`, as adaptações não enfraqueceram
+  o método. Feito em 06/11 no Tecator e no Gasoline, em 10 partições (ver
+  Consequências).
 
 ## Em aberto, a confirmar com a orientação
 
@@ -165,10 +165,14 @@ Uso previsto:
 2. **Faixa de N, da razão de amostragem e do fator do teto.**
 3. **Centragem para os pesos contra autoescala no modelo final:** a mesma
    questão da pergunta 13, do iPLS.
-4. **O portão de validação (pergunta 11):** ainda não há RMSEP publicado de
-   CARS no Tecator ou no Gasoline. No milho do artigo, o algoritmo
-   reproduz o achado publicado (ver Consequências), mas isso confere o
-   algoritmo, e não o braço no protocolo deste trabalho.
+4. **O portão de validação (pergunta 11):**
+   - **No Gasoline,** há uma referência, Zhong et al. (2023), e o nosso
+     CARS a reproduz na mesma divisão (ver Consequências). Se uma
+     referência basta, é decisão da orientação.
+   - **No Tecator,** não achei RMSEP publicado de CARS.
+   - **No milho do artigo original,** o algoritmo reproduz o achado
+     publicado, mas isso confere o algoritmo, e não o braço no protocolo
+     deste trabalho.
 
 ## Consequências
 
@@ -179,18 +183,28 @@ Uso previsto:
   ambiente que fica para depois, se a leitura não bastar.
 - **Implementado em 05/11/2026** em `src/tcc/arms/cars.py`, com
   `tests/test_cars.py`.
-  - São 27 testes: a EDF contra a fórmula do `carspls.m`, o `round` do
+  - São 30 testes: a EDF contra a fórmula do `carspls.m`, o `round` do
     MATLAB, o PLS centrado contra o sklearn, o RMSECV como PRESS somado,
     o sorteio de amostras, a semente, o sinal negativo, o teto, o número
-    de componentes do modelo final e a seleção aninhada, inclusive uma
-    versão vazada que o verificador reprova.
+    de componentes do modelo final, a recusa de N < 2 e de razão fora de
+    (0, 1] e a seleção aninhada, inclusive uma versão vazada que o
+    verificador reprova.
   - Doze mutações do código foram pegas pelos testes, com o arquivo
     restaurado e o hash conferido.
-  - Custo medido com `scripts/medir_custo_cars.py`.
+  - Custo medido com `scripts/medir_custo_cars.py` nos quatro conjuntos
+    (`seed_split` 0).
+    - No bioprocess, o braço rodou de ponta a ponta em 06/11: 1.605,7 s
+      no `protocolo` e 435,8 s no `fiel`, contra 195,7 s do PLS completo.
+    - A estimativa prévia (`scripts/estimar_custo_cars_bioprocess.py`) era
+      de cerca de 36 min e 7 min.
+    - Nessa partição, o `fiel` subiu a 18 componentes, teve o menor
+      RMSECV interno e o pior R² de teste (0,8361), enquanto o
+      `protocolo` ficou em 0,8771 com 63 bandas, contra 0,8677 do PLS
+      completo.
 - **Conferência nos dados do artigo (05/11),** com
   `scripts/verificar_cars_milho.py`:
   - Os dados são o `corn_m51.mat` dos autores (milho no instrumento m5,
-    umidade, 80 × 700), fora do repositório.
+    umidade, 80 × 700), em `docs/fontes/cars/`, fora do git.
   - A receita é a do artigo: só centrado, 10 segmentos formados como no
     `plscvfold.m` (ordenados por `y`, em rodízio), N = 100, razão 0,9, 30
     repetições.
@@ -204,3 +218,30 @@ Uso previsto:
   O algoritmo reproduz o artigo. O teto, que o artigo não informa, decide
   o resultado. Por isso o fator do teto passou à CV interna, e o modelo
   final, a usar os componentes que o CARS escolheu.
+
+- **CARS contra o PLS em 10 partições (06/11),** com
+  `scripts/comparar_cars_particoes.py` (`seed_split` 0 a 9, comparação
+  pareada; DIARIO de 06/11):
+  - **Tecator:** ΔR² mediano de +0,0016 no `protocolo` e +0,0001 no `fiel`,
+    com cerca de 10 bandas.
+  - **Gasoline:** −0,0048 no `protocolo` (4 de 10 partições não abaixo do
+    PLS; Wilcoxon p = 0,193) e −0,0123 no `fiel` (2 de 10; p = 0,020).
+  - **O `protocolo` fica acima do `fiel` no Gasoline** (+0,0078 na
+    mediana): as adaptações não enfraqueceram o método nesta medida.
+  - **O RMSEP publicado:** Zhong et al. (2023), *Molecules* 28(15):5672,
+    no mesmo Gasoline (divisão Kennard-Stone 45/15, só centragem, uma
+    execução), dá 0,240 para o CARS-PLS e 0,180 para o PLS completo.
+    Também ali o CARS fica abaixo do PLS completo. O nosso `protocolo`
+    tem RMSEP mediano de 0,236 (faixa de 0,167 a 0,331) em 10 partições,
+    com o valor publicado dentro da faixa. É uma referência só, e com
+    outra divisão. No Tecator, ainda não há RMSEP publicado de CARS.
+  - **Na divisão do artigo (06/11),** com `scripts/comparar_cars_zhong.py`:
+    - O Kennard-Stone que começa pela amostra mais perto da média
+      reproduz os três números do PLS completo da Tabela 3 (RMSEC 0,150,
+      RMSECV 0,252, RMSEP 0,180), então a divisão é a mesma.
+    - Com só centragem e leave-one-out, em 20 sementes, o nosso CARS deu
+      RMSEP mediano de 0,226 com teto 5 (≤ 0,240 em 18 de 20) e 0,210 com
+      teto 10 (19 de 20), contra 0,240 publicado.
+    - O CARS, portanto, não fica abaixo do publicado no Gasoline. Uma
+      primeira tentativa, com a variante do libPLS, não reproduzia o
+      controle; está no DIARIO.

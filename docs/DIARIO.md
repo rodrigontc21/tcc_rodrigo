@@ -3531,3 +3531,284 @@ Cinco arquivos em Downloads eram cópias idênticas, conferidas por hash, de
 arquivos já no projeto e foram para a Lixeira: `pgsg_0_paper.pdf`,
 `tcc_rodrigo.pdf`, `pipeline_tcc_rodrigo.md`, `verificar_alvo.py` e
 `verify_plaincnn.py`. O que não é do TCC ficou onde estava.
+
+## 2026-11-06
+
+### CARS contra o PLS em 10 partições
+
+Para saber se a queda do CARS no Gasoline em 05/11 (uma partição só) era
+real, escrevi `scripts/comparar_cars_particoes.py`.
+- **Desenho fixado antes de rodar:** `seed_split` 0 a 9, `seed_algo` 0, o
+  PLS e os dois modos do CARS na mesma partição em cada semente.
+- **Medida:** ΔR² = R²(CARS) − R²(PLS), pareado por semente.
+- **Wilcoxon pareado** só como descrição.
+
+| conjunto | braço | R² mediano | ΔR² mediano (faixa) | não abaixo do PLS | Wilcoxon p | bandas medianas |
+|---|---|---|---|---|---|---|
+| Gasoline | PLS | 0,9805 | — | — | — | 401 |
+| Gasoline | CARS `protocolo` | 0,9745 | −0,0048 (−0,0271 a +0,0077) | 4 de 10 | 0,193 | 17 |
+| Gasoline | CARS `fiel` | 0,9677 | −0,0123 (−0,0333 a +0,0036) | 2 de 10 | 0,020 | 22 |
+| Tecator | PLS | 0,9684 | — | — | — | 100 |
+| Tecator | CARS `protocolo` | 0,9693 | +0,0016 (−0,0105 a +0,0055) | 7 de 10 | 0,492 | 10 |
+| Tecator | CARS `fiel` | 0,9683 | +0,0001 (−0,0020 a +0,0051) | 5 de 10 | 0,557 | 12 |
+
+`protocolo` − `fiel`: +0,0078 mediano no Gasoline (−0,0111 a +0,0289) e
++0,0005 no Tecator (−0,0084 a +0,0034).
+
+**O que os números mostram, sem ir além deles:**
+- **No Tecator,** os dois modos ficam no nível do PLS completo, com cerca
+  de um décimo das bandas.
+- **No Gasoline, o `fiel` fica abaixo do PLS** na maioria das partições (2
+  de 10 não abaixo, p = 0,020). O `protocolo` também fica abaixo na
+  mediana, mas sem diferença distinguível do acaso em 10 partições (p =
+  0,193). O teste do Gasoline tem 15 amostras por partição, e o R² varia
+  muito de uma para outra.
+- **As adaptações do `protocolo` não enfraqueceram o método nesta medida:**
+  no Gasoline, ele fica acima do `fiel` na mediana.
+
+A queda do CARS no Gasoline em relação ao PLS completo, então, não foi
+acaso de uma partição, ao menos no `fiel`. Isso não diz se o nosso CARS
+está abaixo do CARS publicado, porque falta um RMSEP publicado de CARS no
+Gasoline (pergunta 11). A implementação foi conferida no milho do artigo
+(05/11).
+
+Tempo: cerca de 15 s por partição no `protocolo` e 2,5 s no `fiel`, nos
+dois conjuntos.
+
+### Um RMSEP publicado de CARS no Gasoline (pergunta 11)
+
+Procurei na literatura um RMSEP de CARS no Gasoline e no Tecator. No
+Tecator não achei. No Gasoline achei **Zhong et al. (2023), *Molecules*
+28(15):5672** (doi:10.3390/molecules28155672), de acesso aberto. Eles
+comparam seis métodos de seleção no mesmo conjunto (60 amostras, 401
+pontos). Pela seção de métodos e pela Tabela 3, o protocolo deles é:
+- divisão única 45/15 pelo Kennard-Stone;
+- só centragem;
+- componentes por leave-one-out;
+- uma execução do CARS.
+
+| | R² de teste | RMSEP | variáveis | componentes |
+|---|---|---|---|---|
+| PLS completo | 0,987 | 0,180 | 401 | 6 |
+| CARS-PLS | 0,978 | 0,240 | 7 | 4 |
+
+Também ali o CARS fica abaixo do PLS completo no Gasoline.
+
+Acrescentei o RMSEP ao `comparar_cars_particoes.py` e rodei de novo o
+Gasoline. Os R² saíram idênticos aos da primeira rodada.
+
+| | publicado | nosso, 10 partições: mediana (faixa) |
+|---|---|---|
+| PLS completo | 0,180 | 0,212 (0,167 a 0,261) |
+| CARS `protocolo` | 0,240 | 0,236 (0,167 a 0,331) |
+| CARS `fiel` | — | 0,268 (0,179 a 0,367) |
+
+**O RMSEP do nosso CARS `protocolo` fica no nível do publicado:** o valor
+deles cai dentro da nossa faixa, e as medianas quase coincidem.
+
+**Ressalvas:**
+- é uma referência só;
+- a divisão é outra (Kennard-Stone, contra as nossas partições
+  sorteadas), e a avaliação também;
+- o PLS completo deles fica abaixo da nossa faixa (0,180 contra mediana
+  0,212). Isso é compatível com uma divisão Kennard-Stone mais fácil, mas
+  não medi.
+
+No Tecator, a pergunta 11 continua sem referência para o CARS.
+
+Busquei mais referências de CARS no Gasoline e no Tecator, em quatro
+buscas. Procurei pelo nome do conjunto, por "CARS-PLS" com octana e pelos
+métodos mais novos do grupo de Changsha (VCPA, IRIV, BOSS), que costumam
+comparar com o CARS. Não achei nenhuma outra tabela de RMSEP de CARS no
+Gasoline, e nenhuma no Tecator. Achei aplicações do CARS em outros
+conjuntos (carne de iaque, vinagre, tomate, Salvia), que não servem para o
+portão. Por ora, a referência do Gasoline é só Zhong et al. (2023).
+
+### CARS no protocolo de Zhong et al. (2023)
+
+Para comparar direto com o 0,240, escrevi `scripts/comparar_cars_zhong.py`,
+que segue o protocolo deles:
+- espectros brutos, só centragem;
+- divisão Kennard-Stone 45/15, como o `ks.m` do libPLS;
+- componentes por leave-one-out.
+
+O CARS rodou com N = 100 e razão 0,9, que o artigo não informa, e teto 5
+e 10, em 20 sementes.
+
+**O controle não fechou.** Nessa divisão, o PLS completo deu 0,198 com 7
+componentes. Conferi de 3 a 10 componentes, e nenhum dá o 0,180 deles: o
+melhor é 0,198 a 0,199, com 6 ou 7. A nossa divisão Kennard-Stone,
+portanto, não é idêntica à deles, e a comparação fica aproximada.
+
+| | publicado | nosso, mesmo protocolo, divisão próxima |
+|---|---|---|
+| PLS completo | 0,180 (6 componentes) | 0,198 (7 componentes) |
+| CARS, teto 5 | 0,240 (7 variáveis, 4 componentes) | mediana 0,229 (0,217 a 0,260); ≤ 0,240 em 17 de 20; 8 variáveis, 3 componentes |
+| CARS, teto 10 | — | mediana 0,225 (0,202 a 0,254); ≤ 0,240 em 16 de 20; 18 variáveis, 8 componentes |
+
+**O que os números sustentam:**
+- **O nosso CARS não fica pior que o publicado** nessa comparação.
+- **O CARS fica acima do PLS completo em erro também aqui:** cerca de 14%
+  a mais, contra cerca de 33% no artigo (razões calculadas das medianas e
+  dos valores publicados).
+- **Com teto 5, a seleção se parece com a deles.**
+
+**O que não sustentam:** uma reprodução exata do artigo, que exigiria a
+divisão idêntica.
+
+### A divisão de Zhong et al. encontrada: o controle fecha
+
+O controle da entrada anterior não tinha fechado. Testei variantes do
+Kennard-Stone contra os três números do PLS completo com 6 componentes da
+Tabela 3 (RMSEC 0,150, RMSECV 0,252, RMSEP 0,180):
+
+| variante (45 primeiras = calibração) | RMSEC | RMSECV | RMSEP |
+|---|---|---|---|
+| libPLS, começa pelo par mais distante | 0,150 | 0,252 | 0,199 |
+| **começa pela amostra mais perto da média** | **0,150** | **0,252** | **0,180** |
+| espectros autoescalados | 0,158 | 0,255 | 0,155 |
+| espectros em SNV | 0,165 | 0,263 | 0,134 |
+| SPXY (X e y) | 0,149 | 0,253 | 0,185 |
+
+Usar as 15 primeiras como validação não reproduz os números em nenhuma
+variante.
+
+Só a variante que começa pela amostra mais perto da média reproduz os
+três. O `comparar_cars_zhong.py` passou a usá-la e a imprimir o controle.
+Rodei de novo:
+
+| na divisão do artigo | RMSEP | variáveis | componentes |
+|---|---|---|---|
+| CARS publicado | 0,240 | 7 | 4 |
+| nosso CARS, teto 5, 20 sementes | mediana 0,226 (0,210 a 0,242); ≤ 0,240 em 18 de 20 | 8 | 3 |
+| nosso CARS, teto 10, 20 sementes | mediana 0,210 (0,194 a 0,249); ≤ 0,240 em 19 de 20 | 17 | 8 |
+
+**Na mesma divisão e com o mesmo pré-processamento,** o nosso CARS fica
+igual ou abaixo do RMSEP publicado em 18 a 19 de 20 execuções. A
+comparação aproximada da entrada anterior fica substituída por esta.
+
+**O que ainda difere do artigo:** N = 100, a razão 0,9 e o teto do CARS.
+O artigo não os informa, e o teto 5 dá uma seleção parecida com a deles.
+
+### Custo do CARS no bioprocess, estimado
+
+Para não rodar o braço inteiro, escrevi `scripts/estimar_custo_cars_bioprocess.py`,
+como o perfil do iPLS. Ele mede uma execução do `run_cars` no fold externo
+0 da partição 0 (3.882 linhas, 1.870 bandas, 4 folds internos, SNV), com
+o teto vindo de 7 componentes do A1 (DIARIO de 28/10), e extrapola.
+
+| execução | tempo | ajustes |
+|---|---|---|
+| N = 50, teto 7 | 11,0 s | 1.330 |
+| N = 50, teto 14 | 20,9 s | 2.386 |
+| N = 50, teto 21 | 30,7 s | 3.338 |
+| N = 100, teto 7 | 25,7 s | 2.668 |
+
+N = 100 custa 2,33 vezes N = 50.
+
+**Estimativa por partição:** cerca de 0,6 h no `protocolo` (12 candidatos
+× 5 folds, mais a final) e 0,1 h no `fiel`. Para as 30 partições de
+exploração, cerca de 18 h e 4 h. Para comparar, o iPLS mediu 2 h 31 min
+numa partição (28/10).
+
+**A estimativa está para baixo:** não conta a busca de componentes do
+A1, a avaliação dos candidatos nos folds nem o tamanho maior da execução
+final.
+
+**O CARS já usa vários núcleos:** 23,6 min de CPU para 2,6 min de relógio,
+ou seja, o numpy já paraleliza. Rodar partições em paralelo deve render
+menos que no iPLS, que usa uma thread só.
+
+**Conclusão:** o CARS cabe no orçamento sem corte.
+
+### CARS no bioprocess, de ponta a ponta
+
+Rodei o `medir_custo_cars.py` no bioprocess (`seed_split` 0, `seed_algo`
+0), sem erro.
+
+| braço | R² | RMSEP | bandas | componentes | tempo |
+|---|---|---|---|---|---|
+| PLS completo | 0,8677 | 2,244 | 1.870 | 7 | 195,7 s |
+| CARS `protocolo` | 0,8771 | 2,163 | 63 | 7 | 1.605,7 s |
+| CARS `fiel` | 0,8361 | 2,498 | 205 | 18 | 435,8 s |
+
+O `protocolo` escolheu (100; 0,8; fator 1). O `fiel` chegou a 18
+componentes com teto 21.
+
+**Correção à entrada anterior.** Escrevi que a estimativa de custo estava
+"para baixo". No `protocolo`, o tempo real (27 min) ficou abaixo da
+estimativa (cerca de 36 min): a conta supunha o pior caso na execução
+final, e a busca escolheu uma configuração mais leve. No `fiel`, a
+estimativa (cerca de 7 min) bateu.
+
+**Uma partição não é resultado, mas o padrão do `fiel` é o mesmo do
+Gasoline:**
+- ele teve o menor RMSECV interno dos três (1,834), mas o pior RMSEP;
+- com teto alto e escolha pelo menor RMSECV, os componentes sobem (18), e
+  o modelo sobreajusta;
+- o `protocolo` ficou acima do PLS completo com 63 bandas.
+
+### iPLS: busca de RMSEP publicado para o portão
+
+Procurei um RMSEP publicado de iPLS no Gasoline e no Tecator, como fiz
+para o CARS. Não achei.
+- **A revisão de Wang, Lin, …, Li e Xu (2018),** *Chemom. Intell. Lab.
+  Syst.* 172:229–240, que compara iPLS e variantes: li o PDF (site de um
+  dos autores) e ela usa leite, tabaco e solo, não o Gasoline nem o
+  Tecator.
+- **Zhong et al. (2023)** trazem no Gasoline o BiPLS (backward), com RMSEP
+  0,144, 162 variáveis e 3 componentes, mas o nosso braço é o forward
+  iPLS (ADR 012), e o número de intervalos deles não é informado. Não
+  serve de portão.
+- **Ficou para conferir pelo Portal CAPES:** *Interval interaction moving
+  window partial least squares…* (*Chemom. Intell. Lab. Syst.*, 2023),
+  que compara fiPLS, biPLS, siPLS e MWPLS em conjuntos que não consegui
+  ver.
+
+Para o iPLS, o portão "como está escrito" (pergunta 11) continua sem
+referência nos dois conjuntos.
+
+### Revisão dos ADRs 014, 015 e 016
+
+Reli os três ADRs dos braços clássicos novos contra o código, os testes e
+o DIARIO, antes de levá-los à orientação.
+- **ADR 014 (VIP):** bate com o código e com as medições de 28 e 29/10.
+  O texto dizia que o PDF de Mehmood et al. (2020) estava "guardado fora
+  do repositório", mas ele não está em lugar nenhum do computador:
+  procurei em Downloads, Documentos, Área de Trabalho e no Ubuntu. Ficou
+  uma nota. O artigo é de acesso aberto e pode ser baixado de novo.
+- **ADR 015 (GA-PLS):** bate com o código. A contagem de 13 testes
+  confere. O GA 3.2.5 aparecia como "a registrar" no ADR 008, mas já foi
+  registrado no adendo de 29/10; corrigido.
+- **ADR 016 (CARS):** cinco pontos desatualizados, corrigidos:
+  - o item 4 em aberto dizia que não havia RMSEP publicado no Gasoline;
+  - a contagem de testes dizia 27, e são 30;
+  - o custo não citava a rodada de ponta a ponta no bioprocess;
+  - o "uso previsto" da comparação entre os modos ainda estava no
+    futuro;
+  - os dados de milho apareciam como "fora do repositório", e ficam em
+    `docs/fontes/cars/`.
+
+### A1: a correção das réplicas do Tecator, pronta e medida
+
+Deixei a correção do adendo de 05/11 do ADR 009 pronta, mas desligada,
+para quando a orientação decidir.
+- **Código:** a opção `TECATOR_GROUP_IDENTICAL_SPECTRA = False` em
+  `src/tcc/data.py`. Ligada, ela junta, por união de grupos, as linhas com
+  espectro e alvos idênticos aos grupos das vizinhas.
+- **Testes:** dois novos. Um sintético, da união. Outro com o Tecator
+  real e a opção ligada: os 22 pares juntos, nenhum grupo antigo partido,
+  nenhum grupo cruzando treino/teste em 10 partições.
+- **Suíte:** 168 passed, 1 skipped, 1 xfailed.
+
+**Efeito** (`scripts/medir_correcao_replicas_tecator.py`, 23 s):
+- os grupos vão de 208 a 188;
+- os pares cruzando a partição vão de 3–11 a 0;
+- as 30 partições de exploração mudam o teste;
+- o R² mediano do PLS vai de 0,9692 a 0,9657, e o RMSEP mediano, de 2,139
+  a 2,205;
+- o piso de ruído vai de 7,7% a 7,8%. O "antes" reproduz o PROTOCOLO.
+
+**Conclusão:** o vazamento inflava pouco o PLS, mas aplicar a correção
+muda todas as partições do Tecator. Fica para a orientação, agora com o
+impacto medido. Registrado no ADR 009.

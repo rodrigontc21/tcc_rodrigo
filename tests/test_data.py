@@ -204,6 +204,44 @@ def test_identical_spectra_with_identical_target_share_a_group(name):
     assert not split, f"{len(split)} de {len(replicated)} réplicas em grupos diferentes"
 
 
+def test_merge_identical_spectra_joins_only_identical_spectrum_and_target():
+    from tcc.data import _merge_identical_spectra
+
+    X = np.array([[1.0, 2], [1.0, 2], [3.0, 4], [5.0, 6], [3.0, 4], [5.0, 6]])
+    targets = np.array([[1.0], [1.0], [2.0], [3.0], [2.0], [9.0]])
+    groups = np.array([0, 0, 1, 2, 3, 4])  # linhas 0 e 1 vizinhas
+    merged = _merge_identical_spectra(groups, X, targets)
+    # 2 e 4: espectro e alvo iguais, juntam; 3 e 5: espectro igual, alvo não
+    assert merged.tolist() == [0, 0, 1, 2, 1, 3]
+
+
+def test_tecator_correction_merges_the_twenty_pairs_and_keeps_adjacent_groups(monkeypatch):
+    """Com a correção ligada (adendo de 05/11 do ADR 009), nenhum par de
+    espectro e alvo idênticos fica separado, e todo grupo antigo continua
+    inteiro dentro de um grupo novo."""
+    import tcc.data as data
+
+    old = load("tecator").groups
+    monkeypatch.setattr(data, "TECATOR_GROUP_IDENTICAL_SPECTRA", True)
+    ds = load("tecator")
+    new = ds.groups
+    assert len(np.unique(old)) == 208
+    assert all(len(set(new[old == g])) == 1 for g in np.unique(old))
+
+    blocks: dict[tuple[bytes, float], list[int]] = {}
+    for i, (x, y) in enumerate(zip(ds.X, ds.y)):
+        blocks.setdefault((x.tobytes(), float(y)), []).append(i)
+    replicated = [rows for rows in blocks.values() if len(rows) > 1]
+    assert len(replicated) == 22
+    assert all(len({new[j] for j in rows}) == 1 for rows in replicated)
+
+    for seed_split in range(10):
+        result = evaluate(MeanArm(), ds, seed_split=seed_split, seed_algo=0)
+        in_test = np.zeros(len(new), dtype=bool)
+        in_test[result.test_idx] = True
+        assert not set(new[in_test]) & set(new[~in_test])
+
+
 @pytest.fixture(scope="module")
 def tecator():
     return load("tecator")

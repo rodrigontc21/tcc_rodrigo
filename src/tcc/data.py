@@ -53,6 +53,42 @@ def _adjacent_replicate_groups(targets: np.ndarray) -> np.ndarray:
     return np.cumsum(np.concatenate([[True], ~same_as_next])) - 1
 
 
+# Correção proposta das réplicas do Tecator (adendo de 05/11/2026 do ADR 009):
+# juntar também as linhas com espectro e alvos idênticos. Desligada até a
+# orientação decidir; ligada, muda as partições do Tecator e obriga a
+# regenerar os resultados dele. O efeito está medido em
+# `scripts/medir_correcao_replicas_tecator.py`.
+TECATOR_GROUP_IDENTICAL_SPECTRA = False
+
+
+def _merge_identical_spectra(groups: np.ndarray, X: np.ndarray, targets: np.ndarray) -> np.ndarray:
+    """Une, aos grupos dados, as linhas com espectro idêntico bit a bit e
+    alvos idênticos. Os rótulos saem renumerados de 0 em diante, na ordem da
+    primeira linha de cada grupo."""
+    parent = {int(g): int(g) for g in np.unique(groups)}
+
+    def root(g: int) -> int:
+        while parent[g] != g:
+            parent[g] = parent[parent[g]]
+            g = parent[g]
+        return g
+
+    first_with: dict[tuple[bytes, bytes], int] = {}
+    for i in range(len(X)):
+        key = (np.ascontiguousarray(X[i]).tobytes(), np.ascontiguousarray(targets[i]).tobytes())
+        if key in first_with:
+            a, b = root(int(groups[first_with[key]])), root(int(groups[i]))
+            if a != b:
+                parent[max(a, b)] = min(a, b)
+        else:
+            first_with[key] = i
+
+    merged = np.array([root(int(g)) for g in groups])
+    _, first_row = np.unique(merged, return_index=True)
+    relabel = {int(merged[r]): k for k, r in enumerate(np.sort(first_row))}
+    return np.array([relabel[int(g)] for g in merged])
+
+
 def _composition_groups(targets: np.ndarray) -> np.ndarray:
     """Linhas com o vetor de alvos idêntico, em qualquer posição = mesma
     amostra. NaN vira um valor comparável, para que réplicas com o mesmo
@@ -110,9 +146,13 @@ def _load_tecator() -> Dataset:
     # protein) idênticos, ~19× acima do acaso, 2 deles com espectro idêntico.
     # Repetições não vizinhas são compatíveis com coincidência (alvos com uma
     # casa decimal), então só vizinhas contam como réplica.
-    groups = _adjacent_replicate_groups(
-        targets_frame[["fat", "water", "protein"]].to_numpy(dtype=float)
-    )
+    # (Premissa errada: há 22 pares de espectros idênticos, com alvos
+    # idênticos, em linhas distantes; ver o adendo de 05/11 do ADR 009 e a
+    # opção TECATOR_GROUP_IDENTICAL_SPECTRA acima.)
+    targets = targets_frame[["fat", "water", "protein"]].to_numpy(dtype=float)
+    groups = _adjacent_replicate_groups(targets)
+    if TECATOR_GROUP_IDENTICAL_SPECTRA:
+        groups = _merge_identical_spectra(groups, X, targets)
 
     return Dataset(
         X=X, y=y, axis=axis, unit="nm", name="tecator", sha256=digest.hexdigest(),

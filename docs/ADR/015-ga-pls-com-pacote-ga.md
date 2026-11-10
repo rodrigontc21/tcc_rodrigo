@@ -132,8 +132,9 @@ internas, semente fixa, densidade 0,5, sem a população própria e validação
 centrada na própria média. Cada uma derruba pelo menos um teste, e o arquivo
 foi restaurado com o hash conferido.
 
-Nova dependência: pacote R `GA` 3.2.5, a registrar na proveniência do ADR
-008. O `plsVarSel` continua instalado, mas o braço não o usa.
+Nova dependência: pacote R `GA` 3.2.5, registrada na proveniência do ADR
+008 (adendo de 29/10). O `plsVarSel` continua instalado, mas o braço não o
+usa.
 
 **Custo medido** com densidade 0,1 (`scripts/medir_custo_gapls.py`,
 `seed_split` 0, `seed_algo` 0, busca completa). Os R² são de uma partição

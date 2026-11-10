@@ -14,7 +14,9 @@ que o método original deixa em aberto.
 
 **O que foi lido e o que não foi.** Lido por inteiro: Mehmood, Sæbø e
 Liland (2020), *J. Chemometrics* 34, e3226 (acesso aberto, CC BY; PDF obtido
-pela CAPES em 28/10/2026, guardado fora do repositório). Não lidos, só
+pela CAPES em 28/10/2026). *(Nota de 06/11: o PDF não foi encontrado no
+computador ao organizar os arquivos do TCC; por ser de acesso aberto, pode
+ser baixado de novo.)* Não lidos, só
 resumos e citações de terceiros: Wold, Johansson e Cocchi (1993), capítulo
 em *3D QSAR in Drug Design*, onde o VIP é proposto; Wold, Sjöström e
 Eriksson (2001), *Chemom. Intell. Lab. Syst.* 58, 109–130; Chong e Jun

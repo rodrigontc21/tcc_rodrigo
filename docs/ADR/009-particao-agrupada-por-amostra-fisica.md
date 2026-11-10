@@ -174,3 +174,37 @@ idênticas):
 espectro idêntico. No Tecator, a amostra passaria a ser a união de linhas
 vizinhas com alvos idênticos e de linhas com espectro idêntico. Depois,
 regenerar os resultados do Tecator e declarar a mudança.
+
+**A correção, pronta e desligada (06/11).** Implementada em `src/tcc/data.py`
+como a opção `TECATOR_GROUP_IDENTICAL_SPECTRA`, hoje `False`:
+- **Ligada,** junta aos grupos das linhas vizinhas as linhas com espectro e
+  alvos (fat, water, protein) idênticos.
+- **Testes:** dois. Com a opção ligada, os 22 pares ficam no mesmo grupo,
+  nenhum grupo antigo é partido e nenhum grupo cruza treino/teste em 10
+  partições.
+- **Com a opção desligada,** nada muda e a suíte passa inteira.
+
+**Efeito medido** com `scripts/medir_correcao_replicas_tecator.py`:
+
+| | regra atual | com a correção |
+|---|---|---|
+| grupos | 208 | 188 |
+| pares cruzando treino/teste, por partição (0–29) | 3 a 11 | 0 |
+| partições com o mesmo conjunto de teste | — | 0 de 30 |
+| PLS completo, R² mediano (30 partições) | 0,9692 | 0,9657 |
+| PLS completo, RMSEP mediano | 2,139 | 2,205 |
+| piso de ruído (`MeanArm`, 100 partições) | 7,7% | 7,8% |
+
+R² com − sem, por semente: mediana −0,0020, faixa de −0,0140 a +0,0087.
+Como as partições mudam, essa diferença não é pareada na mesma partição.
+
+**O que os números mostram:**
+- **O vazamento inflava o PLS do Tecator,** mas pouco perto da variação
+  entre partições.
+- **A queda é maior que os +0,001 medidos só no lado do teste,** o que é
+  compatível com a correção tirar também o vazamento da CV interna. Isso
+  não foi medido em separado.
+- **Aplicar a correção muda as 30 partições,** então todo número do
+  Tecator teria de ser regenerado: o piso, a comparação de
+  pré-processamento e os braços. Para ativar, basta ligar a opção, tirar a
+  marca de falha esperada do teste e regenerar.
