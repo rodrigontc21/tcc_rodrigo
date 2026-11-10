@@ -1,10 +1,13 @@
-"""O que muda no Tecator se a correção das réplicas for aplicada (ADR 009).
+"""O que muda no Tecator com a correção das réplicas (ADR 009).
 
-A correção (adendo de 05/11/2026 do ADR 009) junta no mesmo grupo as
-linhas com espectro e alvos idênticos, além das vizinhas que o ADR 009 já
-agrupa. Ela espera a orientação e está desligada
-(`tcc.data.TECATOR_GROUP_IDENTICAL_SPECTRA`). Este script mede o efeito
-antes da decisão, ligando a opção só aqui:
+Compara a regra original do ADR 009 (só linhas vizinhas com alvos
+idênticos) com a regra em vigor desde 09/11/2026 (`tcc.data`: vizinhas,
+espectro idêntico ou espectro próximo, sempre com alvos idênticos, em
+componentes conexas).
+
+Até 09/11 este script comparava a regra original com a correção de 06/11,
+que só juntava os espectros idênticos (188 grupos); a medição daquele dia
+está no DIARIO. Agora compara com a regra completa (180 grupos):
 
 1. grupos antes e depois;
 2. nas 30 partições de exploração (`seed_split` 0–29): quantas mudam o
@@ -25,21 +28,22 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 import numpy as np
 
+from dataclasses import replace
+
+import skfda.datasets
+
 import tcc.data as data
 from tcc.arms.mean import MeanArm
 from tcc.arms.pls import PLSArm
 from tcc.protocol import evaluate
 
 
-def carregar(corrigido: bool):
-    data.TECATOR_GROUP_IDENTICAL_SPECTRA = corrigido
-    try:
-        return data.load("tecator")
-    finally:
-        data.TECATOR_GROUP_IDENTICAL_SPECTRA = False
-
-
-antes, depois = carregar(False), carregar(True)
+depois = data.load("tecator")
+_, alvos = skfda.datasets.fetch_tecator(return_X_y=True, as_frame=True)
+regra_original = data._adjacent_replicate_groups(
+    alvos[["fat", "water", "protein"]].to_numpy(dtype=float)
+)
+antes = replace(depois, groups=regra_original)
 assert np.array_equal(antes.X, depois.X) and np.array_equal(antes.y, depois.y)
 
 blocos = defaultdict(list)

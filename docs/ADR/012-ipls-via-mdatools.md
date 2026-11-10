@@ -350,3 +350,14 @@ revisão dirigida, que continua pendente. Se o artigo original indicar
 faixa diferente, este ADR é corrigido **antes** de qualquer execução que
 entre em resultado, e nunca depois de ver desempenho. Registrado aqui para
 que a lacuna não passe por decisão fundamentada.
+
+**Nota (10/11/2026): a regra de réplicas do Tecator mudou.** Em 09/11 a
+orientação decidiu corrigir a regra de réplicas do Tecator (ADR 009), e os
+grupos foram de 208 a 180. Com isso, as partições do Tecator mudaram.
+- **As tabelas de diagnóstico do Tecator neste ADR foram medidas com a
+  partição anterior:** o `int_num` contra as bandas, o `ncomp.selcrit` e o
+  escalonamento. Elas mostram que cada fenômeno existe e sustentam as
+  perguntas 10, 12 e 13; não são resultado, e não foram refeitas.
+- **O braço foi medido de novo** com `scripts/medir_custo_ipls.py`
+  (`seed_split` 0): R² 0,9556, contra 0,9628 do PLS completo; `int_num`
+  10, 20 bandas, 9.774 ajustes, 15,3 s.

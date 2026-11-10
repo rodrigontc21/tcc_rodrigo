@@ -223,11 +223,18 @@ Uso previsto:
   `scripts/comparar_cars_particoes.py` (`seed_split` 0 a 9, comparação
   pareada; DIARIO de 06/11):
   - **Tecator:** ΔR² mediano de +0,0016 no `protocolo` e +0,0001 no `fiel`,
-    com cerca de 10 bandas.
+    com cerca de 10 bandas. *Com a regra de réplicas de 09/11 (ADR 009;
+    rodado de novo em 10/11):* +0,0012 no `protocolo` (8 de 10 não abaixo
+    do PLS; p = 0,232) e +0,0018 no `fiel` (8 de 10; p = 0,037), com 6 e
+    11 bandas medianas. O `protocolo` passou a ficar 0,0016 abaixo do
+    `fiel` na mediana (de −0,0126 a +0,0114).
   - **Gasoline:** −0,0048 no `protocolo` (4 de 10 partições não abaixo do
     PLS; Wilcoxon p = 0,193) e −0,0123 no `fiel` (2 de 10; p = 0,020).
   - **O `protocolo` fica acima do `fiel` no Gasoline** (+0,0078 na
-    mediana): as adaptações não enfraqueceram o método nesta medida.
+    mediana) e no bioprocess (uma partição). No Tecator, com a regra de
+    réplicas nova, fica 0,0016 abaixo na mediana, dentro da variação entre
+    partições. Não há indício de que as adaptações enfraqueçam o método,
+    mas também não há vantagem consistente delas.
   - **O RMSEP publicado:** Zhong et al. (2023), *Molecules* 28(15):5672,
     no mesmo Gasoline (divisão Kennard-Stone 45/15, só centragem, uma
     execução), dá 0,240 para o CARS-PLS e 0,180 para o PLS completo.

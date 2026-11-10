@@ -162,3 +162,9 @@ orientação.
 Decisão minha, não vista pela orientação. Fica como proposta
 até ela ver, junto com o ADR 008, cuja escolha do `plsVarSel` para o GA-PLS
 este ADR substitui.
+
+**Nota (10/11/2026): a regra de réplicas do Tecator mudou** (ADR 009; 180
+grupos em vez de 208). O braço foi medido de novo no Tecator
+(`seed_split` 0): PLS 0,9628, GA-PLS 0,9630, configuração (30, 50), 18
+bandas de 100, 111.038 ajustes, 8,3 s. A linha do Tecator na tabela
+acima é a da partição anterior.

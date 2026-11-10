@@ -23,12 +23,14 @@ EXPECTED = {
 }
 
 # Número de amostras físicas por conjunto (ADR 009), conferido na
-# identificação de réplicas: tecator 201 únicas + 7 pares; mango em geral 2
-# leituras por fruto (até 6); bioprocess toda amostra medida 2+ vezes.
+# identificação de réplicas: tecator 148 únicas + 30 pares + 1 trio + 1
+# quarteto, pela regra decidida em 09/11/2026 (eram 208 grupos só com as
+# vizinhas); mango em geral 2 leituras por fruto (até 6); bioprocess toda
+# amostra medida 2+ vezes.
 # None = sem evidência de réplicas.
 EXPECTED_GROUPS = {
     "gasoline": None,
-    "tecator": 208,
+    "tecator": 180,
     "mango": 4677,
     "bioprocess": 3191,
 }
@@ -172,18 +174,10 @@ def test_replicates_never_straddle_train_test(any_dataset):
     "name",
     [
         "gasoline",
-        pytest.param(
-            "tecator",
-            marks=pytest.mark.xfail(
-                strict=True,
-                reason=(
-                    "ADR 009, adendo de 05/11/2026: 20 dos 22 pares de espectros "
-                    "idênticos do Tecator ficam em grupos diferentes. A correção "
-                    "espera a orientação; quando entrar, este teste passa e o "
-                    "strict obriga a tirar esta marca."
-                ),
-            ),
-        ),
+        # Era falha esperada estrita até a correção de 09/11/2026 (ADR 009):
+        # 20 dos 22 pares de espectros idênticos do Tecator ficavam em grupos
+        # diferentes.
+        "tecator",
         "mango",
         "bioprocess",
     ],
@@ -204,42 +198,103 @@ def test_identical_spectra_with_identical_target_share_a_group(name):
     assert not split, f"{len(split)} de {len(replicated)} réplicas em grupos diferentes"
 
 
-def test_merge_identical_spectra_joins_only_identical_spectrum_and_target():
-    from tcc.data import _merge_identical_spectra
+def test_replicate_rule_links_neighbours_identical_and_close_spectra():
+    """Regra do ADR 009 para o Tecator (09/11/2026): alvo idêntico e, além
+    disso, vizinhança (A), espectro idêntico (B) ou espectro próximo (C)."""
+    from tcc.data import _tecator_replicate_groups
 
-    X = np.array([[1.0, 2], [1.0, 2], [3.0, 4], [5.0, 6], [3.0, 4], [5.0, 6]])
-    targets = np.array([[1.0], [1.0], [2.0], [3.0], [2.0], [9.0]])
-    groups = np.array([0, 0, 1, 2, 3, 4])  # linhas 0 e 1 vizinhas
-    merged = _merge_identical_spectra(groups, X, targets)
-    # 2 e 4: espectro e alvo iguais, juntam; 3 e 5: espectro igual, alvo não
-    assert merged.tolist() == [0, 0, 1, 2, 1, 3]
+    X = np.array([
+        [0.0, 0.0],   # 0 ┐ A: vizinhas, alvo igual
+        [5.0, 5.0],   # 1 ┘
+        [1.0, 1.0],   # 2 ┐ B: espectro idêntico, alvo igual
+        [9.0, 9.0],   # 3   isolada
+        [1.0, 1.0],   # 4 ┘
+        [2.0, 2.0],   # 5 ┐ C: espectro a 0,1, alvo igual
+        [7.0, 7.0],   # 6   isolada
+        [2.1, 2.0],   # 7 ┘
+        [3.0, 3.0],   # 8   espectro idêntico ao 9, alvo diferente: não junta
+        [3.0, 3.0],   # 9
+        [4.0, 4.0],   # 10  alvo igual ao 11, espectro longe e não vizinho
+        [6.0, 6.0],   # 11
+        [8.0, 8.0],   # 12
+    ])
+    targets = np.array(
+        [[1.0], [1.0], [2.0], [99.0], [2.0], [3.0], [98.0], [3.0],
+         [4.0], [5.0], [6.0], [97.0], [6.0]]
+    )
+    # 10 e 12: mesmo alvo, não vizinhas, espectros a 4,0: não juntam
+    g = _tecator_replicate_groups(X, targets, threshold=0.30)
+    assert g[0] == g[1]
+    assert g[2] == g[4]
+    assert g[5] == g[7]
+    assert g[8] != g[9]
+    assert g[10] != g[12]
+    assert len(np.unique(g)) == 10
+    # rótulos na ordem da primeira linha de cada grupo
+    assert g.tolist()[:4] == [0, 0, 1, 2]
 
 
-def test_tecator_correction_merges_the_twenty_pairs_and_keeps_adjacent_groups(monkeypatch):
-    """Com a correção ligada (adendo de 05/11 do ADR 009), nenhum par de
-    espectro e alvo idênticos fica separado, e todo grupo antigo continua
-    inteiro dentro de um grupo novo."""
-    import tcc.data as data
+def test_replicate_rule_uses_connected_components_not_pairs():
+    """Cadeia 0—1 (vizinhas), 1—5 (espectro idêntico): 0 e 5 não se ligam
+    diretamente, mas são a mesma amostra (nota (a) da orientação)."""
+    from tcc.data import _tecator_replicate_groups
 
-    old = load("tecator").groups
-    monkeypatch.setattr(data, "TECATOR_GROUP_IDENTICAL_SPECTRA", True)
+    X = np.array([[0.0], [1.0], [5.0], [6.0], [7.0], [1.0]])
+    targets = np.array([[1.0], [1.0], [2.0], [3.0], [4.0], [1.0]])
+    g = _tecator_replicate_groups(X, targets, threshold=0.30)
+    assert g[0] == g[1] == g[5]
+    assert len(np.unique(g)) == 4
+
+    # Linhas 0, 2 e 4, não vizinhas: 0—4 e 2—4 a 0,2 de distância, 0—2 a
+    # 0,4. A ligação 0—4 põe o 4 sob o 0; a 2—4 chega depois e, sem subir
+    # até a raiz, sobrescreveria esse vínculo e soltaria o 0.
+    X = np.array([[0.0], [9.0], [0.4], [8.0], [0.2]])
+    targets = np.array([[1.0], [2.0], [1.0], [3.0], [1.0]])
+    g = _tecator_replicate_groups(X, targets, threshold=0.30)
+    assert g[0] == g[2] == g[4]
+
+
+@pytest.fixture(scope="module")
+def tecator_targets():
+    import skfda.datasets
+
+    _, frame = skfda.datasets.fetch_tecator(return_X_y=True, as_frame=True)
+    return frame[["fat", "water", "protein"]].to_numpy(dtype=float)
+
+
+def test_tecator_groups_match_the_09_11_decision(tecator_targets):
+    """Os números de `verify_tecator_replicates.py` (orientação, 09/11/2026),
+    reproduzidos nos dados do loader, que são os mesmos do pgsg linha a
+    linha: 180 grupos, com um quarteto e um trio."""
     ds = load("tecator")
-    new = ds.groups
-    assert len(np.unique(old)) == 208
-    assert all(len(set(new[old == g])) == 1 for g in np.unique(old))
+    _, sizes = np.unique(ds.groups, return_counts=True)
+    assert dict(zip(*np.unique(sizes, return_counts=True))) == {1: 148, 2: 30, 3: 1, 4: 1}
+    g = ds.groups
+    assert g[57] == g[58] == g[134] == g[191]
+    assert g[63] == g[149] == g[177]
+    # os outros 7 pares da relação C (os 5 restantes estão no quarteto e
+    # no trio acima), da tabela da orientação
+    for i, j in [(10, 131), (113, 166), (7, 174), (114, 209), (4, 173), (3, 130), (101, 162)]:
+        assert g[i] == g[j], (i, j)
+    # alvo idêntico por acaso, espectros longe (percentis 37 a 40): não juntam
+    for i, j in [(122, 169), (39, 169), (19, 152)]:
+        assert g[i] != g[j], (i, j)
+    # limitação declarada: espectro muito próximo, alvo diferente
+    assert g[60] != g[68] and g[61] != g[68]
 
-    blocks: dict[tuple[bytes, float], list[int]] = {}
-    for i, (x, y) in enumerate(zip(ds.X, ds.y)):
-        blocks.setdefault((x.tobytes(), float(y)), []).append(i)
-    replicated = [rows for rows in blocks.values() if len(rows) > 1]
-    assert len(replicated) == 22
-    assert all(len({new[j] for j in rows}) == 1 for rows in replicated)
 
-    for seed_split in range(10):
-        result = evaluate(MeanArm(), ds, seed_split=seed_split, seed_algo=0)
-        in_test = np.zeros(len(new), dtype=bool)
-        in_test[result.test_idx] = True
-        assert not set(new[in_test]) & set(new[~in_test])
+@pytest.mark.parametrize("threshold, n_groups", [(0.10, 182), (0.15, 180), (0.40, 180), (0.45, 179)])
+def test_tecator_threshold_plateau(tecator_targets, threshold, n_groups):
+    """Qualquer limite de 0,15 a 0,40 dá os mesmos 180 grupos; fora dessa
+    faixa, a contagem muda. É o platô que justifica o 0,30 declarado."""
+    from tcc.data import TECATOR_SPECTRAL_THRESHOLD, _tecator_replicate_groups
+
+    ds = load("tecator")
+    g = _tecator_replicate_groups(ds.X, tecator_targets, threshold=threshold)
+    assert len(np.unique(g)) == n_groups
+    if n_groups == 180:
+        assert np.array_equal(g, ds.groups)
+    assert TECATOR_SPECTRAL_THRESHOLD == 0.30
 
 
 @pytest.fixture(scope="module")

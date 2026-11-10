@@ -53,40 +53,57 @@ def _adjacent_replicate_groups(targets: np.ndarray) -> np.ndarray:
     return np.cumsum(np.concatenate([[True], ~same_as_next])) - 1
 
 
-# Correção proposta das réplicas do Tecator (adendo de 05/11/2026 do ADR 009):
-# juntar também as linhas com espectro e alvos idênticos. Desligada até a
-# orientação decidir; ligada, muda as partições do Tecator e obriga a
-# regenerar os resultados dele. O efeito está medido em
-# `scripts/medir_correcao_replicas_tecator.py`.
-TECATOR_GROUP_IDENTICAL_SPECTRA = False
+# Limite da relação C das réplicas do Tecator (ADR 009, decisão de
+# 09/11/2026): maior diferença absoluta por canal entre dois espectros, na
+# escala de absorbância bruta. Declarado antes de rodar. Qualquer corte entre
+# 0,15 e 0,40 dá os mesmos 12 pares e os mesmos 180 grupos; 0,30 fica no meio
+# desse platô (`verify_tecator_replicates.py`, da orientação).
+TECATOR_SPECTRAL_THRESHOLD = 0.30
 
 
-def _merge_identical_spectra(groups: np.ndarray, X: np.ndarray, targets: np.ndarray) -> np.ndarray:
-    """Une, aos grupos dados, as linhas com espectro idêntico bit a bit e
-    alvos idênticos. Os rótulos saem renumerados de 0 em diante, na ordem da
-    primeira linha de cada grupo."""
-    parent = {int(g): int(g) for g in np.unique(groups)}
+def _tecator_replicate_groups(
+    X: np.ndarray, targets: np.ndarray, threshold: float = TECATOR_SPECTRAL_THRESHOLD
+) -> np.ndarray:
+    """Amostras do Tecator, pela regra do ADR 009 decidida em 09/11/2026.
 
-    def root(g: int) -> int:
-        while parent[g] != g:
-            parent[g] = parent[parent[g]]
-            g = parent[g]
-        return g
+    Duas linhas são da mesma amostra se têm (fat, water, protein) idênticos
+    e mais uma destas condições:
+      A  são vizinhas (a regra original do ADR 009);
+      B  o espectro é idêntico bit a bit;
+      C  o espectro é próximo: max |dx| < `threshold`.
+    O alvo idêntico é exigido nas três (nota (c) da orientação). A amostra é
+    a componente conexa dessas ligações, e não o par: há cadeias de 3 e 4
+    linhas em que dois membros só se ligam através de um terceiro.
 
-    first_with: dict[tuple[bytes, bytes], int] = {}
-    for i in range(len(X)):
-        key = (np.ascontiguousarray(X[i]).tobytes(), np.ascontiguousarray(targets[i]).tobytes())
-        if key in first_with:
-            a, b = root(int(groups[first_with[key]])), root(int(groups[i]))
-            if a != b:
-                parent[max(a, b)] = min(a, b)
-        else:
-            first_with[key] = i
+    Os rótulos saem numerados de 0 em diante, na ordem da primeira linha de
+    cada grupo.
+    """
+    n = len(X)
+    parent = list(range(n))
 
-    merged = np.array([root(int(g)) for g in groups])
-    _, first_row = np.unique(merged, return_index=True)
-    relabel = {int(merged[r]): k for k, r in enumerate(np.sort(first_row))}
-    return np.array([relabel[int(g)] for g in merged])
+    def root(i: int) -> int:
+        while parent[i] != i:
+            parent[i] = parent[parent[i]]
+            i = parent[i]
+        return i
+
+    same_target: dict[bytes, list[int]] = {}
+    for i in range(n):
+        same_target.setdefault(np.ascontiguousarray(targets[i]).tobytes(), []).append(i)
+    for rows in same_target.values():
+        for a, i in enumerate(rows):
+            for j in rows[a + 1:]:
+                neighbours = j - i == 1
+                close = float(np.abs(X[i] - X[j]).max()) < threshold
+                if neighbours or close:
+                    ri, rj = root(i), root(j)
+                    if ri != rj:
+                        parent[max(ri, rj)] = min(ri, rj)
+
+    roots = np.array([root(i) for i in range(n)])
+    _, first_row = np.unique(roots, return_index=True)
+    relabel = {int(roots[r]): k for k, r in enumerate(np.sort(first_row))}
+    return np.array([relabel[int(r)] for r in roots])
 
 
 def _composition_groups(targets: np.ndarray) -> np.ndarray:
@@ -142,17 +159,13 @@ def _load_tecator() -> Dataset:
         raise ValueError("eixo do Tecator na fonte mudou; rever o ADR 004")
     axis = 850.0 + 2.0 * np.arange(100)
 
-    # Réplicas (ADR 009): 7 pares de linhas vizinhas com (fat, water,
-    # protein) idênticos, ~19× acima do acaso, 2 deles com espectro idêntico.
-    # Repetições não vizinhas são compatíveis com coincidência (alvos com uma
-    # casa decimal), então só vizinhas contam como réplica.
-    # (Premissa errada: há 22 pares de espectros idênticos, com alvos
-    # idênticos, em linhas distantes; ver o adendo de 05/11 do ADR 009 e a
-    # opção TECATOR_GROUP_IDENTICAL_SPECTRA acima.)
+    # Réplicas (ADR 009, regra decidida em 09/11/2026): alvos idênticos e
+    # linhas vizinhas, ou espectro idêntico, ou espectro próximo. Até 09/11
+    # só as vizinhas contavam, sob a premissa errada de que repetições
+    # distantes eram coincidência; ver os adendos do ADR 009. Os grupos vão
+    # de 208 a 180.
     targets = targets_frame[["fat", "water", "protein"]].to_numpy(dtype=float)
-    groups = _adjacent_replicate_groups(targets)
-    if TECATOR_GROUP_IDENTICAL_SPECTRA:
-        groups = _merge_identical_spectra(groups, X, targets)
+    groups = _tecator_replicate_groups(X, targets)
 
     return Dataset(
         X=X, y=y, axis=axis, unit="nm", name="tecator", sha256=digest.hexdigest(),

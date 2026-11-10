@@ -217,3 +217,8 @@ conferir o encanamento e estão no DIARIO.
 
 Decisão minha, não vista pela orientação. Fica como proposta até ela ver,
 junto com o ADR 008, do qual este depende.
+
+**Nota (10/11/2026): a regra de réplicas do Tecator mudou** (ADR 009; 180
+grupos em vez de 208). O braço foi medido de novo no Tecator
+(`seed_split` 0): limiar 1,2, 16 bandas de 100 e 222 ajustes, os mesmos
+da tabela acima, com R² 0,9628, igual ao do PLS completo nessa partição.

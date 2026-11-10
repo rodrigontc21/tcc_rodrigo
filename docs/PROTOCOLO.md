@@ -56,6 +56,15 @@ partição agrupada em 21/09/2026 (seções "Piso de ruído de partição" e
 com a partição anterior, fica registrada porque foi com ela que a decisão
 foi tomada.
 
+**Regra de réplicas do Tecator corrigida (09/11/2026), por decisão da
+orientação.** A regra original só juntava linhas vizinhas; a corrigida
+junta, sempre com alvos idênticos, vizinhas, espectros idênticos ou
+espectros próximos (max |dx| < 0,30), em componentes conexas. Os grupos do
+Tecator vão de 208 a 180, e o piso de ruído, a comparação de
+pré-processamento e a sonda de y permutado do Tecator foram regenerados em
+10/11/2026. Detalhes no adendo do ADR 009, que continua proposto: a
+orientação decidiu a correção, não o ADR.
+
 **Em aberto**
 - Estratificação por quantil de `y`: sem ela, uma partição azarada pode
   deixar o teste com faixa estreita do alvo.
@@ -191,6 +200,29 @@ O empate continua, agora com a combinação ligeiramente à frente (ΔR² =
 pior. A decisão não muda: sem diferença a defender, a parcimônia decide
 por SNV puro.
 
+**Refeita com a regra de réplicas de 09/11/2026 (ADR 009).** A partição
+agrupada deixava 20 dos 22 pares de espectros idênticos do Tecator em
+grupos diferentes. Com a regra corrigida (180 grupos em vez de 208), as
+mesmas `seed_split` 0–29 dão (`results/preprocessing_comparison_tecator.md`):
+
+| pré-processador | R² média | R² dp | RMSEP média | RMSEP dp |
+|---|---|---|---|---|
+| snv | 0,9664 | 0,0083 | 2,1918 | 0,3053 |
+| derivative | 0,9393 | 0,0173 | 2,9339 | 0,4159 |
+| snv_derivative | 0,9660 | 0,0058 | 2,2147 | 0,2517 |
+
+O empate continua, agora com o SNV ligeiramente à frente: ΔR²
+(SNV→derivada − SNV) = −0,0004, p=0,64 no teste t pareado; ΔRMSEP
++0,023, p=0,46. A derivada sozinha continua nitidamente pior, e a
+decisão pelo SNV puro não muda.
+- **O teste:** o p da tabela anterior não saía de nenhum script; o teste
+  t pareado reproduz os dois valores (0,76 e 0,83) com o arquivo antigo,
+  e foi o usado aqui.
+- **O teto de componentes:** esta rodada já usa o teto de 40 do PLS
+  (adendo de 28/10). Com teto 20 e a regra nova, o SNV dá o mesmo 0,9664
+  e o SNV→derivada, 0,9661. A mudança em relação à tabela anterior vem
+  da regra de réplicas, e não do teto.
+
 **Decisão pré-registrada, não descoberta a partir dos resultados.** A
 escolha original, SNV→derivada, foi aprovada pela orientação em
 14/09/2026; em 17/09/2026 ela foi **revertida** para SNV puro, depois da
@@ -283,19 +315,24 @@ motivo, antes de rodar.
 ## Piso de ruído de partição (medido nos 4 conjuntos)
 
 Baseline da média (`MeanArm`), 100 `seed_split` por conjunto, com a
-partição agrupada do ADR 009 (Tecator, Mango e bioprocess regenerados em
-21/09/2026; Gasoline em 14/09/2026, que não tem réplicas e por isso não
-muda; tabelas completas em `results/mean_baseline_<dataset>.md`):
+partição agrupada do ADR 009 (Mango e bioprocess regenerados em
+21/09/2026; Tecator de novo em 10/11/2026, com a regra de réplicas de
+09/11; Gasoline em 14/09/2026, que não tem réplicas e por isso não muda;
+tabelas completas em `results/mean_baseline_<dataset>.md`):
 
 | conjunto | RMSEP média ± dp | dispersão relativa | R² dp | n_test |
 |---|---|---|---|---|
 | gasoline | 1,4772 ± 0,1750 | ~11,8% | 0,1466 | 15 |
-| tecator | 12,6382 ± 0,9755 | ~7,7% | 0,0409 | 54–55 |
+| tecator | 12,6753 ± 1,1288 | ~8,9% | 0,0517 | 54–57 |
 | mango | 2,4585 ± 0,0393 | ~1,60% | 0,0023 | 2.923–2.928 |
 | bioprocess | 6,2422 ± 0,0782 | ~1,25% | 0,0030 | 1.618–1.620 |
 
 - Nenhum efeito da decomposição menor que o piso do respectivo conjunto é
   interpretável.
+- **O Tecator antes de 09/11:** com a regra antiga (208 grupos), o piso
+  era 12,6382 ± 0,9755 (~7,7%, R² dp 0,0409, n_test 54–55). Com grupos
+  de até 4 amostras, o tamanho do teste passa a variar de 54 a 57 (81 das
+  100 partições com 54), e o piso sobe para ~8,9%.
 - Propriedade verificada por teste automatizado
   (`test_mean_arm_r2_offset_matches_theory`): a média do R² do MeanArm é
   ≈ −1/n_ef em cada conjunto, com n_ef o tamanho efetivo de Kish do teste

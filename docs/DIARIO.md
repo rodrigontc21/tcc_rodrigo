@@ -3812,3 +3812,93 @@ para quando a orientação decidir.
 **Conclusão:** o vazamento inflava pouco o PLS, mas aplicar a correção
 muda todas as partições do Tecator. Fica para a orientação, agora com o
 impacto medido. Registrado no ADR 009.
+
+## 2026-11-10
+
+### A resposta da orientação sobre as réplicas do Tecator (09/11, 11:18)
+
+Ela respondeu à mensagem de 05/11 sobre o A1, com o script
+`verify_tecator_replicates.py`. Os outros pontos da mensagem de 05/11 (B3
+e B5, o critério do `c`, o custo do iPLS e os scripts dela) continuam sem
+resposta.
+
+**Corrija agora, antes de fechar os braços.** Os motivos dela:
+- o defeito está no `evaluate()`;
+- a minha medida (+0,001 no PLS) cobria o braço menos capaz de aproveitar
+  um gêmeo, e não o vazamento da CV interna, que é o que escolhe
+  componentes, intervalos e cortes;
+- corrigir antes de qualquer resultado de braço protege o pré-registro;
+- o Tecator é o conjunto mais barato.
+
+Ela registrou que efeito pequeno é argumento para corrigir já: a
+regeneração confirma os números em vez de derrubá-los.
+
+**A correção precisava ser maior.** Além dos espectros idênticos, há 12
+pares com alvo idêntico e espectro muito próximo. Regra final: componentes
+conexas de três relações, sempre com alvo idêntico (vizinhas, espectro
+idêntico, espectro próximo com max |dx| abaixo de um limiar no platô de
+0,15 a 0,40). Os grupos vão de 208 a 180.
+
+Ela pediu cinco passos:
+1. implementar;
+2. tirar a falha esperada e estender o teste;
+3. regenerar o piso, o pré-processamento e o Estágio 2;
+4. medir o vazamento na CV interna;
+5. registrar no ADR 009.
+
+### O que fiz
+
+Organizei os passos num checklist temporário
+(`docs/CHECKLIST_REPLICAS_TECATOR_09_11.md`). O trabalho parado desde
+06/11 foi commitado antes (`d8696fc`), com a correção A ∪ B ainda
+desligada.
+- **O script dela, rodado sem alteração sobre os dados do pgsg,**
+  reproduziu todos os números da mensagem: 42 pares de alvo idêntico, 12
+  na relação C, 180 grupos, o platô, o quarteto e o trio. Conferi antes
+  que os espectros do loader e os do pgsg são idênticos linha a linha, e
+  que as colunas de alvo do pgsg estão em outra ordem (água e gordura
+  trocadas, o problema de cabeçalho já conhecido), o que não afeta a regra.
+- **Regra em vigor:** `_tecator_replicate_groups` em `src/tcc/data.py`, com
+  `TECATOR_SPECTRAL_THRESHOLD = 0,30`, declarado antes de rodar. A opção
+  desligada de 06/11 saiu.
+- **Testes:**
+  - o de 05/11 saiu da falha esperada e passa;
+  - entraram testes das três relações, das componentes conexas, dos 180
+    grupos, dos pares de acaso, da limitação 60/68 e do platô;
+  - de cinco mutações, uma escapou duas vezes: meus testes de cadeia não
+    forçavam a sobrescrita de um vínculo. Corrigi o teste, e as cinco
+    foram pegas;
+  - **suíte:** 174 passed, 1 skipped.
+- **Regenerado:**
+  - piso de ruído do Tecator, de ~7,7% a ~8,9% (teste de 54 a 57);
+  - comparação de pré-processamento: SNV 0,9664, SNV→derivada 0,9660,
+    ΔR² −0,0004, p = 0,64. O SNV continua.
+  - sonda de y permutado, com `MeanArm` e PLS;
+  - iPLS, VIP, GA-PLS e CARS no Tecator;
+  - CARS em 10 partições.
+- **O p = 0,76 do PROTOCOLO não saía de nenhum script.** Reconstruí: é o
+  teste t pareado, que reproduz 0,76 e 0,83 com o arquivo antigo.
+- **O teto de componentes de 40 (28/10) não explica a mudança:** com teto
+  20 e a regra nova, o SNV dá o mesmo 0,9664.
+- **Uma frase do ADR 016 deixou de valer.** No Tecator, com os grupos
+  novos, o CARS `fiel` ficou 0,0016 acima do `protocolo` na mediana. Ficou
+  escrito que não há indício de que as adaptações enfraqueçam o método,
+  mas também não há vantagem consistente delas.
+- **As tabelas de diagnóstico do ADR 012 (iPLS)** foram medidas com a
+  partição anterior e não foram refeitas. Mostram fenômenos (perguntas
+  10, 12 e 13), não resultados. Ficou uma nota.
+- **O vazamento da CV interna, com o desenho dela**
+  (`scripts/medir_vazamento_cv_interna_tecator.py`): partição fixa, folds
+  do protocolo contra as mesmas folds com as réplicas espalhadas (22 a 29
+  linhas movidas).
+  - RMSECV mais otimista em 27 de 30, mediana −0,066 (p < 0,001);
+  - H\* muda em 15 de 30, sobe em 13 (no pior caso, de 3 para 14);
+  - R² de teste sem efeito consistente (p = 0,73).
+
+  O vazamento distorce a escolha do modelo, como ela previu; no PLS quase
+  não chega ao teste.
+- **A divisão 172/43 do modo da literatura** é fixa e não respeita grupos:
+  com a regra nova, 11 grupos (25 linhas) a atravessam.
+
+Tudo registrado no adendo de 10/11 do ADR 009, que continua proposto: ela
+decidiu a correção, não o ADR.

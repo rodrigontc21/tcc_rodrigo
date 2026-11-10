@@ -208,3 +208,103 @@ Como as partições mudam, essa diferença não é pareada na mesma partição.
   Tecator teria de ser regenerado: o piso, a comparação de
   pré-processamento e os braços. Para ativar, basta ligar a opção, tirar a
   marca de falha esperada do teste e regenerar.
+
+## Adendo (10/11/2026): a decisão da orientação e a regra em vigor
+
+**A decisão (09/11/2026).** A orientação mandou corrigir agora, antes de
+fechar os braços, e ampliar a correção. Os motivos dela:
+- o defeito está no `evaluate()`, pelo qual todos os braços passam;
+- a medida de 05/11 cobria o vazamento treino/teste no PLS, o braço menos
+  capaz de aproveitar um gêmeo, e não o da CV interna;
+- corrigir antes de existir resultado de braço não exige justificar
+  depois que a mudança não foi dirigida pelos resultados;
+- o Tecator é o conjunto mais barato e o único atingido.
+
+O status deste ADR continua "proposto": a orientação decidiu a correção,
+não o ADR.
+
+**A regra em vigor** (`src/tcc/data.py`, `_tecator_replicate_groups`). Duas
+linhas do Tecator são da mesma amostra se têm (fat, water, protein)
+idênticos e mais uma destas condições:
+- **A:** são vizinhas (a regra original);
+- **B:** o espectro é idêntico bit a bit;
+- **C:** o espectro é próximo, com max |dx| < 0,30 na absorbância bruta.
+
+A amostra é a componente conexa dessas ligações, e não o par. O alvo
+idêntico é exigido nas três relações, como no teste de 05/11 (nota (c) da
+orientação).
+
+**Por que essa regra** (análise da orientação em `verify_tecator_replicates.py`,
+reproduzida aqui em 10/11 com os mesmos números):
+- **Alvo idêntico sozinho não é evidência:** são 42 pares, contra cerca de
+  39 esperados pelo acaso.
+- **A conjunção é evidência:** alvo idêntico e espectro entre os mais
+  próximos do conjunto aparece 12 vezes, contra cerca de 1 esperada. Nos
+  22 pares de espectro idêntico, os 22 têm alvo idêntico, contra 0,01
+  esperado.
+- **O espectro idêntico é um limiar limpo:** entre 0 e 0,0105 de max |dx|
+  não há nenhum par.
+- **O limite de C é insensível:** qualquer valor de 0,15 a 0,40 dá os
+  mesmos 12 pares e os mesmos 180 grupos. O 0,30 foi declarado antes de
+  rodar, no meio desse platô; com 0,10 seriam 182 grupos, e com 0,45, 179.
+
+**Contagens.** São 208 grupos com a regra original, 188 com a correção de
+06/11 (A e B) e 180 com a regra em vigor: 148 linhas isoladas, 30 pares,
+um trio (linhas 63, 149 e 177) e um quarteto (57, 58, 134 e 191). O
+quarteto só se forma por fechamento transitivo: 134 e 191 não se ligam
+diretamente.
+
+**As duas frases apontadas no adendo de 05/11, com os números novos:**
+- **O tamanho do teste:** com o maior grupo de 4 linhas, o teste do Tecator
+  pode ir de 54 a 57 (alvo 54), e não de 54 a 55. Medido em 100 partições:
+  81 com 54, 16 com 55, 1 com 56 e 2 com 57.
+- **A divisão 172/43 do modo da literatura:** é a divisão fixa do artigo e
+  não respeita grupos. Com a regra em vigor, 11 grupos (25 linhas)
+  atravessam essa fronteira. É mais uma razão para a âncora do ADR 013
+  servir à comparação com o artigo, e não como medida limpa.
+
+**Limitação que fica.** A regra continua aproximada, agora com um limiar.
+O par não idêntico mais próximo de todo o conjunto, as linhas 60/68 e 61/68
+(max |dx| 0,0105, 0,33% da escala), tem o alvo diferente na primeira
+decimal. Pode ser a mesma amostra com a química de referência repetida,
+mas agrupar por proximidade espectral com alvo diferente seria outra
+regra, sem evidência própria, e não foi adotada.
+
+**Testes.**
+- **O teste de 05/11 saiu da falha esperada e passa.**
+- **Os testes novos cobrem:**
+  - as três relações;
+  - as componentes conexas, inclusive uma cadeia em que só o fechamento
+    pela raiz dá o grupo certo;
+  - os 180 grupos, com o trio e o quarteto;
+  - os pares de alvo igual por acaso, que não se juntam;
+  - a limitação das linhas 60/68;
+  - o platô do limite.
+- **Mutações:** cinco, todas pegas.
+
+**Regenerado em 10/11** (PROTOCOLO, `results/` e notas nos ADRs 012 a 016):
+- **o piso de ruído do Tecator** passa de ~7,7% a ~8,9%, com o teste
+  variando de 54 a 57;
+- **a comparação de pré-processamento** continua em empate, agora com o
+  SNV ligeiramente à frente (ΔR² −0,0004, p = 0,64 no teste t pareado), e
+  a escolha do SNV não muda;
+- **a sonda de y permutado** não mostra vazamento;
+- **os braços clássicos** no Tecator ficam no nível do PLS completo.
+
+**O vazamento na CV interna, medido como a orientação pediu**
+(`scripts/medir_vazamento_cv_interna_tecator.py`). Com a partição de cada
+`seed_split` 0–29 fixa, as folds do protocolo foram comparadas com as
+mesmas folds com as réplicas espalhadas. De 22 a 29 linhas mudam de fold;
+nenhuma outra muda.
+- **O RMSECV fica mais otimista com as réplicas separadas** em 27 de 30
+  partições: mediana −0,066, cerca de 3% (Wilcoxon p < 0,001).
+- **O H\* do PLS muda em 15 de 30:** sobe em 13 e cai em 2; no pior caso,
+  de 3 para 14.
+- **O R² de teste não muda de forma consistente:** mediana 0,0000, p =
+  0,73.
+
+O vazamento da CV interna distorce a escolha do modelo, e era isso que a
+regra antiga deixava passar. No PLS, a distorção quase não chega ao teste.
+Nos braços que selecionam bandas, que usam o mesmo erro interno para
+escolher, o efeito não foi medido; com a regra em vigor, ele deixa de
+existir.
