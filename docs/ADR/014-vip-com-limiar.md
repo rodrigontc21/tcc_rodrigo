@@ -222,3 +222,9 @@ junto com o ADR 008, do qual este depende.
 grupos em vez de 208). O braço foi medido de novo no Tecator
 (`seed_split` 0): limiar 1,2, 16 bandas de 100 e 222 ajustes, os mesmos
 da tabela acima, com R² 0,9628, igual ao do PLS completo nessa partição.
+Nas 30 partições de exploração, como a orientação pediu em 09/11,
+com `scripts/rodar_bracos_tecator_30.py` (`seed_split` 0–29, `seed_algo`
+0, comparação pareada com o PLS completo;
+`results/bracos_tecator_30_particoes.csv`): R² mediano 0,9682, contra
+0,9662 do PLS; ΔR² mediano +0,0015 (de −0,0150 a +0,0102), não abaixo do
+PLS em 19 de 30, Wilcoxon p = 0,135; 17 bandas e 222 ajustes medianos.

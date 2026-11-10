@@ -361,3 +361,9 @@ grupos foram de 208 a 180. Com isso, as partições do Tecator mudaram.
 - **O braço foi medido de novo** com `scripts/medir_custo_ipls.py`
   (`seed_split` 0): R² 0,9556, contra 0,9628 do PLS completo; `int_num`
   10, 20 bandas, 9.774 ajustes, 15,3 s.
+- **Nas 30 partições de exploração,** como a orientação pediu em 09/11,
+  com `scripts/rodar_bracos_tecator_30.py` (`seed_split` 0–29,
+  `seed_algo` 0, comparação pareada com o PLS completo;
+  `results/bracos_tecator_30_particoes.csv`): R² mediano 0,9632, contra
+  0,9662 do PLS; ΔR² mediano −0,0011 (de −0,0561 a +0,0049), não abaixo
+  do PLS em 12 de 30, Wilcoxon p = 0,070; 20 bandas e 17,5 s medianos. O pior caso é a `seed_split` 19.

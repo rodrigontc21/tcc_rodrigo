@@ -167,4 +167,9 @@ este ADR substitui.
 grupos em vez de 208). O braço foi medido de novo no Tecator
 (`seed_split` 0): PLS 0,9628, GA-PLS 0,9630, configuração (30, 50), 18
 bandas de 100, 111.038 ajustes, 8,3 s. A linha do Tecator na tabela
-acima é a da partição anterior.
+acima é a da partição anterior. Nas 30 partições de exploração, como a
+orientação pediu em 09/11, com `scripts/rodar_bracos_tecator_30.py`
+(`seed_split` 0–29, `seed_algo` 0, comparação pareada com o PLS completo;
+`results/bracos_tecator_30_particoes.csv`): R² mediano 0,9669, contra
+0,9662 do PLS; ΔR² mediano +0,0016 (de −0,0101 a +0,0081), não abaixo do
+PLS em 20 de 30, Wilcoxon p = 0,092; 13 bandas e 8,1 s medianos.

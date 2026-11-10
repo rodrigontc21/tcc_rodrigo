@@ -289,7 +289,10 @@ regra, sem evidência própria, e não foi adotada.
   SNV ligeiramente à frente (ΔR² −0,0004, p = 0,64 no teste t pareado), e
   a escolha do SNV não muda;
 - **a sonda de y permutado** não mostra vazamento;
-- **os braços clássicos** no Tecator ficam no nível do PLS completo.
+- **os braços clássicos** no Tecator, nas `seed_split` 0–29
+  (`results/bracos_tecator_30_particoes.csv`), ficam no nível do PLS
+  completo: ΔR² mediano de −0,0011 no iPLS a +0,0020 no CARS `fiel`, e
+  nenhum se distingue do PLS no Wilcoxon pareado (p de 0,070 a 0,382).
 
 **O vazamento na CV interna, medido como a orientação pediu**
 (`scripts/medir_vazamento_cv_interna_tecator.py`). Com a partição de cada

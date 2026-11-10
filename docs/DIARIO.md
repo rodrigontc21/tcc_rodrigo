@@ -3902,3 +3902,43 @@ desligada.
 
 Tudo registrado no adendo de 10/11 do ADR 009, que continua proposto: ela
 decidiu a correção, não o ADR.
+
+### Os braços nas 30 partições
+
+Relendo a mensagem dela antes de responder, vi que o passo 3 pedia
+regenerar "o que já rodou do Estágio 2, nas mesmas seed_split 0–29". Eu
+tinha lido "o que já rodou" como "onde já tinha rodado" e refeito os braços
+só na `seed_split` 0 (iPLS, VIP e GA-PLS) e nas 0 a 9 (CARS). Rodei as 30.
+
+`scripts/rodar_bracos_tecator_30.py`, com desenho fixado antes de rodar:
+`evaluate()` com SNV e partição agrupada, `seed_split` 0 a 29, `seed_algo`
+0, configurações padrão. Comparação pareada com o PLS completo. Resultados
+em `results/bracos_tecator_30_particoes.csv`, uma semente por vez, sem
+paralelismo (21,6 min no total).
+
+**Conferência antes do resumo:**
+- a `seed_split` 0 reproduz os números da manhã nos quatro braços;
+- as `seed_split` 0 a 9 do CARS reproduzem a comparação em 10 partições:
+  +0,0012 no `protocolo` (p = 0,232) e +0,00185 no `fiel` (p = 0,037). O
+  ADR 016 tinha arredondado esta mediana para +0,0018; o CSV guarda seis
+  casas e cai no limite.
+
+| braço | R² mediano | ΔR² mediano | faixa do ΔR² | não abaixo do PLS | Wilcoxon p | bandas | tempo mediano |
+|---|---|---|---|---|---|---|---|
+| PLS completo | 0,9662 | — | — | — | — | 100 | 0,3 s |
+| iPLS | 0,9632 | −0,0011 | −0,0561 a +0,0049 | 12 de 30 | 0,070 | 20 | 17,5 s |
+| VIP | 0,9682 | +0,0015 | −0,0150 a +0,0102 | 19 de 30 | 0,135 | 17 | 0,3 s |
+| GA-PLS | 0,9669 | +0,0016 | −0,0101 a +0,0081 | 20 de 30 | 0,092 | 13 | 8,1 s |
+| CARS `protocolo` | 0,9673 | +0,0008 | −0,0124 a +0,0090 | 20 de 30 | 0,382 | 8 | 13,8 s |
+| CARS `fiel` | 0,9687 | +0,0020 | −0,0518 a +0,0088 | 20 de 30 | 0,164 | 12 | 2,3 s |
+
+- **Nenhum braço se distingue do PLS completo** no Tecator. Em todos, a
+  faixa do ΔR² cruza o zero.
+- **O iPLS é o único com mediana abaixo do PLS.** O pior caso é a
+  `seed_split` 19 (−0,056). O CARS `fiel` tem uma queda parecida na
+  `seed_split` 23 (−0,052). Não investiguei as duas.
+- **CARS:** o `protocolo` fica 0,0011 abaixo do `fiel` na mediana (de
+  −0,0179 a +0,0522), como nas 10 partições.
+
+Registrado nas notas de 10/11 dos ADRs 012, 014, 015 e 016 e no adendo de
+10/11 do ADR 009.
