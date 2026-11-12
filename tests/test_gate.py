@@ -117,6 +117,23 @@ def test_reimplementation_matches_the_original_model():
         assert torch.equal(ref.gating.gates, ours.gates)
 
 
+@pytest.mark.skipif(not ORIGINAL.exists(), reason="cópia local do código do artigo ausente")
+def test_without_drawing_the_gate_matches_the_original_built_with_a_prior():
+    # A reprodução do artigo (scripts/reproduzir_b4_artigo.py) constrói como o
+    # original com prior, que não sorteia a porta: a fc1 nasce de outro ponto
+    # da sequência aleatória.
+    original = _load_original()
+    s = np.random.default_rng(2).uniform(size=50)
+    torch.manual_seed(11)
+    ref = original.BandSelectNetLight(n_bands=50, n_outputs=1, prior_scores=s,
+                                      hidden_dim=16, dropout=0.5)
+    torch.manual_seed(11)
+    ours = GateNet(50, draw_gate=False)
+    ours.set_gate(prior_logits(s), np.clip(s, 1e-7, 1 - 1e-7))
+    for (_, t_ref), (_, t_our) in zip(ref.state_dict().items(), _ordered_like_original(ours)):
+        assert torch.equal(t_ref, t_our)
+
+
 def _ordered_like_original(net):
     # O original guarda a porta em `gating.gates` e `gating.prior_probs`.
     sd = net.state_dict()

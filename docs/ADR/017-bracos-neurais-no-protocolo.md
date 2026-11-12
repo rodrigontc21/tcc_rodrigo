@@ -243,3 +243,13 @@ não ajusta nem o treino em 200 épocas de lote único; com a porta, o começo
 até 2.000 épocas a rede chega ao nível do PLS na fold de parada, mas com
 saltos de instabilidade da taxa 0,01. Nenhuma receita foi adotada.
 
+## O B4 contra o artigo (critério 2 do pipeline, 12/11/2026)
+
+`scripts/reproduzir_b4_artigo.py`, no protocolo do próprio artigo (parada
+no teste, última época), 10 sementes: a reimplementação dá R² idêntico ao
+`BandSelectNetLight` original em 10 de 10 sementes, na água e na gordura, e
+o 0,941 publicado (água) cai na faixa entre sementes. Com 8 threads
+reproduz exatamente o relatório 3 (0,922 nas duas colunas); com uma thread
+a mediana muda (0,916 e 0,932): o resultado do treino depende do número de
+threads, o que reforça fixar uma no protocolo. Tabela no DIARIO de 12/11.
+

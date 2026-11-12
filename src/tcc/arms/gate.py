@@ -72,11 +72,15 @@ class GateNet(nn.Module):
     o teste de sanidade do pipeline (B2 com a porta em 1,0 igual ao B1).
     """
 
-    def __init__(self, n_bands: int):
+    def __init__(self, n_bands: int, *, draw_gate: bool = True):
         super().__init__()
         self.n_bands = n_bands
         self.temperature = TEMPERATURE
-        self.gates = nn.Parameter(torch.randn(n_bands) * 0.01)
+        # `draw_gate=False` imita o original construído **com** prior, que não
+        # sorteia a porta; só a reprodução do artigo usa (scripts/
+        # reproduzir_b4_artigo.py). Os braços sempre sorteiam (ADR 017).
+        init = torch.randn(n_bands) * 0.01 if draw_gate else torch.zeros(n_bands)
+        self.gates = nn.Parameter(init)
         self.register_buffer("prior_probs", torch.ones(n_bands) / n_bands)
         self.fc1 = nn.Linear(n_bands, HIDDEN)
         self.dropout = nn.Dropout(DROPOUT)

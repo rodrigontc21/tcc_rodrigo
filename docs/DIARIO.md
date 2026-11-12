@@ -4495,3 +4495,61 @@ cerca de 7.000 e um alvo que o PLS só resolve com uns 30 componentes, não.
 Isso é diagnóstico, não escolha: nenhuma receita foi adotada. A correção é
 decisão de desenho, para os sete braços ao mesmo tempo, escolhida pela
 validação interna e declarada antes da grade (ADR 017, item 7).
+
+### O B4 contra o artigo (critério 2 do Estágio 3)
+
+`scripts/reproduzir_b4_artigo.py`: a reimplementação treinada no protocolo
+do próprio artigo (dados do repositório dele, 172/43 com `random_state=42`,
+prior no treino inteiro, L2 em todos os parâmetros, paciência olhando o
+teste, última época), lado a lado com o `BandSelectNetLight` original, 10
+sementes por coluna. Não passa pelo `evaluate()`, porque o protocolo não
+deixa um braço ver o teste e o artigo deixa.
+
+Para reproduzir semente a semente, a rede ganhou `draw_gate=False`: o
+original construído com prior não sorteia a porta, e a `fc1` nasce de outro
+ponto da sequência aleatória. Os braços continuam sorteando. Teste novo
+confere a construção contra o original (19 testes no braço).
+
+| | água (o que foi publicado) | gordura |
+|---|---|---|
+| idêntico ao original, por semente | 10 de 10 | 10 de 10 |
+| uma thread | 0,916 [0,89; 0,95] | 0,932 [0,87; 0,97] |
+| threads padrão (8) | 0,922 [0,80; 0,96] | 0,922 [0,84; 0,94] |
+| relatório 3 (código do artigo) | 0,922 [0,80; 0,96] | 0,922 [0,84; 0,94] |
+| Tabela 1, "Ours (ANOVA)" | 0,941 | — |
+
+- **O B4 reproduz o artigo:** R² idêntico ao do código original em todas as
+  sementes, e o 0,941 publicado cai na faixa entre sementes, nas duas
+  configurações de thread. O critério 2 do pipeline está cumprido.
+- **O número de threads muda o resultado do treino de rede:** com 8
+  threads sai exatamente o relatório 3; com uma, outra mediana. A soma em
+  ponto flutuante muda de ordem, e o treino amplifica a diferença. É mais um
+  motivo para o protocolo fixar uma thread, e para declarar a contagem de
+  threads junto com as versões dos pacotes, como a orientação pediu.
+
+### Quanto o prior muda entre partições (pendência da H5)
+
+O PROTOCOLO deixava pendente, na reinterpretação da H5, medir o quanto o
+prior varia de uma partição para outra. `scripts/medir_variacao_prior.py`:
+o prior ANOVA do braço, nas linhas de ajuste da rede de cada `seed_split`
+0–29, sem treinar nada e sem olhar o teste.
+
+| conjunto | p | banda do topo | Jaccard do top-10 entre pares | acaso | correlação do prior entre pares |
+|---|---|---|---|---|---|
+| Tecator | 100 | 13 em 14 de 30, 40 em 11, 14 em 3, 12 em 2 | 0,67 [0,25; 1,00] | 0,055 | 0,985 [0,899; 1,000] |
+| Gasoline | 401 | 225 em 30 de 30 | 0,82 [0,54; 1,00] | 0,013 | 0,954 [0,692; 0,995] |
+| Mango | 281 | 66 em 21 de 30, 65 em 9 | 0,82 [0,67; 1,00] | 0,019 | 0,989 [0,895; 0,999] |
+| bioprocess | 1.870 | 346 em 30 de 30 | 1,00 [1,00; 1,00] | 0,003 | 0,996 [0,983; 0,999] |
+
+- **O prior quase não muda entre partições.** O Jaccard do top-10 fica
+  de 12 a mais de 300 vezes o do acaso, e a correlação mediana passa de 0,95 em
+  todo conjunto. No bioprocess o top-10 é o mesmo nas 30 partições.
+- **O Tecator é o único em que o topo alterna,** e entre regiões distantes:
+  a banda 13 (com 12 e 14 vizinhas) ou a banda 40.
+- **Consequência para a H5:** a porta parte de quase o mesmo lugar em toda
+  partição, e na varredura ela quase não sai dele (o topo não troca no
+  `c_TOST` nem acima). Um Jaccard alto da porta entre partições, então, já
+  vem em boa parte do prior. Sugestão para levar à orientação: reportar a
+  H5 com o Jaccard do próprio prior ao lado, como linha de base: só a
+  estabilidade da porta acima da do prior conta a favor dela. Não mudei
+  nada no protocolo.
