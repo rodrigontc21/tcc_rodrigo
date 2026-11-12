@@ -239,6 +239,22 @@ Uso previsto:
     distingue do PLS.
   - **Gasoline:** −0,0048 no `protocolo` (4 de 10 partições não abaixo do
     PLS; Wilcoxon p = 0,193) e −0,0123 no `fiel` (2 de 10; p = 0,020).
+  - **Gasoline nas 30 partições de exploração (10/11),** decisão minha,
+    não pedida pela orientação, com `scripts/rodar_bracos_30_particoes.py`
+    (`results/bracos_gasoline_30_particoes.csv`), que nas `seed_split` 0 a
+    9 reproduz os números acima: −0,0044 no `protocolo` (de −0,0411 a
+    +0,0249; 12 de 30 não abaixo do PLS; p = 0,035; 15 bandas medianas) e
+    −0,0137 no `fiel` (de −0,1020 a +0,0141; 6 de 30; p < 0,001; 20
+    bandas). O `protocolo` fica 0,0059 acima do `fiel` na mediana (de
+    −0,0111 a +0,0976). Com 30 partições, os dois modos ficam abaixo do
+    PLS completo. RMSEP mediano do `protocolo`: 0,259 (de 0,167 a 0,360).
+  - **Mango nas 30 partições de exploração (12/11),** também decisão
+    minha, com o mesmo script (`results/bracos_mango_30_particoes.csv`):
+    +0,0114 no `protocolo` (de +0,0076 a +0,0159; 30 de 30 não abaixo do
+    PLS; p < 0,001; 78 bandas medianas) e +0,0131 no `fiel` (de +0,0080 a
+    +0,0186; 30 de 30; p < 0,001; 82 bandas). O `protocolo` fica 0,0020
+    abaixo do `fiel` na mediana (de −0,0069 a +0,0024). Os dois modos
+    ficam acima do PLS completo em todas as partições.
   - **O `protocolo` fica acima do `fiel` no Gasoline** (+0,0078 na
     mediana) e no bioprocess (uma partição). No Tecator, com a regra de
     réplicas nova, fica 0,0016 abaixo na mediana em 10 partições e 0,0011

@@ -172,4 +172,14 @@ orientação pediu em 09/11, com `scripts/rodar_bracos_tecator_30.py`
 (`seed_split` 0–29, `seed_algo` 0, comparação pareada com o PLS completo;
 `results/bracos_tecator_30_particoes.csv`): R² mediano 0,9669, contra
 0,9662 do PLS; ΔR² mediano +0,0016 (de −0,0101 a +0,0081), não abaixo do
-PLS em 20 de 30, Wilcoxon p = 0,092; 13 bandas e 8,1 s medianos.
+PLS em 20 de 30, Wilcoxon p = 0,092; 13 bandas e 8,1 s medianos. No
+Gasoline, nas mesmas 30 partições (decisão minha, não pedida pela
+orientação), com `scripts/rodar_bracos_30_particoes.py`
+(`results/bracos_gasoline_30_particoes.csv`): R² mediano 0,9710, contra
+0,9748 do PLS; ΔR² mediano −0,0030 (de −0,0249 a +0,0279), não abaixo do
+PLS em 12 de 30, Wilcoxon p = 0,164; 46 bandas de 401 medianas. No
+Mango, nas mesmas 30 partições (12/11), também decisão minha, com o mesmo
+script (`results/bracos_mango_30_particoes.csv`): R² mediano 0,8714,
+contra 0,8607 do PLS; ΔR² mediano +0,0100 (de +0,0019 a +0,0159), não
+abaixo do PLS em 30 de 30, Wilcoxon p < 0,001; 50 bandas de 281
+medianas.

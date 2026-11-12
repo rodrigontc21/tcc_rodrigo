@@ -367,3 +367,16 @@ grupos foram de 208 a 180. Com isso, as partições do Tecator mudaram.
   `results/bracos_tecator_30_particoes.csv`): R² mediano 0,9632, contra
   0,9662 do PLS; ΔR² mediano −0,0011 (de −0,0561 a +0,0049), não abaixo
   do PLS em 12 de 30, Wilcoxon p = 0,070; 20 bandas e 17,5 s medianos. O pior caso é a `seed_split` 19.
+- **No Gasoline, nas mesmas 30 partições** (decisão minha, não pedida
+  pela orientação), com `scripts/rodar_bracos_30_particoes.py`
+  (`results/bracos_gasoline_30_particoes.csv`): R² mediano 0,9611, contra
+  0,9748 do PLS; ΔR² mediano −0,0071 (de −0,0409 a +0,0311), não abaixo
+  do PLS em 8 de 30, Wilcoxon p = 0,002; 160 bandas de 401 medianas. Em
+  sequência, as 30 partições levaram 13,8 min, quase metade do tempo de
+  todos os braços juntos (28,7 min).
+- **No Mango, nas mesmas 30 partições (12/11),** também decisão minha,
+  com o mesmo script (`results/bracos_mango_30_particoes.csv`): R²
+  mediano 0,8725, contra 0,8607 do PLS; ΔR² mediano +0,0110 (de +0,0037 a
+  +0,0180), não abaixo do PLS em 30 de 30, Wilcoxon p < 0,001; 140 bandas
+  de 281 medianas. Os tempos dessa rodada não medem o custo do braço: os
+  quatro processos disputaram a CPU (DIARIO de 12/11).

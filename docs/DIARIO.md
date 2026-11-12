@@ -3942,3 +3942,130 @@ paralelismo (21,6 min no total).
 
 Registrado nas notas de 10/11 dos ADRs 012, 014, 015 e 016 e no adendo de
 10/11 do ADR 009.
+
+### O Gasoline nas 30 partições
+
+A orientação pediu as 30 partições só no Tecator. Rodar os outros
+conjuntos foi decisão minha, para seguir enquanto ela não responde. O
+Gasoline não depende da regra de réplicas.
+
+`scripts/rodar_bracos_30_particoes.py` generaliza o script do Tecator com o
+mesmo desenho, fixado antes de rodar: `evaluate()` com SNV e partição
+agrupada, `seed_split` 0 a 29, `seed_algo` 0, configurações padrão e
+comparação pareada com o PLS completo. A diferença é que cada partição roda
+inteira num processo próprio, várias ao mesmo tempo. Resultados em
+`results/bracos_gasoline_30_particoes.csv` (180 linhas, sem duplicata).
+
+**Conferência do paralelismo:**
+- no Tecator, as `seed_split` 0 a 3 com 2 processos deram as mesmas 24
+  linhas do CSV de antes;
+- no Gasoline, com 4 processos, a rodada levou 9,2 min. Rodei de novo
+  num processo só, um braço de cada vez: 28,7 min, e nenhum dos 180 R²
+  mudou na sexta casa. O tempo em sequência foi de 13,8 min no iPLS,
+  7,4 min no CARS `protocolo`, 5,8 min no GA-PLS, 1,3 min no CARS `fiel`
+  e 0,1 min no PLS e no VIP.
+
+**Conferência com o que já tinha rodado:**
+- a `seed_split` 0 reproduz as medidas anteriores (PLS 0,9839, GA-PLS
+  0,9755 com 40 bandas, CARS `protocolo` 0,9667 com 11, `fiel` 0,9706
+  com 33);
+- as `seed_split` 0 a 9 do CARS reproduzem a comparação de 06/11 (−0,0048
+  no `protocolo`, p = 0,193; −0,0123 no `fiel`, p = 0,020).
+
+| braço | R² mediano | ΔR² mediano | faixa do ΔR² | não abaixo do PLS | Wilcoxon p | bandas | tempo mediano |
+|---|---|---|---|---|---|---|---|
+| PLS completo | 0,9748 | — | — | — | — | 401 | 0,3 s |
+| iPLS | 0,9611 | −0,0071 | −0,0409 a +0,0311 | 8 de 30 | 0,002 | 160 | 32,3 s |
+| VIP | 0,9700 | −0,0020 | −0,0217 a +0,0142 | 10 de 30 | 0,084 | 112 | 0,3 s |
+| GA-PLS | 0,9710 | −0,0030 | −0,0249 a +0,0279 | 12 de 30 | 0,164 | 46 | 15,3 s |
+| CARS `protocolo` | 0,9663 | −0,0044 | −0,0411 a +0,0249 | 12 de 30 | 0,035 | 15 | 16,2 s |
+| CARS `fiel` | 0,9603 | −0,0137 | −0,1020 a +0,0141 | 6 de 30 | < 0,001 | 20 | 2,8 s |
+
+Os tempos medianos da tabela são da rodada com 4 processos, que dividem a
+CPU; em sequência cada braço é um pouco mais rápido.
+
+- **Todos os braços ficam abaixo do PLS completo na mediana,** ao
+  contrário do Tecator. O iPLS e os dois modos do CARS se distinguem do
+  PLS (p = 0,002, 0,035 e < 0,001); o VIP e o GA-PLS não.
+- **Piores casos:** iPLS na `seed_split` 4 (−0,041), VIP na 25 (−0,022),
+  GA-PLS na 1 (−0,025), CARS `protocolo` na 28 (−0,041) e CARS `fiel` na
+  22 (−0,102, com R² 0,8611 e RMSEP 0,559). Não investiguei nenhum.
+- **CARS:** o `protocolo` fica 0,0059 acima do `fiel` na mediana (de
+  −0,0111 a +0,0976), como nas 10 partições. O RMSEP mediano do
+  `protocolo` é 0,259 (de 0,167 a 0,360); o 0,240 de Zhong et al. (2023)
+  cai dentro da faixa, e lá também o CARS fica abaixo do PLS completo.
+
+O Mango fica para depois: com 4 processos, a estimativa é de 5 a 6 horas.
+
+Registrado nas notas de 10/11 dos ADRs 012, 014, 015 e 016.
+
+## 2026-11-12
+
+### O Mango nas 30 partições
+
+Mesmo script e mesmo desenho do Gasoline (`scripts/rodar_bracos_30_particoes.py`,
+4 processos), também por decisão minha, não pedida pela orientação.
+Resultados em `results/bracos_mango_30_particoes.csv`.
+
+**Correção da entrada de 10/11:** ali escrevi que a estimativa era de 5 a 6
+horas. Estava errada. Cada leva de 4 partições levou cerca de 1h50, e as 30
+somariam umas 14 horas.
+
+**Por que demorou tanto:** cada processo abre várias threads de cálculo.
+Com 4 processos, eram 152 threads para 16 núcleos, e a carga do sistema
+ficou em torno de 42. Boa parte do tempo foi disputa pela CPU. No Gasoline
+isso não apareceu porque cada ajuste é pequeno. Não mexi no número de
+threads no meio da rodada para não mudar a forma de calcular entre as
+partições.
+
+**A rodada foi feita em três partes,** porque precisei do notebook:
+- noite de 10 para 11/11: partições 0 a 19, parada de manhã com as 20 a 23
+  pela metade;
+- tarde de 11/11 (13h27 às 17h39, com o notebook em uso): 20 a 23, cada
+  leva mais lenta, perto de 2h20; parada com as 24 a 27 pela metade;
+- noite de 11 para 12/11: 24 a 29, em 2h53.
+
+O script pula o que já está no CSV, então cada parte continuou de onde a
+anterior parou. Partições perdidas no meio foram refeitas do zero.
+
+**Conferência:**
+- 180 linhas (30 partições × 6 braços), sem duplicata;
+- a `seed_split` 0 reproduz as medidas anteriores do Mango (PLS 0,8676,
+  CARS `protocolo` 0,8771 com 77 bandas, `fiel` 0,8788 com 80; entrada de
+  05/11) e as 143 bandas do VIP no ADR 014;
+- as medianas quase não mudaram entre as 20 primeiras partições e as 30.
+
+| braço | R² mediano | ΔR² mediano | faixa do ΔR² | não abaixo do PLS | Wilcoxon p | bandas |
+|---|---|---|---|---|---|---|
+| PLS completo | 0,8607 | — | — | — | — | 281 |
+| iPLS | 0,8725 | +0,0110 | +0,0037 a +0,0180 | 30 de 30 | < 0,001 | 140 |
+| VIP | 0,8496 | −0,0113 | −0,0176 a −0,0078 | 0 de 30 | < 0,001 | 146 |
+| GA-PLS | 0,8714 | +0,0100 | +0,0019 a +0,0159 | 30 de 30 | < 0,001 | 50 |
+| CARS `protocolo` | 0,8728 | +0,0114 | +0,0076 a +0,0159 | 30 de 30 | < 0,001 | 78 |
+| CARS `fiel` | 0,8756 | +0,0131 | +0,0080 a +0,0186 | 30 de 30 | < 0,001 | 82 |
+
+Não pus tempo na tabela: com a disputa pela CPU, os tempos medidos não são
+o custo dos braços.
+
+- **iPLS, GA-PLS e os dois modos do CARS ficam acima do PLS completo em
+  todas as 30 partições,** com ganho de cerca de 0,01 de R².
+- **O VIP fica abaixo em todas as 30.** Pode ser o limiar padrão (ADR 014);
+  não verifiquei.
+- **CARS:** o `protocolo` fica 0,0020 abaixo do `fiel` na mediana (de
+  −0,0069 a +0,0024), ao contrário do Gasoline.
+
+**Os três conjuntos juntos:** no Tecator nenhum braço se distingue do PLS;
+no Gasoline todos ficam abaixo; no Mango todos menos o VIP ficam acima, sem
+exceção. O mesmo método ajuda, atrapalha ou não muda nada conforme o
+conjunto.
+
+**Em aberto:**
+- os piores casos do Gasoline (CARS `fiel` na `seed_split` 22) e do Tecator
+  (iPLS na 19, CARS `fiel` na 23), que não investiguei;
+- o custo dos braços no Mango, que precisa ser medido sem processos em
+  paralelo;
+- conferir no Mango que rodar em partes não muda nada, rodando as 30 de
+  novo de uma vez (no Gasoline já está conferido);
+- o bioprocess nas 30 partições.
+
+Registrado nas notas dos ADRs 012, 014, 015 e 016.

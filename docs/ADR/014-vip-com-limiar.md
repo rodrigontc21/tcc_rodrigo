@@ -228,3 +228,15 @@ com `scripts/rodar_bracos_tecator_30.py` (`seed_split` 0–29, `seed_algo`
 `results/bracos_tecator_30_particoes.csv`): R² mediano 0,9682, contra
 0,9662 do PLS; ΔR² mediano +0,0015 (de −0,0150 a +0,0102), não abaixo do
 PLS em 19 de 30, Wilcoxon p = 0,135; 17 bandas e 222 ajustes medianos.
+No Gasoline, nas mesmas 30 partições (decisão minha, não pedida pela
+orientação), com `scripts/rodar_bracos_30_particoes.py`
+(`results/bracos_gasoline_30_particoes.csv`): R² mediano 0,9700, contra
+0,9748 do PLS; ΔR² mediano −0,0020 (de −0,0217 a +0,0142), não abaixo do
+PLS em 10 de 30, Wilcoxon p = 0,084; 112 bandas de 401 e 202 ajustes
+medianos. No Mango, nas mesmas 30 partições (12/11), também decisão
+minha, com o mesmo script (`results/bracos_mango_30_particoes.csv`): R²
+mediano 0,8496, contra 0,8607 do PLS; ΔR² mediano −0,0113 (de −0,0176 a
+−0,0078), abaixo do PLS em todas as 30, Wilcoxon p < 0,001; 146 bandas de
+281 e 227 ajustes medianos. É o único braço que perde no Mango, onde os
+outros ganham em todas as partições. Não verifiquei se a causa é o
+limiar.

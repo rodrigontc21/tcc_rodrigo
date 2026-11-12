@@ -14,6 +14,8 @@ results/*
 !results/preprocessing_comparison_tecator.csv
 !results/preprocessing_comparison_tecator.md
 !results/bracos_tecator_30_particoes.csv
+!results/bracos_gasoline_30_particoes.csv
+!results/bracos_mango_30_particoes.csv
 !results/bioprocess_missing_glucose_audit.csv
 !results/bioprocess_missing_glucose_audit.md
 !results/testes_estagio1.txt
