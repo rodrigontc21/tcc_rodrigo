@@ -4553,3 +4553,24 @@ o prior ANOVA do braço, nas linhas de ajuste da rede de cada `seed_split`
   H5 com o Jaccard do próprio prior ao lado, como linha de base: só a
   estabilidade da porta acima da do prior conta a favor dela. Não mudei
   nada no protocolo.
+
+### A resposta à orientação, enviada (12/11)
+
+Mandei três mensagens, com os ADRs 009, 012, 013, 014, 015, 016 e 017 e o
+`PROTOCOLO.md` em anexo, e os resultados por link fixado em `83856b7`:
+1. o que ela pediu em 12/11, item por item (piloto, δ, ADRs 009 e 013,
+   grade e `c_TOST`, BLAS, ADRs dos braços clássicos, scripts versionados);
+2. os braços neurais (ADR 017), com a reprodução do B4 contra o artigo;
+3. a varredura de `c`, a receita de treino que falha no Mango, a variação
+   do prior entre partições, o CARS no Mango e o Gasoline e o Mango nas 30
+   partições.
+
+Ficaram perguntados:
+- vendorizar o arquivo do artigo ou ficar com a reimplementação;
+- melhor época em vez da última;
+- o `c_TOST` como mediana de `d_s / g_s`;
+- uma fold de parada sem reajuste, e `n_fits` = 1;
+- a receita de treino no Mango (proposta: candidatos declarados antes,
+  escolhidos pela fold de parada nas `seed_split` 0–29).
+
+O protocolo vai para congelamento depois da receita do Mango.
