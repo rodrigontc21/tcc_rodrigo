@@ -152,7 +152,9 @@ treinadas, nem a conclusão sobre a Seção 5.2.
 #### A causa, na Plain CNN (29/10)
 
 A orientação identificou a causa ao enviar o script dela
-(`verify_plaincnn.py`, recebido em 29/10, não versionado aqui). **A
+(`verify_plaincnn.py`, recebido em 29/10, não versionado aqui;
+*atualização de 12/11: versionado, como chegou, em
+`scripts/orientacao/verify_plaincnn.py`, com a autorização da orientação*). **A
 diferença não está no protocolo de treino, e sim na inicialização da porta,
 por um erro de chamada na reprodução da orientação.** As duas fábricas de
 modelo do repositório do artigo não têm a mesma assinatura:

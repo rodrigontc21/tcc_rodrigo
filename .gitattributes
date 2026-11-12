@@ -11,3 +11,6 @@
 *.jpg binary
 *.npy binary
 *.npz binary
+# Scripts da orientação: guardados byte a byte, sem normalizar a quebra de
+# linha, para o hash continuar igual ao do arquivo recebido
+scripts/orientacao/*.py -text

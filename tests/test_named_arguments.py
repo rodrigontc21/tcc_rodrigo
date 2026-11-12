@@ -23,6 +23,12 @@ ROOT = Path(__file__).resolve().parents[1]
 SCANNED = ("src", "scripts", "tests")
 MAX_POSITIONAL = 2
 
+# Scripts da orientação, guardados byte a byte como chegaram
+# (scripts/orientacao/LEIA-ME.md): não podem ser corrigidos no lugar, e um
+# deles, o verify_plaincnn.py, reproduz de propósito a chamada posicional
+# do erro de 29/10. A regra vale para o código deste trabalho.
+EXEMPT = (ROOT / "scripts" / "orientacao",)
+
 # Fábricas do código do artigo (docs/fontes/prior-guided-spectral-gating-main,
 # não versionado), chamadas pelos scripts de verificação. Ficam listadas à
 # mão porque o código não está no repositório para ser varrido.
@@ -126,6 +132,8 @@ def test_no_factory_is_called_with_more_than_two_positional_arguments():
     found = []
     for folder in SCANNED:
         for path in sorted((ROOT / folder).rglob("*.py")):
+            if any(path.is_relative_to(e) for e in EXEMPT):
+                continue
             for line, name, n in _violations(
                 path.read_text(encoding="utf-8"), classes, classmethods
             ):

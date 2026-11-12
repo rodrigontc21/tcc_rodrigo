@@ -212,8 +212,9 @@ estimado):
 
 No Tecator, o limiar 1,5 esvaziou os cinco folds (o maior VIP por fold ficou
 entre 1,26 e 1,30, medido em 29/10) e saiu da disputa: por isso são 15
-ajustes de busca, e não 20 (200 da busca de H + 5 + 15 + 2 = 222). Os R² dessa partição única servem só para
-conferir o encanamento e estão no DIARIO.
+ajustes de busca, e não 20 (200 da busca de H + 5 + 15 + 2 = 222). Os R²
+dessa partição única servem só para conferir o encanamento e estão no
+DIARIO.
 
 Decisão minha, não vista pela orientação. Fica como proposta até ela ver,
 junto com o ADR 008, do qual este depende.
@@ -240,3 +241,12 @@ mediano 0,8496, contra 0,8607 do PLS; ΔR² mediano −0,0113 (de −0,0176 a
 281 e 227 ajustes medianos. É o único braço que perde no Mango, onde os
 outros ganham em todas as partições. Não verifiquei se a causa é o
 limiar.
+
+**Piloto (12/11/2026, pedido da orientação).** Todos os números deste ADR
+medidos nas `seed_split` 0–29 (a partição 0, as 10 e as 30 partições, em
+qualquer conjunto) são **piloto**: essa faixa é reservada a decisões de
+método, e a grade final usa `seed_split` ≥ 100. Nenhum deles entra no
+texto como resultado, e nada do protocolo muda com base neles. "Não se
+distingue do PLS" no Wilcoxon não é equivalência; equivalência é o TOST
+com δ, na grade. Os Wilcoxon são cinco testes contra a mesma referência
+e, por serem piloto, não levam correção de multiplicidade.

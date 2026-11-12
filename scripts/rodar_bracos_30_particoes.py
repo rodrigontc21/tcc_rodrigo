@@ -9,6 +9,12 @@ Paralelismo: cada partição roda inteira (os seis braços) num processo
 próprio, com as mesmas sementes; o processo principal só grava as linhas.
 Nenhum número depende de quantos processos rodam ao mesmo tempo.
 
+Threads: uma por processo (OpenBLAS, OpenMP e MKL), fixada antes de
+carregar o numpy, como a orientação pediu em 12/11/2026: o paralelismo fica
+só entre partições, e o `wall_time`, que é resultado declarado, não é
+medido com a CPU superassinada. Sem isso, cada processo abria 16 threads
+por biblioteca. O R do iPLS usa o BLAS de referência, que já tem uma só.
+
 Uso:
   python -B rodar_bracos_30_particoes.py rodar <conjunto> [processos] [primeira] [última]
       padrão: 1 processo, sementes 0 a 29. Acrescenta as linhas em
@@ -16,6 +22,13 @@ Uso:
       estão no CSV são pulados, então dá para interromper e retomar.
   python -B rodar_bracos_30_particoes.py resumo <conjunto>
 """
+
+import os
+
+# Antes de qualquer import que carregue o numpy; os processos filhos herdam.
+THREADS = "1"
+for _var in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS"):
+    os.environ[_var] = THREADS
 
 import csv
 import multiprocessing as mp
@@ -89,7 +102,8 @@ def rodar(conjunto, processos, primeira, ultima):
     p = saida(conjunto)
     novo = not p.exists()
     print(f"{conjunto}: seed_split {primeira} a {ultima}, {len(tarefas)} partições "
-          f"a rodar, {processos} processo(s)", flush=True)
+          f"a rodar, {processos} processo(s), {THREADS} thread(s) por processo",
+          flush=True)
     t0 = time.time()
     with open(p, "a", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=CAMPOS, lineterminator="\n")

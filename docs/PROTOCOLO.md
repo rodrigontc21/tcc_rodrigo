@@ -13,6 +13,14 @@ de ver resultados invalida os testes de equivalência (TOST) e as
 hipóteses pré-registradas H1–H7 da proposta, e a H8 proposta depois do
 parecer de 01/10 (seção "Hipóteses e braços").
 
+**12/11/2026:** a orientação respondeu à maior parte da pergunta 14 e listou
+o que falta antes do congelamento: o rótulo de piloto nos braços, a frase
+do poder discriminante na seção do δ, os ajustes nos ADRs 009 e 013, a
+grade de `c` declarada com o valor do TOST por conjunto e a varredura de
+`c` refeita sob este protocolo. A grade e a regra do `c` do TOST foram
+declaradas em 12/11; falta medir o `c` do TOST de cada conjunto. "Faça a lista acima e mande o protocolo
+para congelamento."
+
 ---
 
 ## Eixos de semente (decidido, [ADR 001](ADR/001-folds-da-cv-interna-derivam-de-seed-split.md))
@@ -99,6 +107,25 @@ orientação decidiu a correção, não o ADR.
   conferido por mutação. Consequência: o `n_fits` do PLS completo muda (no
   Tecator, 101 → 201), e as razões de custo medidas com o teto antigo
   precisam ser refeitas.
+
+**As réplicas do Tecator na CV interna (medido em 10/11; leitura da
+orientação em 12/11).** Com a partição fixa em cada `seed_split` 0–29 e as
+réplicas espalhadas por folds diferentes, o RMSECV ficou mais otimista em
+27 de 30 (mediana −0,066, cerca de 3%; p < 0,001), o H\* do PLS mudou em 15
+de 30 (no pior caso, de 3 para 14) e o R² de teste não se moveu (p = 0,73;
+ADR 009, adendo de 10/11). Duas declarações:
+- **Achado:** no Tecator, a superfície de desempenho do PLS é plana em H em
+  volta do ótimo, e por isso escolher outro H não custa R² de teste. Um
+  seletor que vai de 3 para 14 componentes escolheu outro modelo; não
+  sofreu só uma perturbação. Nada garante a mesma planura em outro
+  conjunto.
+- **Não medido:** o efeito desse mesmo erro interno nos braços que o usam
+  para escolher bandas, onde o erro de seleção muda o que entra no modelo
+  em vez de se diluir num hiperparâmetro.
+
+O defeito corrompia a escolha do modelo e deixava o desempenho no teste
+intacto, o modo de falha invisível a quem olha só R². Por isso a medida do
+lado do teste (+0,001 no PLS, 05/11) não podia decidir a correção de 09/11.
 
 **Parcialmente resolvido em código, com o ADR ainda `proposto`
 ([ADR 011](ADR/011-selecao-por-fold-observavel.md), 28/09/2026).**
@@ -215,6 +242,13 @@ O empate continua, agora com o SNV ligeiramente à frente: ΔR²
 (SNV→derivada − SNV) = −0,0004, p=0,64 no teste t pareado; ΔRMSEP
 +0,023, p=0,46. A derivada sozinha continua nitidamente pior, e a
 decisão pelo SNV puro não muda.
+
+**O sinal do efeito (frase da orientação, 12/11).** O sinal do ΔR² entre SNV
+e SNV→derivada já inverteu três vezes entre configurações de partição: a
+combinação à frente com o argmin, a combinação à frente com o ADR 009, e
+o SNV à frente com a regra de réplicas de 09/11. Um efeito cujo sinal
+depende da partição é a melhor evidência possível de que não existe. É
+isso, mais que qualquer p, que sustenta a escolha do SNV.
 - **O teste:** o p da tabela anterior não saía de nenhum script; o teste
   t pareado reproduz os dois valores (0,76 e 0,83) com o arquivo antigo,
   e foi o usado aqui.
@@ -357,6 +391,20 @@ tabelas completas em `results/mean_baseline_<dataset>.md`):
   sustentar um teste de equivalência (TOST) com poder estatístico útil.
   Registrado como limitação conhecida agora, para não ser descoberto só
   no Estágio 7.
+- **O limite inferior do Tecator foi redeclarado em 12/11/2026,** antes da
+  grade: com a regra de réplicas de 09/11, o piso passou de ~7,7% para
+  ~8,9% do RMSEP, cerca de 15% acima.
+- **Poder discriminante, como propriedade do desenho (declarado em
+  12/11/2026, antes da grade).** No Tecator, o piso de partição de ~8,9% do
+  RMSEP fica acima das diferenças entre braços: no piloto, convertidas em
+  RMSEP, elas foram de cerca de −1,6% (iPLS) a +3,0% (CARS `fiel`), na
+  conta da orientação. Qualquer δ honesto nesse conjunto
+  tende a declarar os braços equivalentes, não porque sejam iguais, mas
+  porque o conjunto não tem resolução para separá-los. Somado à limitação
+  do Gasoline (n = 60, piso ~11,8%), **o poder de distinguir os braços
+  deste trabalho está no Mango e no bioprocess** (pisos de ~1,60% e
+  ~1,25%). Equivalência declarada no Tecator e no Gasoline deve ser lida
+  com essa ressalva.
 
 ---
 
@@ -373,6 +421,12 @@ avaliação. Fixação a priori, por ser mais simples e defensível:
 - Grade final do Estágio 5: `seed_split` **≥ 100** (faixa disjunta).
   Nenhuma semente usada numa decisão de pré-processamento, seleção de
   features etc. pode reaparecer na avaliação final.
+- **Os braços clássicos rodados em 0–29 são piloto** (Tecator, Gasoline e
+  Mango, 10 a 12/11/2026; ADRs 012 a 016): nenhum desses números entra no
+  texto como resultado, e nada deste protocolo muda com base neles. Os
+  cinco Wilcoxon contra o PLS completo são piloto e por isso não levam
+  correção de multiplicidade; "não se distingue do PLS" no Wilcoxon não é
+  equivalência, que é o TOST com δ, na grade.
 - Regra documental por ora: nenhum default de semente muda em
   `protocol.py`; o executor da grade (Estágio 5) a implementa quando
   existir.
@@ -520,6 +574,25 @@ volta para a própria inicialização. A proposta é que eles usem a porta
 isenta, como o B4-limpo, porque é o B4-limpo que eles acompanham nas
 comparações. Fica a confirmar com a orientação, perguntada em 29/10 para o
 B5 e o B2', sem resposta ainda.
+
+**Respondido em 12/11/2026: B3 e B5 com a porta isenta.** A orientação
+concorda, com um motivo de desenho, mais forte que "acompanham o B4-limpo":
+- **O L2 na porta é um regularizador duplicado e não declarado.** O
+  regularizador declarado da porta é o termo KL, com λ, que a ancora no
+  prior. O `weight_decay` nos logits é um segundo regularizador, que puxa
+  para o uniforme, na direção contrária. Isentar a porta não retira
+  regularização: retira a duplicada e fica com a declarada.
+- **O L2 nem é a mesma coisa entre braços:** no B4 ele briga com o KL; no
+  B3, cuja porta começa uniforme, vira penalidade sobre afastar-se do
+  uniforme, exatamente o que o B3 existe para medir.
+
+Duas explicitações, que não são mudança:
+- **No B3 o KL não é inerte** (ao contrário do B2) e ancora no uniforme,
+  onde a porta começa: o B3 é "porta ancorada no uniforme", com o λ do
+  protocolo, e não "porta livre". Porta livre exigiria λ = 0, outro braço,
+  que não entra agora.
+- **Em cada braço de porta treinável, reportar se isentar a porta custou
+  desempenho.**
 O B5 é o braço que o parecer pede para "medir se a porta aprende alguma
 coisa quando o mecanismo de saturação é removido".
 
@@ -549,6 +622,92 @@ duas vezes, de 1,34 para 0,66, medido em 05/11). O critério precisa dizer em qu
 dos dois deslocamentos se baseia, de forma coerente com a escolha do
 decaimento para o B5 (em aberto, acima). Fica para a pergunta 14.
 
+**Resposta da orientação sobre o `c` (12/11/2026).** O critério se baseia no
+deslocamento **com a porta isenta**, por conjunto. A orientação rodou uma
+varredura de `c` (`verify_b5_logit_scale.py`; Tecator e Gasoline, 10
+sementes, receita do artigo, porta isenta) e mediu duas coisas:
+- **O critério não é circular:** o maior deslocamento quase não depende de
+  `c` (0,25 a 0,36 no Tecator, 0,46 a 0,59 no Gasoline), porque o passo do
+  Adam é normalizado. Dá para fixar `c` pela medida em `c` = 1: cerca de
+  0,026 no Tecator e 0,04 a 0,05 no Gasoline.
+- **O critério é necessário, não suficiente:** com o topo alcançável, a
+  banda do topo não trocou em nenhuma semente, em nenhum `c` > 0, e o Δ
+  continuou nulo. E no `c` que torna o topo alcançável, a massa da porta
+  no topo fica quase uniforme: ou a porta carrega o prior como
+  distribuição, ou o topo é móvel, não as duas.
+
+**Decisão da orientação: `c` vira um eixo varrido, com grade declarada.**
+O B5 vira uma família B5(c), com `c` = 1 recuperando o B4-limpo e `c` → 0
+tendendo ao B3. Restrições de pré-registro:
+- a grade de `c` é declarada antes de rodar (declarada abaixo, em 12/11);
+- **um** valor por conjunto é o do TOST: o do critério com a porta isenta;
+  o resto da curva é contexto, não escolha a posteriori.
+
+**A grade de `c` (declarada em 12/11/2026, antes de qualquer execução do
+B5 sob este protocolo).**
+- **Grade fixa, a mesma em todo conjunto em que o B5 roda:** a da
+  orientação, `c` ∈ {1; 0,5; 0,3; 0,17; 0,10; 0,054; 0,026; 0}. Cada valor
+  é cerca de metade do anterior, de modo que a curva cobre do saturado
+  (`c` = 1, o B4-limpo) ao uniforme (`c` = 0).
+- **Mais um valor por conjunto, o `c` do TOST,** calculado pelo critério
+  com a porta isenta: `c_TOST` = mediana, nas `seed_split` 0–29 com
+  `seed_algo` 0, de `d_s / g_s`, calculada partição a partição, onde
+  - `d_s` é o maior deslocamento |θ_final − θ_inicial| dos logits da porta
+    no treino com `c` = 1 e porta isenta (o B4-limpo), sob este protocolo
+    (partição agrupada, folds internas, parada pela fold interna), na
+    partição `s`;
+  - `g_s` é a distância inicial entre o 1º e o 2º logit da porta em `c` = 1
+    na mesma partição, que muda com ela porque o prior é recalculado em
+    cada treino.
+
+  *(Forma fixada em 12/11, antes de medir: a primeira redação falava em
+  "mediana" de `d` sem dizer como `g`, que varia com a partição, entrava.)*
+- **O `c_TOST` só usa o deslocamento da porta, nunca o desempenho no
+  teste.** Ele é calculado e escrito neste protocolo antes de rodar a
+  varredura; se coincidir com um valor da grade até a terceira casa, não
+  se acrescenta nada.
+- **O `c` = 0 deste protocolo não é o B3.** Em B5(0) a porta começa
+  uniforme, mas o KL continua ancorado no prior; no B3 o KL ancora no
+  uniforme. B5(0) é reportado como ponto da curva, e o B3 continua um
+  braço próprio.
+- **Referência da orientação, piloto:** pela conta dela, `c_TOST` ≈ 0,026
+  no Tecator (já na grade) e ≈ 0,04 a 0,05 no Gasoline (fora da grade).
+  Esses valores não entram aqui: o protocolo usa os medidos sob ele.
+
+**Os `c_TOST` medidos (12/11/2026, antes da varredura)** com
+`scripts/medir_c_tost.py` (`results/c_tost.csv`; B4-limpo, `seed_split`
+0–29, `seed_algo` 0, sem olhar o teste):
+
+| conjunto | `d` mediano | `g` mediano | **`c_TOST`** = mediana de `d_s / g_s` | faixa de `d_s / g_s` | o topo trocou |
+|---|---|---|---|---|---|
+| Tecator | 0,351 | 11,67 | **0,0306** | 0,0178 a 0,0453 | 0 de 30 |
+| Gasoline | 0,462 | 16,01 | **0,0289** | 0,0172 a 0,0590 | 0 de 30 |
+| Mango | 0,486 | 11,50 | **0,0417** | 0,0008 a 0,0559 | 0 de 30 |
+| bioprocess | 1,603 | 14,15 | **0,1140** | 0,0859 a 0,1326 | 0 de 30 |
+
+Nenhum coincide com um valor da grade até a terceira casa, então **cada
+conjunto roda a grade fixa mais o seu `c_TOST`**, e é esse o valor do TOST
+daquele conjunto.
+
+**Ressalva do Mango:** em 7 das 30 partições, a melhor época no conjunto
+de parada foi cedo (1, 1, 2, 10, 14, 16 e 18); nas duas primeiras, a rede
+piorou logo depois do primeiro passo e não voltou dentro da paciência.
+Nelas a porta quase não treinou, e o `d_s / g_s` fica perto de zero. A
+mediana já absorve isso, e a regra não muda depois de medir. Mas a receita
+do artigo (lr 0,01, lote único, paciência 30) foi feita para 172 amostras,
+e no Mango a parada às vezes corta o treino na primeira época. É questão de
+desenho, observada só no treino, e vai à orientação.
+
+**Atualização de 12/11, depois da varredura (piloto):** no Mango, a receita
+falha também no teste (R² de rede em torno de 0,5, contra 0,86 do PLS
+completo; ADR 017, item 7). **O `c_TOST` do Mango fica suspenso** até a
+orientação decidir sobre a receita de treino nesse conjunto.
+
+Os números da orientação são piloto (parada olhando o teste, partição
+172/43 fixa, e o `c` = 0 dela não é o B3 deste protocolo). **A varredura
+precisa ser refeita sob este protocolo** antes de qualquer coisa ir para o
+texto.
+
 ---
 
 ## Decisões em aberto
@@ -570,7 +729,7 @@ Referência às perguntas pendentes em `docs/estudo_rodrigo/PERGUNTAS.md`:
 | 11 | O portão do Estágio 2 é executável como está escrito? Busca preliminar não achou RMSEP publicado de iPLS nem de CARS no Tecator ou no Gasoline — os artigos originais usam cerveja e milho | Critério de aceitação do Estágio 2 |
 | 12 | Critério de escolha do número de intervalos do iPLS — a regra em vigor fica com o menor `int.num`, que retém MAIS bandas: a parcimônia está invertida ([ADR 012](ADR/012-ipls-via-mdatools.md), proposto) | Estágio 2 (ADR 012) |
 | 13 | Escalonamento na seleção de intervalos — o mdatools pontua sem autoescalonamento e o PLS final autoescala; Jaccard médio de 0,63 entre as duas configurações, o que atinge a H5 ([ADR 012](ADR/012-ipls-via-mdatools.md), proposto) | Estágio 2 e leitura da H5 |
-| 14 | Os ajustes do parecer de 01/10 (seção "Hipóteses e braços", acima): a H8 nova; a correção do B5 — escalar os logits, com o critério para `c`, que precisa dizer em qual deslocamento se baseia (com ou sem decaimento na porta); a porta isenta de decaimento no B3 e no B5, como no B4-limpo; o braço B2', acréscimo deste trabalho; e a extensão da reinterpretação à H6 | Congelamento do protocolo e Estágio 3 |
+| 14 | Os ajustes do parecer de 01/10 (seção "Hipóteses e braços", acima): a H8 nova; a correção do B5 — escalar os logits, com o critério para `c`, que precisa dizer em qual deslocamento se baseia (com ou sem decaimento na porta); a porta isenta de decaimento no B3 e no B5, como no B4-limpo; o braço B2', acréscimo deste trabalho; e a extensão da reinterpretação à H6. **Respondida em 12/11/2026:** porta isenta no B3 e no B5, aceita; critério do `c` pela porta isenta, por conjunto, com `c` como eixo varrido. Sobre o resto, nas palavras dela: "ela fica reduzida ao B2' e à extensão da reinterpretação à H6, que eu confirmo também: a extensão à H6 é sua inferência e está correta". Grade de `c` declarada em 12/11 (a da orientação, mais o `c_TOST` de cada conjunto pela regra da seção "A grade de `c`"). **Falta:** medir o `c_TOST` de cada conjunto sob este protocolo, escrevê-lo aqui antes da varredura, e refazer a varredura | Congelamento do protocolo e Estágio 3 |
 
 Das catorze, as nº 4 e 5 têm decisão registrada até o momento: ADR 004 e
 ADR 006 aceitos; ADR 007 aprovado com pendência (distribuição dos 488). Fora

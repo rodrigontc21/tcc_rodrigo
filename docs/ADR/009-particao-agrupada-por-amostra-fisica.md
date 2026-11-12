@@ -1,7 +1,8 @@
 # ADR 009 — Partição agrupada por amostra física
 
 **Data:** 2026-09-18
-**Status:** proposto
+**Status:** aceito (12/11/2026). A orientação: "ADR 009 **aceito**, com a
+regra das três relações e o limiar 0,30." Ver o adendo de 12/11.
 
 ## Contexto
 
@@ -38,13 +39,18 @@ ficava inflado. Pelo mesmo motivo, o piso de ruído estava subestimado.
 
 ## Decisão
 
+**Regra em vigor (10/11):** ver o adendo de 10/11. Para o Tecator, a
+identificação da amostra no segundo parágrafo abaixo está superada.
+
 Regra de protocolo, uniforme para todos os conjuntos: réplicas da mesma
 amostra física nunca ficam em lados diferentes — nem entre treino e
 teste, nem entre folds da CV interna. O `Dataset` ganha o campo `groups`,
 com o identificador de amostra de cada linha, ou `None` quando não há
 evidência de réplicas.
 
-A identificação da amostra é feita por conjunto, na camada de dados, com
+*(Superado para o Tecator em 10/11, mantido como registro: a regra das
+linhas vizinhas foi substituída pela das três relações, no adendo de
+10/11.)* A identificação da amostra é feita por conjunto, na camada de dados, com
 base na evidência acima: Tecator por linhas vizinhas com os três alvos
 idênticos; Gasoline sem grupos; Mango por DM idêntico com os mesmos
 metadados; bioprocess pela composição dos 8 alvos.
@@ -289,7 +295,7 @@ regra, sem evidência própria, e não foi adotada.
   SNV ligeiramente à frente (ΔR² −0,0004, p = 0,64 no teste t pareado), e
   a escolha do SNV não muda;
 - **a sonda de y permutado** não mostra vazamento;
-- **os braços clássicos** no Tecator, nas `seed_split` 0–29
+- **os braços clássicos** no Tecator (piloto), nas `seed_split` 0–29
   (`results/bracos_tecator_30_particoes.csv`), ficam no nível do PLS
   completo: ΔR² mediano de −0,0011 no iPLS a +0,0020 no CARS `fiel`, e
   nenhum se distingue do PLS no Wilcoxon pareado (p de 0,070 a 0,382).
@@ -311,3 +317,14 @@ regra antiga deixava passar. No PLS, a distorção quase não chega ao teste.
 Nos braços que selecionam bandas, que usam o mesmo erro interno para
 escolher, o efeito não foi medido; com a regra em vigor, ele deixa de
 existir.
+
+## Adendo (12/11/2026): o aceite
+
+A orientação aceitou o ADR em 12/11: "ADR 009 **aceito**, com a regra das
+três relações e o limiar 0,30." O adendo de 10/11 dizia que o status
+continuava "proposto"; isso valia até essa resposta.
+
+A pedido dela, a seção Decisão ganhou no começo a linha "Regra em vigor
+(10/11)", e o parágrafo da regra antiga ficou marcado como superado para o
+Tecator, sem ser apagado: quem ler só a Decisão precisa sair com a regra
+em vigor.

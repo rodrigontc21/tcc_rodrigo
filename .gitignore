@@ -16,6 +16,8 @@ results/*
 !results/bracos_tecator_30_particoes.csv
 !results/bracos_gasoline_30_particoes.csv
 !results/bracos_mango_30_particoes.csv
+!results/c_tost.csv
+!results/varredura_c.csv
 !results/bioprocess_missing_glucose_audit.csv
 !results/bioprocess_missing_glucose_audit.md
 !results/testes_estagio1.txt

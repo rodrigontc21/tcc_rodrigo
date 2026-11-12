@@ -183,3 +183,12 @@ script (`results/bracos_mango_30_particoes.csv`): R² mediano 0,8714,
 contra 0,8607 do PLS; ΔR² mediano +0,0100 (de +0,0019 a +0,0159), não
 abaixo do PLS em 30 de 30, Wilcoxon p < 0,001; 50 bandas de 281
 medianas.
+
+**Piloto (12/11/2026, pedido da orientação).** Todos os números deste ADR
+medidos nas `seed_split` 0–29 (a partição 0, as 10 e as 30 partições, em
+qualquer conjunto) são **piloto**: essa faixa é reservada a decisões de
+método, e a grade final usa `seed_split` ≥ 100. Nenhum deles entra no
+texto como resultado, e nada do protocolo muda com base neles. "Não se
+distingue do PLS" no Wilcoxon não é equivalência; equivalência é o TOST
+com δ, na grade. Os Wilcoxon são cinco testes contra a mesma referência
+e, por serem piloto, não levam correção de multiplicidade.

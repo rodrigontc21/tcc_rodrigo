@@ -3923,6 +3923,8 @@ paralelismo (21,6 min no total).
   ADR 016 tinha arredondado esta mediana para +0,0018; o CSV guarda seis
   casas e cai no limite.
 
+**Piloto** (`seed_split` 0–29, faixa de exploração: não é resultado; rótulo acrescentado em 12/11 a pedido da orientação)
+
 | braço | R² mediano | ΔR² mediano | faixa do ΔR² | não abaixo do PLS | Wilcoxon p | bandas | tempo mediano |
 |---|---|---|---|---|---|---|---|
 | PLS completo | 0,9662 | — | — | — | — | 100 | 0,3 s |
@@ -3971,6 +3973,8 @@ inteira num processo próprio, várias ao mesmo tempo. Resultados em
   com 33);
 - as `seed_split` 0 a 9 do CARS reproduzem a comparação de 06/11 (−0,0048
   no `protocolo`, p = 0,193; −0,0123 no `fiel`, p = 0,020).
+
+**Piloto** (`seed_split` 0–29, faixa de exploração: não é resultado; rótulo acrescentado em 12/11 a pedido da orientação)
 
 | braço | R² mediano | ΔR² mediano | faixa do ΔR² | não abaixo do PLS | Wilcoxon p | bandas | tempo mediano |
 |---|---|---|---|---|---|---|---|
@@ -4034,6 +4038,8 @@ anterior parou. Partições perdidas no meio foram refeitas do zero.
   CARS `protocolo` 0,8771 com 77 bandas, `fiel` 0,8788 com 80; entrada de
   05/11) e as 143 bandas do VIP no ADR 014;
 - as medianas quase não mudaram entre as 20 primeiras partições e as 30.
+
+**Piloto** (`seed_split` 0–29, faixa de exploração: não é resultado; rótulo acrescentado em 12/11 a pedido da orientação)
 
 | braço | R² mediano | ΔR² mediano | faixa do ΔR² | não abaixo do PLS | Wilcoxon p | bandas |
 |---|---|---|---|---|---|---|
@@ -4117,3 +4123,375 @@ original, e os 24 resultados iguais ao CSV. O CARS `protocolo` caiu de
 cerca de 2.750 s para 630 a 710 s por partição; o iPLS ficou igual (1.270
 a 1.400 s) e virou o braço que define a duração. Pela medida, as 30
 partições levariam umas 8 levas × 43 min, perto de 5h45.
+
+### A resposta da orientação (12/11, 9h27)
+
+Ela respondeu à mensagem de 10/11 e mandou um script novo,
+`verify_b5_logit_scale.py` (varredura do `c` do B5). Em resumo:
+- **ADR 009 aceito**, com a regra das três relações e o limiar 0,30. Pediu
+  a regra em vigor no começo da Decisão e a ressalva do ADR 013 com os dois
+  números.
+- **Os braços nas `seed_split` 0–29 são piloto.** Nenhum número dessa faixa
+  entra no texto como resultado, e nada do protocolo pode mudar com base
+  neles. Wilcoxon sem diferença não é equivalência (é o TOST com δ, na
+  grade), e os cinco testes contra o PLS ou levam correção de
+  multiplicidade ou são declarados piloto.
+- **O δ:** o piso do Tecator subiu de ~7,7% para ~8,9% e o limite inferior
+  dele tem de ser redeclarado; o Tecator não tem resolução para separar os
+  braços, e o poder discriminante do trabalho está no Mango e no
+  bioprocess. Escrever isso antes da grade.
+- **A CV interna:** declarar a planura do PLS em H como achado e o efeito
+  nos braços de seleção como não medido. E a frase do pré-processamento:
+  o sinal que inverte com a partição é a melhor evidência de que o efeito
+  não existe.
+- **B3 e B5 com a porta isenta:** concorda, porque o L2 na porta é um
+  regularizador duplicado e não declarado.
+- **O `c` do B5:** critério pela porta isenta, por conjunto, e `c` como
+  eixo varrido com grade declarada; um valor por conjunto para o TOST. A
+  varredura dela é piloto e tem de ser refeita sob o protocolo.
+- **O custo do iPLS:** paralelismo por partição com 4 processos, agora
+  (já é o que fazemos). OpenBLAS no R só se as seleções das `seed_split` 0
+  a 4 forem idênticas nos dois BLAS; se adotar, threads em 1, porque o
+  `wall_time` é resultado declarado e tempo medido com a CPU disputada não
+  é comparável entre braços.
+- **Os scripts dela:** versionar, num diretório próprio, com a data de
+  chegada, a nota de origem e o ambiente, sem nunca alterar o original.
+
+**O que fiz hoje, depois da resposta:**
+- ADR 009 com status **aceito** (a palavra dela), a linha "Regra em vigor
+  (10/11)" no começo da Decisão, o parágrafo antigo marcado como superado
+  para o Tecator, e um adendo de 12/11.
+- ADR 013: a ressalva ganhou os 11 grupos (25 linhas) da regra nova ao lado
+  dos 7 pares de espectros idênticos, cada número com a sua regra.
+- **Rótulo de piloto:** acrescentei a linha "Piloto" antes das três
+  tabelas das 30 partições (Tecator e Gasoline na entrada de 10/11, Mango
+  nesta). É a única mudança em entrada antiga, feita a pedido dela, e não
+  altera nenhum número. Os ADRs 012, 014, 015 e 016 ganharam um parágrafo
+  de piloto, e o ADR 009, a palavra na linha dos braços.
+- **Vale para todos os números de braço deste diário** medidos nas
+  `seed_split` 0–29, inclusive a partição 0 e as 10 partições de outubro e
+  novembro: são piloto.
+- PROTOCOLO: status, CV interna, sinal do pré-processamento, δ
+  (redeclaração do Tecator e poder discriminante), faixas de `seed_split`
+  (braços piloto), B3 e B5 com a porta isenta, o `c` como eixo varrido, e a
+  pergunta 14 respondida em parte.
+
+**Correção desta entrada, na seção dos piores casos:** escrevi que as duas
+observações (o `fiel` com a regra de um erro-padrão e o iPLS comparado ao
+espectro inteiro) "podem virar perguntas à orientação". Pela regra de
+piloto, elas vieram das `seed_split` 0–29 e **não podem** mudar o
+protocolo. Ficam como observação do piloto. Se algum dia um desses ajustes
+entrar, terá de ser por um motivo de desenho, declarado antes da grade, e
+não por esses números.
+
+**O teste de threads, à luz da resposta:** ela recomenda uma thread por
+processo, com o paralelismo só entre partições, para os tempos serem
+comparáveis entre braços. O teste de hoje usou 4 threads por processo; os
+números ficaram iguais, mas os tempos medidos assim também disputam CPU.
+A configuração do script ainda não mudou.
+
+**Falta, da lista dela:** declarar a grade de `c` e o valor do TOST por
+conjunto; implementar os braços da porta e refazer a varredura sob o
+protocolo; a checagem de seleção do BLAS, se formos por esse caminho;
+versionar os scripts dela; e os ADRs do VIP, do GA-PLS e do CARS quando o
+CARS fechar. Depois, mandar o protocolo para congelamento.
+
+**A grade de `c` (12/11, depois da resposta).** Declarei no PROTOCOLO a
+grade da orientação, {1; 0,5; 0,3; 0,17; 0,10; 0,054; 0,026; 0}, igual em
+todo conjunto, mais um `c` do TOST por conjunto: o maior deslocamento da
+porta em `c` = 1, com a porta isenta e sob o nosso protocolo (mediana das
+`seed_split` 0–29), dividido pela distância inicial entre os dois primeiros
+logits. Esse valor usa só o deslocamento, nunca o desempenho no teste, e
+vai para o protocolo antes de rodar a varredura. O `c` do Gasoline pela
+conta dela (0,04 a 0,05) cai fora da grade, por isso a regra acrescenta o
+valor medido. Também deixei escrito que o `c` = 0 não é o B3: o KL continua
+ancorado no prior. Para medir o `c` do TOST, os braços da porta precisam
+existir no nosso código.
+
+### Os scripts da orientação versionados
+
+Com a autorização de hoje, os quatro scripts dela foram para
+`scripts/orientacao/`: `verify_plaincnn.py` (29/10), `verify_wd_on_gate.py`
+(30/10), `verify_tecator_replicates.py` (09/11) e `verify_b5_logit_scale.py`
+(12/11). As condições dela:
+- **Nomes e conteúdo originais:** copiados do export da conversa, com o
+  SHA-256 de cada cópia igual ao do arquivo recebido.
+- **Byte a byte também no git:** os arquivos vieram com quebra de linha do
+  Windows, e o `* text=auto` do `.gitattributes` converteria no commit,
+  mudando o hash. Acrescentei `scripts/orientacao/*.py -text`.
+- **Data, origem e ambiente:** no `scripts/orientacao/LEIA-ME.md`, com o
+  hash de cada um. Onde as versões dos pacotes não foram anotadas no dia
+  (o `verify_tecator_replicates.py`, rodado em 10/11), o LEIA-ME diz isso.
+  O `verify_b5_logit_scale.py` ainda não rodou aqui.
+
+**Correção de hoje:** quando listei os scripts, pus o
+`verificar_varredura_treino.py` entre os dela. Não é: ele e o
+`verificar_pipeline_tecator.py` são meus, enviados a ela em 01/10, e
+aparecem no export por isso. Continuam em `scripts/`.
+
+**O teste de argumento nomeado** (`tests/test_named_arguments.py`) varre
+`scripts/` e reprovou três chamadas posicionais nos scripts dela, uma delas
+a do erro de 29/10, que o `verify_plaincnn.py` reproduz de propósito. Como
+os originais não podem mudar, o teste passou a pular `scripts/orientacao/`,
+com o motivo no código. A regra continua valendo para o código deste
+trabalho. Suíte: 174 passaram, 1 pulado.
+
+**Em aberto:** o relatório 3 ainda cita o `verify_plaincnn.py` como "não
+versionado aqui". Não mexi no relatório.
+
+### Uma thread por processo no script de rodar
+
+Como a orientação pediu, `scripts/rodar_bracos_30_particoes.py` passou a
+fixar uma thread por processo (`OMP_NUM_THREADS`, `OPENBLAS_NUM_THREADS` e
+`MKL_NUM_THREADS` = 1) antes de carregar o numpy, com o paralelismo só
+entre partições. Conferido com a própria função do script, sem gravar no
+CSV oficial:
+- os processos filhos rodam com uma thread (OpenBLAS e OpenMP);
+- Gasoline, `seed_split` 0 a 3, os seis braços: 24 de 24 iguais ao CSV
+  (R², RMSEP, RMSECV, bandas, componentes e ajustes);
+- Mango, `seed_split` 0 a 3, PLS, VIP, GA-PLS e CARS `fiel`, 4 processos:
+  16 de 16 iguais, em 7,5 min. Com 4 threads o mesmo teste levou 9,5 min,
+  e na rodada original os mesmos braços somavam 7.884 s; agora somam
+  1.744 s.
+
+Uma thread por processo saiu mais rápida que quatro. Os tempos por braço
+também ficaram estáveis entre partições (o PLS de 75 a 77 s, o GA-PLS de 145
+a 150 s), o que é o que se quer de um tempo que é resultado. O iPLS e o
+CARS `protocolo` não entraram neste teste.
+
+### A busca de uma referência publicada para o iPLS (feita em 10/11)
+
+Registro atrasado: a busca foi em 10/11, e eu tinha deixado para depois.
+Procurei um RMSEP publicado de iPLS no Tecator ou no Gasoline, para o
+portão do Estágio 2 (pergunta 11). Não achei:
+- **O artigo do iMWPLS** (*Chemom. Intell. Lab. Syst.*, 2023, DOI
+  10.1016/j.chemolab.2023.104976) era o candidato mais próximo. O link do
+  DOI e o da CAPES chegam à página, mas o PDF não estava disponível. Uma
+  fonte secundária indica que ele usa outros conjuntos (milho/amido,
+  comprimidos e solo), não o Tecator nem o Gasoline; não confirmei no
+  próprio artigo.
+- **Um pacote de iPLS baixado do site da MathWorks** trazia só os dados de
+  milho. Foi apagado depois de conferido, sem entrar no projeto.
+
+A pergunta 11 continua de pé para o iPLS. Para o CARS, o Gasoline já tem
+referência (Zhong et al., 2023, ADR 016); o Tecator continua sem RMSEP
+publicado de CARS.
+
+**Relatórios:** os relatórios 3 e 3b diziam que o `verify_plaincnn.py` e o
+`verify_wd_on_gate.py` não estavam versionados. Acrescentei nos dois uma
+atualização de 12/11, sem apagar a frase original, apontando para
+`scripts/orientacao/`.
+
+### Revisão dos ADRs 014, 015 e 016 para mandar à orientação
+
+Reli os três inteiros. O 014 (VIP) e o 015 (GA-PLS) estão prontos; no 014
+só corrigi a quebra de uma linha. O 016 (CARS) precisava de atualização:
+- **O `protocolo` contra o `fiel`, nas 30 partições (piloto):** no
+  Gasoline o `protocolo` fica acima (+0,0059, não abaixo em 24 de 30,
+  p < 0,001); no Tecator não há diferença (−0,0011, 13 de 30, p = 0,441);
+  no Mango fica abaixo (−0,0020, não abaixo em só 7 de 30, p = 0,001). A
+  frase de 10/11, de que não havia indício de as adaptações enfraquecerem
+  o método, valia para o Tecator e o Gasoline. Com o Mango deixa de valer:
+  lá elas custam pouco, mas de forma consistente. Registrado no ADR como
+  item 4 de "Em aberto", para a orientação. Pela regra de piloto, nada
+  muda no braço.
+- **O item 1 de "Em aberto"** (componentes pelo menor RMSECV, como no
+  artigo, ou pela regra de um erro-padrão) ganhou uma nota: a observação
+  do piloto sobre os componentes do `fiel` não entra nessa decisão.
+- **O uso previsto dos dois modos** passou a citar as 30 partições.
+
+### Quantos processos, com uma thread cada
+
+Como a orientação pediu ("se o custo por ajuste cair, remeça o perfil de
+paralelismo"), comparei 8 e 4 processos com uma thread cada: Mango,
+`seed_split` 0 a 7, PLS, VIP, GA-PLS e CARS `fiel`, pela função do script,
+sem gravar no CSV oficial.
+
+| processos | tempo total | PLS | VIP | GA-PLS | CARS `fiel` | pico de memória |
+|---|---|---|---|---|---|---|
+| 8 | 15,6 min | 175 s | 191 s | 254 s | 301 s | ~4,5 GB |
+| 4 | 14,6 min | 78 s | 89 s | 145 s | 121 s | ~2,8 GB |
+
+Os 32 resultados ficaram iguais ao CSV nas duas configurações. Com 8
+processos cada braço levou cerca do dobro do tempo, e o total não caiu: a
+máquina tem 16 threads, mas não 16 núcleos completos, e os processos passam
+a disputar memória e núcleo. **Fica em 4 processos**, como a orientação
+tinha dito. Com 8, além de não ganhar, o tempo de cada braço volta a ser
+medido com a CPU disputada. Memória não é limite: o pico ficou bem abaixo
+dos 16 GB.
+
+### O desenho dos braços neurais (ADR 017, proposto)
+
+Comecei o Estágio 3 pelo desenho, antes de código. Li o modelo leve, o
+`train_light.py`, o cálculo do prior e o pré-processamento do código do
+artigo, sem alterar nada, e escrevi o ADR 017 como proposta. Três achados
+no código que pesam no desenho:
+- o `train_light.py` avalia os pesos da última época, 30 épocas depois do
+  melhor ponto, e não os da melhor;
+- sem prior, a porta começa em `randn × 0,01`, sorteada antes da `fc1`:
+  um B3 assim teria a `fc1` diferente da do B4 com a mesma semente, contra
+  a regra do pipeline de regressor byte a byte igual;
+- a referência do KL é o prior com `clip`, não normalizado.
+
+Propostas principais: construir o modelo do mesmo jeito em todo braço e
+escrever a porta depois; B3 no uniforme exato; parada na primeira fold
+interna, com o prior calculado só nas linhas que ajustam a rede (resposta
+proposta à pergunta 7); pesos da melhor época; uma thread no torch.
+
+Antes de implementar, cinco pontos ficam para decidir, três deles antes da
+F2: vendorizar o arquivo do artigo (a cópia não tem licença), melhor ou
+última época, e a definição exata do `c` do TOST, porque `g` muda com a
+partição.
+
+Decidi dois dos pontos em aberto do ADR 017, a confirmar com a orientação:
+os braços de rede ficam com os pesos da **melhor época** no conjunto de
+parada, e o `c` do TOST é a **mediana de `d_s / g_s`**, calculada partição a
+partição nas `seed_split` 0–29. O PROTOCOLO ganhou essa forma, com a nota de
+que foi fixada antes de medir. A vendorização do arquivo do artigo continua
+dependendo dela.
+
+### Os braços neurais implementados (F2)
+
+Segui pela reimplementação do modelo, sem copiar o arquivo do artigo, que
+não tem licença. `src/tcc/arms/gate.py` tem os sete braços, e
+`tests/test_gate.py`, 18 testes, entre eles a equivalência bit a bit com o
+original (parâmetros, KL, saída e dez passos de treino), o regressor igual
+nos sete braços e o prior que não vê a fold de parada. Oito mutações, todas
+pegas. O torch entrou no `requirements.txt`, onde faltava. Detalhes no ADR
+017, seção "Implementação".
+
+Dois tropeços meus no caminho, nenhum no braço: o deslocamento da porta
+congelada saía 1,8e-7, porque eu comparava o θ inicial em float64 com o da
+rede em float32 (agora o θ inicial é lido da rede); e a comparação de
+hiperparâmetros falhava em `nan == nan`.
+
+Ponta a ponta no Tecator, `seed_split` 0, para conferir o encanamento: no
+B4-limpo, `g` = 11,96 e `d` = 0,344, perto dos ~11,6 e ~0,30 da orientação;
+no B4-fiel, com L2 na porta, `d` = 0,981, inflado pelo encolhimento, como
+em 04/11. Uma partição, piloto.
+
+**Próximo (F3):** medir `d_s / g_s` no B4-limpo nas `seed_split` 0–29 dos
+quatro conjuntos e escrever o `c` do TOST no PROTOCOLO, antes da varredura.
+
+### O `c` do TOST medido (F3)
+
+`scripts/medir_c_tost.py`, no B4-limpo, `seed_split` 0–29, sem gravar nem
+olhar o teste. Levou poucos minutos nos quatro conjuntos.
+
+| conjunto | `d` mediano | `g` mediano | `c_TOST` | o topo trocou |
+|---|---|---|---|---|
+| Tecator | 0,351 | 11,67 | 0,0306 | 0 de 30 |
+| Gasoline | 0,462 | 16,01 | 0,0289 | 0 de 30 |
+| Mango | 0,486 | 11,50 | 0,0417 | 0 de 30 |
+| bioprocess | 1,603 | 14,15 | 0,1140 | 0 de 30 |
+
+- **Tecator:** perto do 0,026 da orientação; o deslocamento é quase o
+  dela (0,35 contra ~0,30).
+- **Gasoline:** menor que os 0,04 a 0,05 dela. O deslocamento é parecido,
+  mas a distância inicial do topo é maior aqui (16,0 contra 12,2): ela
+  usou a partição fixa do artigo, sem SNV, e o nosso prior vem só das
+  linhas que ajustam a rede. É o motivo de o protocolo usar o valor medido
+  sob ele.
+- **Nenhum valor coincide com a grade,** então cada conjunto roda a grade
+  mais o seu `c_TOST`. Escritos no PROTOCOLO antes da varredura.
+- **A banda do topo não trocou em nenhuma das 120 partições.**
+
+**Achado no Mango:** em 7 de 30 partições a melhor época no conjunto de
+parada foi cedo (1, 1, 2, 10, 14, 16 e 18), e nelas a porta quase não
+treinou (`d_s / g_s` de 0,0008 a 0,0138). A mediana absorve, e não mudei a
+regra depois de medir. Mas a receita do artigo, feita para 172 amostras,
+às vezes corta o treino na primeira época num conjunto com milhares. Vai à
+orientação como questão de desenho.
+
+**Próximo (F4):** a varredura de `c` sob o protocolo, piloto.
+
+### A varredura de `c` sob o protocolo (F4, piloto)
+
+`scripts/varrer_c.py` (`results/varredura_c.csv`): em cada conjunto,
+`seed_split` 0–29, `seed_algo` 0, B2'(c) e B5(c) em cada `c` da grade mais
+o `c_TOST`, e o B3. 2.280 treinos, 30 min com quatro processos de uma
+thread. Antes de rodar, o braço passou a registrar quantas das 10 bandas
+iniciais do topo seguem no top-10 final, a medida "top10 kept" da
+orientação (os 18 testes continuam passando). **Tudo piloto.**
+
+**O deslocamento não depende de `c`,** como a orientação mediu: o `d`
+mediano fica entre 0,33 e 0,40 no Tecator, 0,42 e 0,47 no Gasoline, 0,46 e
+0,50 no Mango e 1,31 e 1,60 no bioprocess, em toda a grade.
+
+**A banda do topo** (partições em que trocou, de 30; em `c` = 0 a porta
+começa uniforme e a "troca" não tem sentido):
+
+| `c` | Tecator | Gasoline | Mango | bioprocess |
+|---|---|---|---|---|
+| 1 a 0,10 | 0 | 0 | 0 | 0 |
+| `c_TOST` | 0 | 1 | 2 | 0 |
+| 0,054 | 0 | 0 | 0 | 12 |
+| 0,026 | 7 | 2 | 18 | 30 |
+
+No `c_TOST`, em que `g·c` fica na ordem de `d`, o topo quase não troca, como
+a orientação viu. **Diferente da varredura dela:** um pouco abaixo do
+`c_TOST`, quando a distância do topo fica menor que o deslocamento, o topo
+passa a trocar (7 de 30 no Tecator em 0,026, onde ela viu 0 de 10; 18 de 30
+no Mango; 12 e 30 de 30 no bioprocess). Sob este protocolo, o topo é
+móvel, mas só com a massa da porta já quase uniforme.
+
+**O Δ = R²(B5(c)) − R²(B2'(c))** fica perto de zero em todo `c`, no
+Tecator, no Gasoline e no bioprocess:
+- Tecator: mediana de −0,0002 a +0,0006, nenhum p abaixo de 0,1;
+- Gasoline: de +0,0001 a +0,0014, com p < 0,05 em quatro dos nove `c`
+  (1, 0,17, 0,10 e o `c_TOST`, onde é +0,0014, 24 de 30, p = 0,003): um
+  ganho pequeno e consistente de treinar a porta;
+- bioprocess: de −0,0012 a +0,0033, p < 0,05 só em 0,17.
+
+São nove testes por conjunto, de piloto, sem correção de multiplicidade.
+
+**O Mango falha.** Os 570 treinos de rede no Mango deram R² de teste
+abaixo de 0,7: mediana em torno de 0,5, contra 0,86 do PLS completo. Em
+114 deles a melhor época no conjunto de parada foi até a 20, e o R²
+mediano desses é 0,002: a rede quase não treinou. O Δ do Mango vai de −0,59
+a +0,62 e não significa nada. É o mesmo sinal que apareceu na F3 (7 de 30
+partições com parada cedo), agora visto também no teste. A receita do
+artigo (lr 0,01, lote único, 16 unidades, dropout 0,5, até 200 épocas,
+paciência 30) foi feita para 172 amostras e não serve ao Mango como está.
+Consequência direta: **o `c_TOST` do Mango (0,0417) foi medido num treino
+que falha** e não deve ser usado antes de a orientação decidir o que fazer
+com a receita no Mango. Não mudei nada: é decisão de desenho, e o Mango é
+justamente um dos dois conjuntos com poder de distinguir os braços.
+
+### Por que a rede falha no Mango (diagnóstico só no treino)
+
+`scripts/diagnosticar_rede_mango.py`: a partição e as folds do
+`evaluate()`, mas só as linhas que ajustam a rede e a fold de parada; o
+teste nem é separado. RMSE em y padronizado (1 = prever a média). Referência:
+o PLS completo ajustado nas mesmas linhas, medido na mesma fold de parada.
+Variações no B4-limpo, uma de cada vez. Mango `seed_split` 0 a 2, Tecator 0
+como controle.
+
+| | Tecator 0 | Mango 0 | Mango 1 | Mango 2 |
+|---|---|---|---|---|
+| PLS completo | 0,155 | 0,380 | 0,363 | 0,372 |
+| receita do artigo | 0,125 (ép. 157) | 0,855 (ép. 91) | 0,686 (ép. 122) | 1,016 (ép. 8) |
+| B1, sem porta | 0,133 (ép. 80) | 0,728 (ép. 198) | 0,671 (ép. 195) | 0,725 (ép. 199) |
+| sem dropout | 0,147 | 0,783 | 0,734 | 0,678 |
+| até 2.000 épocas | 0,106 (ép. 1.222) | 0,377 (ép. 1.459) | 0,352 (ép. 1.813) | 0,355 (ép. 1.708) |
+
+O que isso mostra:
+- **É falta de ajuste, não excesso:** no Mango o erro de treino fica perto
+  de 1 nas primeiras 50 épocas e acompanha o da parada. A rede não aprende
+  nem o treino.
+- **200 passos em lote único não bastam no Mango:** o B1, sem porta, ainda
+  está melhorando na época 195 a 199 quando o orçamento acaba.
+- **Com a porta, o começo é um platô:** a porta multiplica cada banda por um
+  peso pequeno, e o erro fica em ~1 por dezenas de épocas. A paciência de 30
+  acaba no platô, e a parada corta o treino (época 8 na `seed_split` 2).
+- **O dropout não é a causa:** sem ele, o quadro é o mesmo.
+- **Com até 2.000 épocas a rede chega ao nível do PLS** (0,35 a 0,38), mas
+  o treino tem saltos: o erro vai a 6,7 e 9,3 em algumas épocas antes de
+  voltar. A taxa de 0,01 em lote único fica instável quando o treino é
+  longo.
+
+No Tecator, com 128 linhas de ajuste, a receita funciona; no Mango, com
+cerca de 7.000 e um alvo que o PLS só resolve com uns 30 componentes, não.
+Isso é diagnóstico, não escolha: nenhuma receita foi adotada. A correção é
+decisão de desenho, para os sete braços ao mesmo tempo, escolhida pela
+validação interna e declarada antes da grade (ADR 017, item 7).

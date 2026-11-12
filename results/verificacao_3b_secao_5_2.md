@@ -624,7 +624,9 @@ python scripts/verificar_kl_secao34.py
 ## Anexo 4 — saída de `verify_wd_on_gate.py` (script da orientação, 30/10)
 
 Rodado duas vezes em 04/11, com saída idêntica; torch 2.14.1+cpu, numpy
-2.5.2, scikit-learn 1.9.0. O script não está versionado aqui.
+2.5.2, scikit-learn 1.9.0. O script não está versionado aqui. *Atualização
+de 12/11: versionado, como chegou, em `scripts/orientacao/verify_wd_on_gate.py`,
+com a autorização da orientação.*
 
 ```
 python verify_wd_on_gate.py --repo <código do artigo>

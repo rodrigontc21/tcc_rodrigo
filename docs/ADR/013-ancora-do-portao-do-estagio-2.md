@@ -260,6 +260,17 @@ têm o gêmeo no treino (R² 0,9426, 36 amostras de teste) quanto tirando do
 treino os 7 gêmeos (0,9428) —, mas não é nulo e não foi medido sobre os
 demais braços. Medido em `scripts/verificar_replicas_tecator.py`.
 
+**Com a regra de réplicas em vigor (acréscimo de 12/11/2026, a pedido da
+orientação).** Cada número com a regra a que pertence:
+- **7 pares:** contagem de 05/11, por pares de espectros idênticos (os 22
+  pares acima), que atravessam a divisão 172/43 da semente 42;
+- **11 grupos (25 linhas):** contagem pela regra das três relações, em
+  vigor desde 10/11 (adendo de 10/11 do ADR 009), na mesma divisão.
+
+A regra nova pega mais réplicas que os pares idênticos, e por isso mais
+delas atravessam a divisão. A conclusão acima não muda: a âncora serve
+para comparar com o artigo, não como medida limpa.
+
 A âncora acima é a reexecução **fiel** do protocolo do artigo, com as
 propriedades dele, inclusive essa. Ela serve para comparar este trabalho
 contra aquele artigo. Não serve como medida limpa de desempenho, e o

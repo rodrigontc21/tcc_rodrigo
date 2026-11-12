@@ -380,3 +380,12 @@ grupos foram de 208 a 180. Com isso, as partições do Tecator mudaram.
   +0,0180), não abaixo do PLS em 30 de 30, Wilcoxon p < 0,001; 140 bandas
   de 281 medianas. Os tempos dessa rodada não medem o custo do braço: os
   quatro processos disputaram a CPU (DIARIO de 12/11).
+
+**Piloto (12/11/2026, pedido da orientação).** Todos os números deste ADR
+medidos nas `seed_split` 0–29 (a partição 0, as 10 e as 30 partições, em
+qualquer conjunto) são **piloto**: essa faixa é reservada a decisões de
+método, e a grade final usa `seed_split` ≥ 100. Nenhum deles entra no
+texto como resultado, e nada do protocolo muda com base neles. "Não se
+distingue do PLS" no Wilcoxon não é equivalência; equivalência é o TOST
+com δ, na grade. Os Wilcoxon são cinco testes contra a mesma referência
+e, por serem piloto, não levam correção de multiplicidade.

@@ -151,8 +151,9 @@ Uso previsto:
   com a Tabela 2. Feito em 05/11 com o algoritmo (ver Consequências).
 - **O efeito das adaptações:** os dois modos com as mesmas sementes. Se o
   `protocolo` não ficar pior que o `fiel`, as adaptações não enfraqueceram
-  o método. Feito em 06/11 no Tecator e no Gasoline, em 10 partições (ver
-  Consequências).
+  o método. Feito em 06/11 no Tecator e no Gasoline, em 10 partições, e
+  nas 30 partições no Tecator e no Gasoline (10/11) e no Mango (12/11),
+  como piloto (ver Consequências).
 
 ## Em aberto, a confirmar com a orientação
 
@@ -162,10 +163,20 @@ Uso previsto:
    regra de um erro-padrão. A proposta segue o artigo dentro do CARS e no
    modelo final, nos dois modos. A regra de um erro-padrão entra só no
    número de componentes do A1, que define o teto.
+   *Nota de 12/11:* no piloto das 30 partições, o `fiel` usou sempre mais
+   componentes que o PLS completo, e nos piores casos muito mais (DIARIO
+   de 12/11). Pela regra de piloto, essa observação não entra nesta
+   decisão: a pergunta é anterior ao piloto e se decide por motivo de
+   desenho.
 2. **Faixa de N, da razão de amostragem e do fator do teto.**
 3. **Centragem para os pesos contra autoescala no modelo final:** a mesma
    questão da pergunta 13, do iPLS.
-4. **O portão de validação (pergunta 11):**
+4. **O efeito das adaptações, com o Mango (12/11):** no piloto, o
+   `protocolo` fica abaixo do `fiel` no Mango de forma consistente, ainda
+   que pequena (ver Consequências). Se isso pede alguma coisa, e o quê, é
+   decisão da orientação; pela regra de piloto, nada muda no braço com
+   base nesses números.
+5. **O portão de validação (pergunta 11):**
    - **No Gasoline,** há uma referência, Zhong et al. (2023), e o nosso
      CARS a reproduz na mesma divisão (ver Consequências). Se uma
      referência basta, é decisão da orientação.
@@ -259,7 +270,18 @@ Uso previsto:
     mediana) e no bioprocess (uma partição). No Tecator, com a regra de
     réplicas nova, fica 0,0016 abaixo na mediana em 10 partições e 0,0011
     abaixo em 30, dentro da variação entre partições. Não há indício de
-    que as adaptações enfraqueçam o método, mas também não há vantagem consistente delas.
+    que as adaptações enfraqueçam o método, mas também não há vantagem
+    consistente delas.
+  - **Atualização de 12/11, com o Mango (piloto, 30 partições), `protocolo`
+    − `fiel`:**
+    - Gasoline: +0,0059 na mediana, `protocolo` não abaixo em 24 de 30,
+      Wilcoxon p < 0,001;
+    - Tecator: −0,0011, não abaixo em 13 de 30, p = 0,441;
+    - Mango: −0,0020, não abaixo em só 7 de 30, p = 0,001.
+
+    A frase acima valia para o Tecator e o Gasoline. Com o Mango, deixa de
+    valer: lá as adaptações custam pouco, mas de forma consistente. É o
+    item 4 de "Em aberto".
   - **O RMSEP publicado:** Zhong et al. (2023), *Molecules* 28(15):5672,
     no mesmo Gasoline (divisão Kennard-Stone 45/15, só centragem, uma
     execução), dá 0,240 para o CARS-PLS e 0,180 para o PLS completo.
@@ -277,3 +299,12 @@ Uso previsto:
     - O CARS, portanto, não fica abaixo do publicado no Gasoline. Uma
       primeira tentativa, com a variante do libPLS, não reproduzia o
       controle; está no DIARIO.
+
+**Piloto (12/11/2026, pedido da orientação).** Todos os números deste ADR
+medidos nas `seed_split` 0–29 (a partição 0, as 10 e as 30 partições, em
+qualquer conjunto) são **piloto**: essa faixa é reservada a decisões de
+método, e a grade final usa `seed_split` ≥ 100. Nenhum deles entra no
+texto como resultado, e nada do protocolo muda com base neles. "Não se
+distingue do PLS" no Wilcoxon não é equivalência; equivalência é o TOST
+com δ, na grade. Os Wilcoxon são cinco testes contra a mesma referência
+e, por serem piloto, não levam correção de multiplicidade.
