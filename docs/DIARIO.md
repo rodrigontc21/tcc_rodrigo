@@ -4069,3 +4069,51 @@ conjunto.
 - o bioprocess nas 30 partições.
 
 Registrado nas notas dos ADRs 012, 014, 015 e 016.
+
+### Os piores casos e as threads
+
+**Os piores casos** (pedido meu de investigar, item em aberto acima). Rodei
+de novo os três e eles se repetiram iguais ao CSV. Nenhum é defeito do
+código; são traços dos métodos:
+- **CARS `fiel`** (Gasoline 22, −0,102; Tecator 23, −0,052): o `fiel`
+  escolhe os componentes pelo mínimo do RMSECV, como o artigo (conferido em
+  `src/tcc/arms/cars.py`), e não pela regra de um erro-padrão do PLS. Usa
+  sempre mais componentes que o PLS completo: mediana de 4,5 a mais no
+  Tecator, 5 no Gasoline e 8 no Mango. Nos piores casos o excesso explode:
+  12 contra 4 no Gasoline 22, 20 contra 11 no Tecator 23. O excesso
+  acompanha a perda no Tecator (correlação −0,42) e no Gasoline (−0,36), e
+  o ganho no Mango (+0,63). É o mesmo padrão do bioprocess em 06/11 (18
+  componentes, pior R²).
+- **iPLS** (Tecator 19, −0,056): nessa partição, o RMSECV do iPLS já ficou
+  14% acima do RMSECV do PLS completo. O iPLS não compara a escolha com o
+  espectro inteiro. Isso acontece em 17 de 30 partições no Tecator, 21 de
+  30 no Gasoline e nenhuma no Mango. Acompanha a perda no Tecator
+  (correlação −0,52), mas não no Gasoline (+0,11), então explica o caso do
+  Tecator e não todos. O RMSECV do iPLS é aninhado e o do PLS não, então a
+  comparação favorece um pouco o PLS.
+
+As duas observações podem virar perguntas à orientação: se o `fiel` deve
+usar a regra de um erro-padrão, e se o iPLS deve ser comparado ao espectro
+inteiro antes de aceitar a seleção. Não mudei nada.
+
+**As threads.** O numpy, o scipy e o scikit-learn abrem 16 threads cada um
+por processo; o R do iPLS usa o BLAS de referência, de uma thread. Testei
+limitar a 4 threads por processo (`OMP_NUM_THREADS`,
+`OPENBLAS_NUM_THREADS` e `MKL_NUM_THREADS` = 4), com 4 processos:
+- Gasoline, `seed_split` 0 a 3, os seis braços: os 24 R², RMSEP e bandas
+  iguais ao CSV; mesma velocidade (1,5 min), porque o Gasoline é pequeno;
+- Mango, `seed_split` 0 a 3, PLS, VIP, GA-PLS e CARS `fiel`: os 16
+  resultados iguais ao CSV, em 9,5 min. Os mesmos braços somaram 7.884 s
+  na rodada original e 2.131 s agora, cerca de 3,7 vezes menos.
+
+Limitar as threads não muda os números e acelera o Mango umas 3,5 vezes.
+O iPLS não ganha nada com isso (o R já usa uma thread), e é ele que pesa no
+bioprocess.
+
+Depois medi uma leva completa do Mango do jeito da rodada real
+(`seed_split` 0 a 3, os seis braços, cada partição inteira num processo,
+4 processos com 4 threads): 43,1 min, contra cerca de 1h50 na rodada
+original, e os 24 resultados iguais ao CSV. O CARS `protocolo` caiu de
+cerca de 2.750 s para 630 a 710 s por partição; o iPLS ficou igual (1.270
+a 1.400 s) e virou o braço que define a duração. Pela medida, as 30
+partições levariam umas 8 levas × 43 min, perto de 5h45.
