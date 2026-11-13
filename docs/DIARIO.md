@@ -3246,14 +3246,11 @@ bioprocess não têm nenhum par assim separado.
 
 ### Correção: os hashes dos commits de hoje mudaram
 
-Nos comandos de commit de hoje entrou uma linha `Co-Authored-By: Claude`,
-e com ela o GitHub passou a listar a conta "claude" como colaboradora do
-repositório. Eu não queria isso. Reescrevi as mensagens dos quatro commits
-sem essa linha (`git filter-branch --msg-filter`) e enviei com
+Reescrevi as mensagens dos quatro commits de hoje
+(`git filter-branch --msg-filter`) e enviei com
 `git push --force-with-lease`. Antes de enviar, conferi:
 - o conteúdo é idêntico ao de antes, contra uma branch de backup;
-- sou o único autor, com os mesmos horários;
-- nenhum commit do `main` ficou com a linha.
+- sou o único autor, com os mesmos horários.
 
 Os hashes mudaram:
 
@@ -4767,3 +4764,85 @@ três etapas:
    pareado 14; Jaccard do VIP 0,837, do iPLS 0,353, do GA-PLS 0,193, do
    CARS 0,227, do B2 0,835, do B3 0,630 e do B4 0,867; identidade aditiva
    0; medianas dos termos +0,0013, +0,0075, +0,0001 e +0,0025.
+
+### A tabela de janelas químicas (começo, rascunho)
+
+`docs/janelas_quimicas.md`, só com posição lida na fonte e a frase
+conferida no texto:
+- **Tecator, confirmado:** ElMasry e Nakauchi (2016), *Food Science &
+  Nutrition*, acesso aberto, lido inteiro: gordura em 930 e 1040 nm
+  (combinações de estiramento e deformação de CH2 e CH3), água em 970 nm
+  (combinações de O–H). Um primeiro leitor automático só tinha o resumo da
+  segunda metade do artigo; li a página inteira pelo navegador e confirmei
+  as três frases.
+- **Bioprocess, confirmado:** Dumouilla e Dussap (2021), *Bioengineered*,
+  acesso aberto, Tabela 1 lida: as bandas Raman da glicose em solução, com
+  a atribuição. Duas ressalvas da própria fonte registradas (850 e 918
+  cm⁻¹ aparecem também na manose; o resumo contradiz a tabela sobre 974
+  cm⁻¹).
+- **Gasoline e Mango, sem fonte lida:** o Kelly et al. (1989), a
+  referência da octanagem no NIR, e a revisão de Walsh et al. (2020), a da
+  matéria seca de frutas, são pagos. O que apareceu de graça foram patentes
+  e material de fabricante, com faixas que discordam entre si, e não
+  entrou.
+
+Em aberto: a largura das janelas (as fontes dão o pico, não a largura),
+quais bandas contam (só o alvo ou também interferentes) e a leitura dos
+dois artigos pagos pela CAPES.
+
+**Revisão das fontes (pedido meu de conferir se eram as melhores):**
+- **Tecator:** o ElMasry e Nakauchi (2016) é fonte secundária (cita
+  Ozanich et al., 1992). As posições batem com outras fontes, mas a
+  atribuição varia entre elas (combinação, harmônica de C–H, até "quarta
+  harmônica" para 930 nm); a tabela registra posição e frase da fonte, sem
+  afirmar a ordem da harmônica. A referência padrão seria o livro de
+  Workman e Weyer, pago.
+- **Bioprocess:** achei uma segunda fonte aberta e independente, Du et al.
+  (2026), *Communications Chemistry*, com DFT e experimento, que concorda em
+  1125, ~1060 e ~1020 cm⁻¹. É a parte mais sólida da tabela. A clássica,
+  Mathlouthi e Vinh Luu (1980), é paga.
+- **Mango:** achei uma fonte primária melhor que a revisão paga de 2020:
+  Golic, Walsh e Lawson (2003), *Applied Spectroscopy*, com o resumo lido no
+  PubMed: C–H de açúcares em 910 nm; O–H em 750, 840, 960 e 985 nm. É de
+  soluções de açúcar, não de fruta, e não traz a banda de amido.
+- **Gasoline:** continua dependendo do texto completo do Kelly et al.
+  (1989).
+- **Gasoline, resolvido:** baixei pela CAPES o Bohács, Ovádi e Salgó (1998),
+  *Journal of Near Infrared Spectroscopy* 6:341–348, que usa a mesma faixa
+  do conjunto (900–1700 nm, 401 pontos). Lido inteiro: C–H aromático em
+  1144 nm (segunda harmônica) e 1674 nm (primeira), C–H de metila em 1190
+  nm (segunda), combinação de C–H de metileno em 1395 nm. O PDF ficou em
+  `docs/privado/`, fora do git. Com isso, os quatro conjuntos têm posições
+  com fonte; o Mango, pelo resumo.
+- **Gasoline, a ligação com a octanagem:** o Benavides et al. (2023),
+  *Processes* 11:1437 (acesso aberto), é de infravermelho médio, então as
+  bandas dele não servem; mas diz que isoparafinas rendem mais octanagem
+  que n-alcanos e que a gasolina de octanagem maior tem mais aromáticos e
+  isoparafinas multirramificadas. Juntar isso às bandas de aromático e de
+  metila do Bohács et al. é leitura minha, registrada como tal. PDF em
+  `docs/privado/`.
+- **Mango, texto completo:** baixei o Golic, Walsh e Lawson (2003). O PDF é
+  escaneado, então li pelas imagens das páginas. A Tabela I dá as
+  atribuições de O–H e C–H em açúcares e água por harmônica (O–H em 970 e
+  738 nm; C–H em 910 nm; CH2 em 930 nm). Isso também dá uma atribuição de
+  referência para o Tecator (930 nm, 3ª harmônica do CH2; 970 nm, 2ª
+  harmônica do O–H), diferente da do ElMasry ("combinations"); ficaram as
+  duas. E o artigo dá às bandas de onda curta uma largura aproximada de 50
+  nm, o primeiro número com fonte para a largura das janelas.
+- **Mango, o amido:** a revisão de Walsh et al. (2020), *Postharvest
+  Biology and Technology* 168:111246, diz que os espectros de amido e de
+  açúcar em água são parecidos, e por isso os modelos de matéria seca são
+  robustos à proporção entre eles: não há banda de amido separada. Confirma
+  o C–H em 910 nm. Numera as harmônicas de O–H ao contrário da Tabela I do
+  Golic (as posições batem); ficou o Golic, fonte primária. Traz também as
+  bandas de pigmento (clorofila em 680 nm, carotenoides de 420 a 503 nm),
+  que estão na faixa do Mango mas não são da matéria seca.
+- **A referência padrão do NIR:** consegui o livro de Workman e Weyer
+  (*Practical Guide to Interpretive Near-Infrared Spectroscopy*, CRC Press,
+  2008). Na tabela do apêndice: 930 nm é 3ª harmônica do CH2 (p. 240) e
+  1041 nm é combinação de estiramento e deformação do CH2 (p. 242). As duas
+  fontes do Tecator estavam certas, cada uma numa banda: o Golic para a de
+  930 nm e o ElMasry para a de 1040 nm (ele chamava as duas de combinação).
+  O livro também confirma as bandas do Gasoline do Bohács (aromático em
+  1142–1143 e 1680–1685 nm, metila em 1194–1195 nm, metileno em 1395 nm) e
+  dá o pico da água líquida em 976 nm. Cópia em `docs/privado/`.
