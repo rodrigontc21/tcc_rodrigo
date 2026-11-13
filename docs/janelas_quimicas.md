@@ -3,7 +3,7 @@
 **Status:** rascunho, 13/11/2026. Base da tabela de plausibilidade química do
 Estágio 6 (ADR 019): fração das bandas selecionadas que caem em janelas de
 atribuição documentada. **Só entra posição lida na fonte, com a frase
-conferida no texto.** Nada daqui está no código ainda.
+conferida no texto.** Em código desde 13/11: `src/tcc/windows.py`, com a largura como parâmetro obrigatório e só o alvo por padrão; `tests/test_windows.py` confere que as posições do alvo são as deste documento.
 
 ## Confirmado na fonte (lido no texto ou no resumo, como indicado)
 
@@ -107,8 +107,12 @@ Research*, "Laser-Raman spectra of d-glucose and sucrose in aqueous
 solution", que é paga e não foi lida.
 
 **Avaliação:** duas fontes independentes, abertas e revisadas, uma
-experimental e uma com DFT, concordam em 1125, ~1060 e ~1020 cm⁻¹. É a
-parte mais sólida da tabela.
+experimental e uma com DFT, concordam nas **posições** 1125, ~1060 e ~1020
+cm⁻¹. É a parte mais sólida da tabela. **A atribuição da banda de 1125 cm⁻¹
+diverge** (vista na conferência de 13/11): a Tabela 1 do Dumouilla e
+Dussap dá δ(COH); o Du et al. dão "C–C stretching on the pyranose ring
+backbone" e dizem resolver a controvérsia antiga sobre essa banda. A janela
+não muda, porque a posição é a mesma; o código registra as duas.
 
 ### Mango (matéria seca; Vis-NIR 309–1149 nm) — texto completo lido
 
@@ -267,3 +271,33 @@ duas fontes, não frase de nenhuma delas.
 4. **No Mango, se os pigmentos contam.** A faixa do conjunto vai de 309 a
    1149 nm e inclui as bandas de clorofila e carotenoides, que não são da
    matéria seca. Se a janela for só a do alvo, ficam de fora.
+
+## As bandas nos nossos espectros (13/11/2026)
+
+`scripts/conferir_janelas_espectro.py`: no espectro médio de cada conjunto
+(só X, sem o alvo), a segunda derivada (Savitzky-Golay), com o vale mais
+próximo de cada banda a até 30 unidades. Não muda as janelas, que vêm das
+fontes; mede quanto as bandas se deslocam nos nossos dados, porque as
+fontes mediram outras matrizes.
+
+| conjunto | banda da fonte → vale no nosso espectro |
+|---|---|
+| Tecator | 930 → 932 (+2); 970 → 962 (−8); **1040: o vale mais próximo é 1016 (−24)**, provavelmente outra banda |
+| Gasoline | 1144 → 1148 (+4); 1190 → 1192 (+2); 1395 → 1392 (−3); 1674 → 1676 (+2) |
+| Mango | 910 → **891 (−19)**; 970 → 960 (−10); 840 → 837 (−3); **738: nenhum vale a até 30 nm**; 680 → 681 (+1); 475 → 495 (+20); 435 → 408 (−27) |
+| Bioprocess (cm⁻¹) | 1126 → 1131,7; 1061 → 1064,2; 1017 → 1018,0; 910 e 899 → 903,6 (o mesmo vale); 1462 → 1459,2; 1367 → 1362,6; 1336 → 1341,9; 1264 → 1267,8; 846 → 847,4; 1645 → 1648,2 |
+
+Leitura:
+- onde a fonte mediu matriz parecida com a nossa (Gasoline, Bioprocess), as
+  bandas aparecem a poucas unidades; onde mediu outra (açúcar em água
+  contra manga inteira), o deslocamento é maior;
+- a banda de 1040 nm do Tecator é, na fonte, um pico pequeno das amostras
+  de muita gordura; no espectro médio ela não aparece;
+- cuidados: o vale mais próximo pode ser de outro constituinte (o
+  bioprocess tem oito substâncias), a derivada suaviza uns 20 nm, e duas
+  bandas próximas podem cair no mesmo vale.
+
+**Para a largura (decisão da orientação):** ±10 cobre o Gasoline, o
+Bioprocess e a gordura de 930 nm, mas não o açúcar do Mango (−19); ±25 cobre
+tudo o que apareceu e coincide com a largura de banda de ~50 nm do Golic et
+al. A informação vem só dos espectros, sem alvo e sem resultado de método.

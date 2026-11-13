@@ -15,7 +15,7 @@ Situação em 13/11/2026 (commit `cd68ddb`).
 | 7 | Identidade aditiva da decomposição verificada por teste | ✅ feito | `tests/test_decomposition.py::test_additive_identity_holds_in_every_partition`; e em dados reais do Tecator, com diferença zero (ADR 020) |
 | 8 | `n_fits` e `wall_time` gravados por execução | ✅ feito | cada arquivo do executor (ADR 021); com uma thread por processo, para o tempo ser comparável entre braços |
 | 9 | Cardinalidade `k` pareada, com análise de sensibilidade | ⚠️ em parte | o código existe (`paired_k`, `k_grid`; ADR 018, com testes), mas **de onde sai o `k`** está em aberto e **a análise de sensibilidade ainda não rodou** (é da grade) |
-| 10 | Toda métrica com teste de entrada sintética | ✅ feito | `tests/test_metrics.py` (16 testes; ADR 019), também conferidas contra o scikit-learn e o scipy; o TOST e o Holm, contra o statsmodels e o R base (ADR 020). **Ressalva:** a plausibilidade química tem a função testada, mas as janelas ainda não estão no código (`docs/janelas_quimicas.md`, largura em aberto) |
+| 10 | Toda métrica com teste de entrada sintética | ✅ feito | `tests/test_metrics.py` (16 testes; ADR 019), também conferidas contra o scikit-learn e o scipy; o TOST e o Holm, contra o statsmodels e o R base (ADR 020). As janelas químicas estão em `src/tcc/windows.py` (12 testes), com a largura como parâmetro obrigatório: falta decidir a largura (`docs/janelas_quimicas.md`) |
 
 ## O que falta, em ordem
 

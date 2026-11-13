@@ -4880,3 +4880,52 @@ quando são os três primeiros (o Δ prior é contraste complementar, fora da
 soma, como o pipeline diz). Atualizei o progresso, os braços (B4-fiel e
 B4-limpo, B5 e B2'), a estrutura de pastas e as dependências, e acrescentei
 como rodar, com as versões do R e dos pacotes conferidas no ambiente.
+
+### As janelas químicas no código
+
+`src/tcc/windows.py`: as bandas de `docs/janelas_quimicas.md`, cada uma com
+a fonte, separadas por papel (alvo, água, pigmento, outras bandas da
+glicose). A largura é parâmetro obrigatório, sem padrão, porque ainda não
+foi decidida; por padrão só conta o alvo. 12 testes, entre eles um que
+falha se as posições do alvo no código divergirem das do documento, e a
+fração calculada no eixo real do Tecator. Seis mutações, todas pegas.
+
+Dois tropeços meus: um teste errado na conta (a janela de 899 cm⁻¹ com meia
+largura 10 começa em 889, não em 890), e o teste de argumento nomeado do
+projeto pegou 25 chamadas `Band(...)` posicionais, que passaram a usar nome.
+
+### Conferência das janelas contra as fontes
+
+Os testes conferem o código contra o documento, mas não o documento contra
+as fontes. Conferi cada banda no texto da fonte, procurando o número junto
+da atribuição:
+- **texto local** (Bohács, Walsh e o livro de Workman e Weyer): 17
+  conferências. Na primeira rodada, duas foram falsos acertos (o "930" e o
+  "1143" do livro caíram em tabelas de compostos, com a palavra-chave
+  perto por acaso); com a busca presa às linhas da tabela de atribuições
+  (posição, número de onda e grupo juntos), as 17 conferem;
+- **acesso aberto, pelo navegador:** ElMasry e Nakauchi (930 e 1040 nm,
+  metileno; 970 nm, O–H), as 11 bandas da glicose na coluna da D-glicose
+  da Tabela 1 do Dumouilla e Dussap, com a atribuição, e as três do Du et
+  al. (1125, 1040–1060 e 1022 cm⁻¹);
+- **Golic et al.:** escaneado, conferido pela imagem da Tabela I (970 e
+  738 nm, O–H; 840 nm, combinação de O–H; 910 nm, C–H; 930 nm, CH2).
+
+Achado: as posições batem em todas, mas a **atribuição da banda de 1125
+cm⁻¹ diverge** entre o Dumouilla e Dussap (δ(COH)) e o Du et al.
+(estiramento C–C do anel de piranose). O código dizia só δ(COH) citando as
+duas; agora registra as duas. A janela não muda.
+
+### As bandas das fontes nos nossos espectros
+
+Preocupação levantada hoje: as fontes mediram outras amostras e outros
+instrumentos (açúcar em água contra manga inteira, glicose pura contra meio
+de cultura), e as bandas se deslocam com a matriz. As janelas continuam
+vindo das fontes, porque a plausibilidade química precisa de referência
+externa, senão fica circular. Mas medi o deslocamento:
+`scripts/conferir_janelas_espectro.py`, na segunda derivada do espectro
+médio, só com X. Gasoline e Bioprocess: todas as bandas a até 4 nm e 6
+cm⁻¹. Tecator: 930 → 932 e 970 → 962, mas a de 1040 nm não aparece na média
+(é um pico das amostras de muita gordura). Mango: o açúcar de 910 aparece em
+891 (−19), e a de 738 não aparece. Para a largura: ±10 não cobre o Mango;
+±25 cobre tudo e coincide com o Golic. Tabela em `docs/janelas_quimicas.md`.
