@@ -4666,3 +4666,57 @@ As métricas se comportam como deveriam:
   entre sementes do algoritmo fica perto do acaso (0,097 contra 0,077);
 - os braços sem seleção ficam de fora, e os determinísticos não aparecem
   no eixo do algoritmo, porque só rodaram nele os estocásticos.
+
+### Decomposição e equivalência (Estágio 7, ADR 020 proposto)
+
+`src/tcc/decomposition.py`: os termos Δ por (conjunto, `seed_split`), com o
+B4-limpo; a identidade aditiva; diferenças pareadas entre braços
+quaisquer; o TOST de teste t, com o intervalo de 1 − 2α; Holm, Friedman e o
+pós-teste de Wilcoxon com Holm. Uma partição sem algum dos cinco braços sai
+de todos os termos, e célula repetida (mais de um `seed_algo`) é erro até a
+pergunta 8 ser decidida.
+
+Instalei o `statsmodels` 0.15.0 no `~/venv-tcc` para conferir o TOST e o
+Holm contra uma implementação independente: os dois dão o mesmo resultado
+que o `ttost_paired` e o `multipletests`. Entrou no `requirements.txt`,
+com as três dependências que trouxe; na primeira tentativa minha
+reordenação mexeu em três linhas do jupyter, e refiz inserindo só as
+novas.
+
+12 testes, oito mutações, todas pegas. Suíte inteira: 241 passaram, 1
+pulado.
+
+Ficam para a orientação: em que métrica vai o δ (o protocolo o declara
+pelo RMSEP, e a decomposição do pipeline é em R²), a pergunta 8, o TOST de
+teste t, os blocos do Friedman (com 4 conjuntos, o menor p de um Wilcoxon
+pareado é 0,125 e nenhum pós-teste passaria por Holm) e o α.
+
+### Conferência da decomposição e do TOST
+
+**Contra o R base**, outra linguagem e outra implementação, sem pacote
+novo (quatro testes permanentes em `tests/test_decomposition.py`, agora
+16): o TOST bate com dois `t.test` unilaterais, inclusive o intervalo de
+90%; o Holm, com o `p.adjust`; o Friedman, com o `friedman.test`, até com
+12 braços; e o Wilcoxon do pós-teste, com o `wilcox.test` pareado.
+
+**Em dados reais** (`scripts/conferir_decomposicao_tecator.py`; Tecator,
+`seed_split` 0–9, os cinco braços; piloto, com um δ de 0,01 em R² **só
+ilustrativo**, que não é o do protocolo):
+- as 10 partições completas, e a identidade aditiva fecha com diferença
+  zero;
+
+| termo | mediana | faixa | IC90 | TOST, δ ilustrativo |
+|---|---|---|---|---|
+| não-linearidade (B1 − A1) | +0,0013 | −0,024 a +0,023 | −0,010 a +0,009 | não equivalente (p 0,057) |
+| ponderação (B2 − B1) | +0,0075 | −0,011 a +0,029 | −0,000 a +0,016 | não equivalente |
+| aprendizado (B4 − B2) | +0,0001 | −0,023 a +0,001 | −0,006 a +0,002 | equivalente (p 0,004) |
+| prior (B4 − B3) | +0,0025 | −0,017 a +0,008 | −0,005 a +0,005 | equivalente (p 0,003) |
+| total (B4 − A1) | +0,0066 | −0,018 a +0,032 | −0,003 a +0,013 | não equivalente |
+
+- o Friedman com as 10 partições como blocos não acha diferença entre os
+  cinco braços (p = 0,55), e nenhum par passa por Holm.
+
+Os números são coerentes com o que já se sabia: o aprendizado da porta
+perto de zero, como na varredura de `c`; a ponderação pelo prior com um
+ganho pequeno; e o Tecator sem resolução para separar braços, como a
+orientação apontou no δ. Nada disso é resultado.
