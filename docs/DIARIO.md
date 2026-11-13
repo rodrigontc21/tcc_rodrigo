@@ -4720,3 +4720,50 @@ Os números são coerentes com o que já se sabia: o aprendizado da porta
 perto de zero, como na varredura de `c`; a ponderação pelo prior com um
 ganho pequeno; e o Tecator sem resolução para separar braços, como a
 orientação apontou no δ. Nada disso é resultado.
+
+### O executor da grade (Estágio 5, ADR 021 proposto)
+
+`src/tcc/grid.py`: a grade como configuração (conjuntos, braços, partições,
+e o eixo `seed_algo` só para os estocásticos), um arquivo JSON por execução
+com o resultado inteiro e a proveniência (commit, versões, processador,
+threads), retomada pulando o que já existe, falha gravada sem derrubar a
+grade, e o detector de réplicas idênticas com a exceção dos braços
+determinísticos. Uma thread por processo.
+
+12 testes, inclusive o critério de aceitação do pipeline: rodar a mesma
+grade do zero em outra pasta dá os mesmos hashes. Nove mutações; uma
+escapou na primeira rodada (perder a seleção na leitura), porque a grade
+de teste não tinha braço com seleção explícita, e o VIP entrou nela. O teste
+de argumento nomeado do projeto pegou duas chamadas posicionais minhas.
+Suíte inteira: 257 passaram, 1 pulado.
+
+Dois tropeços de ambiente: minhas edições pelo Python do Windows deixaram
+três arquivos com quebra de linha CRLF (`grid.py`, `selection.py` e
+`test_selection.py`), que o git normaliza no commit sem mudança de
+conteúdo; voltei os três para LF. E um script de mutação escrito por
+heredoc do Git Bash não achava um padrão, pelo CRLF; refiz.
+
+Com os Estágios 4 a 7 prontos, o que falta para a grade final são as
+decisões da orientação e o congelamento do protocolo.
+
+### Conferência do executor contra o que já foi medido
+
+`scripts/conferir_executor.py`, Tecator, `seed_split` 0–29, piloto, em
+três etapas:
+
+1. **Grade:** 840 execuções pelo executor (os seis braços clássicos e os 22
+   braços de rede da varredura de `c`), 8,9 min com quatro processos.
+   Comparadas com o que outros scripts já tinham medido:
+   - os 180 resultados clássicos contra `bracos_tecator_30_particoes.csv`
+     (R², RMSEP, bandas, componentes e ajustes): **0 campos diferentes**;
+   - as 570 execuções de rede contra `varredura_c.csv` (R², RMSEP,
+     deslocamento da porta e melhor época): **0 campos diferentes**.
+2. **Interromper:** a grade de rede (660 execuções) foi morta com SIGKILL,
+   no meio, com 220 gravadas: nenhum arquivo corrompido e nenhum
+   temporário sobrando. Retomada, rodou só as 440 que faltavam, e as 660
+   ficaram idênticas, pelo hash, às da grade sem interrupção.
+3. **Cadeia:** os resultados lidos de volta, passados pelas métricas e pela
+   decomposição, dão os mesmos números tirados por fora do executor: `k`
+   pareado 14; Jaccard do VIP 0,837, do iPLS 0,353, do GA-PLS 0,193, do
+   CARS 0,227, do B2 0,835, do B3 0,630 e do B4 0,867; identidade aditiva
+   0; medianas dos termos +0,0013, +0,0075, +0,0001 e +0,0025.
