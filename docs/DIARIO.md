@@ -4929,3 +4929,41 @@ cm⁻¹. Tecator: 930 → 932 e 970 → 962, mas a de 1040 nm não aparece na m�
 (é um pico das amostras de muita gordura). Mango: o açúcar de 910 aparece em
 891 (−19), e a de 738 não aparece. Para a largura: ±10 não cobre o Mango;
 ±25 cobre tudo e coincide com o Golic. Tabela em `docs/janelas_quimicas.md`.
+
+### As figuras (Estágio 8, ADR 022 proposto)
+
+O Estágio 8 do pipeline pede sete figuras: a cascata da decomposição, os
+intervalos contra a margem ±δ, desempenho × reprodutibilidade, o Jaccard
+nos dois eixos de semente, as bandas sobre o espectro, o custo e a
+decomposição por regime. As finais só saem da grade final, então fiz o
+código: `src/tcc/figures.py`, uma função por figura, que recebe o que as
+métricas e a decomposição já calcularam e só desenha.
+
+Rodei com o piloto do Tecator (`scripts/figuras_piloto.py`, PNG em
+`results/figuras_piloto/`, fora do git) só para olhar, com δ e janelas
+ilustrativos. Olhar as figuras achou erros que nenhum teste pegaria, porque
+não havia teste ainda para o que estava errado:
+- na figura 3, os rótulos dos pontos da direita se sobrepunham; passaram
+  para o lado esquerdo do ponto;
+- na figura 4, o B2 (`mlp_weighted`) saía como "determinístico". Não é: a
+  porta é fixa, mas a rede nasce de pesos sorteados. Rodado no eixo
+  `seed_algo`, o Jaccard dele é 1,00 no piloto, que não é o mesmo que não
+  ter barra;
+- o traço do acaso aparecia nos braços sem barra;
+- a figura de custo usava o `n_fits`, que não compara rede com clássico
+  (ADR 017); passou para o tempo. E os traços menores da escala log
+  continuavam lá, porque eu os desligava antes de ligar a escala log;
+- na figura por regime, o título geral cobria o título do painel.
+
+O mais sério veio depois: a cascata somava as **medianas** dos termos.
+Mediana não é aditiva, então a barra do B4 (A1 + soma) não era o B4: 0,97088
+na figura contra 0,97305 de mediana real. Com a média, as duas contas dão
+0,97112, e a média é o que o TOST testa. A cascata e a figura por regime
+passaram para a média.
+
+25 testes com entrada sintética, que leem de volta o que foi desenhado
+(bases e alturas das barras, faixa ±δ, ordem, cores, escala, rótulos), e 19
+mutações, todas pegas. Suíte inteira: 304 passaram, 1 pulado.
+
+Para a orientação: a métrica das figuras segue a do δ; vírgula decimal
+também nos eixos; PDF vetorial para o manuscrito.

@@ -77,7 +77,9 @@ tcc_rodrigo/
 │   ├── selection.py                  camada de seleção (Estágio 4)
 │   ├── grid.py                       executor da grade (Estágio 5)
 │   ├── metrics.py                    métricas (Estágio 6)
-│   └── decomposition.py              decomposição e TOST (Estágio 7)
+│   ├── windows.py                    janelas químicas, com as fontes
+│   ├── decomposition.py              decomposição e TOST (Estágio 7)
+│   └── figures.py                    figuras (Estágio 8)
 ├── 📁 tests/                         testes automatizados
 ├── 📁 scripts/                       execuções avulsas (medições, conferências, piloto)
 │   └── orientacao/                   scripts do orientador, guardados como chegaram
@@ -152,7 +154,7 @@ Os resultados dependem do número de threads; o protocolo fixa uma por processo 
 - [x] 7️⃣ Decomposição + TOST
 - [ ] 📌 Congelamento do protocolo *(espera decisões da orientação)*
 - [ ] 🧮 Grade final
-- [ ] 8️⃣ Figuras e manuscrito
+- [ ] 8️⃣ Figuras e manuscrito *(código das figuras pronto e testado; as figuras finais saem da grade final)*
 
 Os resultados das partições 0–29 são **piloto** (reservadas a decisões de método); a grade final usa `seed_split` ≥ 100. O que falta para o congelamento está em [`docs/checklist_reprodutibilidade.md`](docs/checklist_reprodutibilidade.md).
 
