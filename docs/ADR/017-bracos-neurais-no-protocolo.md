@@ -253,3 +253,45 @@ reproduz exatamente o relatório 3 (0,922 nas duas colunas); com uma thread
 a mediana muda (0,916 e 0,932): o resultado do treino depende do número de
 threads, o que reforça fixar uma no protocolo. Tabela no DIARIO de 12/11.
 
+
+## A receita de treino configurável (13/11/2026)
+
+Para o item 7 (a receita do artigo falha no Mango), o braço passou a
+receber uma receita de treino (`TrainRecipe`: nome, taxa, máximo de épocas,
+paciência e tamanho do lote, com `None` para lote único). **Nenhuma receita
+foi escolhida:** o padrão (`ARTICLE`) é a do artigo, e o caminho de lote
+único é o de antes, linha por linha.
+- **A mesma receita vale para os sete braços** de uma comparação; as
+  fábricas a recebem por nome.
+- **Outra receita entra no nome do braço** (`gate_prior[nome]`), para os
+  resultados das duas nunca se confundirem na grade; e vai para os
+  hiperparâmetros (receita, taxa, épocas, paciência, lote e o número de
+  passos do otimizador).
+- **Mini-lotes:** embaralhados a cada época pelo gerador do torch já
+  semeado; um último lote de uma linha só vai junto com o anterior, porque o
+  BatchNorm não aceita uma linha.
+- **Testes (7 novos; 29 no arquivo):** a receita padrão reproduz os números
+  gravados em `results/varredura_c.csv` (R², deslocamento e melhor época no
+  Tecator, `seed_split` 0, B5(1), B3 e B2'(0,3)); a receita explícita do
+  artigo é igual à padrão; outra receita muda o nome e é seguida (épocas,
+  paciência e taxa); mini-lotes são determinísticos, dão 4 passos por época
+  com 64 linhas em lotes de 16, e diferem do lote único; o lote de uma linha
+  é juntado; receitas inválidas são recusadas. Oito mutações, todas pegas;
+  uma (mini-lote ignorado) só depois de o braço passar a registrar os passos
+  do otimizador. Suíte inteira: 267 passaram, 1 pulado.
+
+Quando a orientação decidir, os candidatos de receita entram declarados no
+PROTOCOLO antes de rodar, a escolha sai da fold de parada nas `seed_split`
+0–29, e o `c_TOST` do Mango é medido de novo com a receita escolhida.
+
+**Conferência da receita** (`scripts/conferir_receita.py`, 13/11):
+- **receita padrão em escala:** as 660 execuções de rede do Tecator
+  (`seed_split` 0–29, 22 braços), rodadas pelo executor com o código novo,
+  deram predições idênticas, pelo hash, às da grade gravada antes de a
+  receita existir; os hiperparâmetros antigos ficaram iguais nas 660, e
+  só entraram os seis campos novos;
+- **outra receita contra um laço independente:** o B4-limpo com "até 2.000
+  épocas, paciência 2.000", no Mango, `seed_split` 0 a 2, semente 0 do
+  torch, deu a mesma melhor época (1459, 1813 e 1708) e o mesmo RMSE na
+  fold de parada (0,3771497905; 0,3523367941; 0,3545934260) que o laço
+  escrito à mão do diagnóstico, com diferença zero.

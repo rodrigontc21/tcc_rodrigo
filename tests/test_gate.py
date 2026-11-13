@@ -335,3 +335,90 @@ def test_gate_metrics_are_reported(problem):
     assert 0 <= h["gate_top10_kept"] <= 10
     # porta congelada: o top-10 fica inteiro
     assert fit(mlp_weighted(), problem).hyperparams["gate_top10_kept"] == 10
+
+
+# --- receita de treino (ADR 017, item 7) --------------------------------------------
+
+def test_default_recipe_reproduces_the_recorded_sweep():
+    # Regressão: com a receita padrão, o braço dá os mesmos números gravados
+    # na varredura de c de 12/11 (results/varredura_c.csv), antes de a
+    # receita existir.
+    import csv
+    from tcc.data import load
+    from tcc.protocol import evaluate
+    with open(ROOT / "results" / "varredura_c.csv", encoding="utf-8") as f:
+        rows = {(r["braco"], r["c"]): r for r in csv.DictReader(f)
+                if r["conjunto"] == "tecator" and r["seed_split"] == "0"}
+    ds = load("tecator")
+    for (braco, c), arm in ((("B5", "1"), gate_prior_scaled(c=1.0)),
+                            (("B3", ""), gate_uniform()),
+                            (("B2'", "0.3"), mlp_weighted_scaled(c=0.3))):
+        r = evaluate(arm, ds, seed_split=0, seed_algo=0)
+        row = rows[(braco, c)]
+        assert f"{r.r2:.6f}" == row["r2"]
+        assert f"{r.hyperparams['gate_max_disp']:.6f}" == row["d"]
+        assert str(r.hyperparams["best_epoch"]) == row["melhor_epoca"]
+
+
+def test_explicit_article_recipe_is_the_default(problem):
+    from tcc.arms.gate import ARTICLE
+    a, b = gate_prior(), gate_prior(recipe=ARTICLE)
+    assert a.name == b.name == "gate_prior"
+    np.testing.assert_array_equal(fit(a, problem).predict(problem[0]),
+                                  fit(b, problem).predict(problem[0]))
+    h = fit(a, problem).hyperparams
+    assert (h["recipe"], h["lr"], h["max_epochs"], h["patience"], h["batch_size"]) == \
+        ("artigo", 0.01, 200, 30, None)
+
+
+def test_another_recipe_is_named_and_followed(problem):
+    from tcc.arms.gate import TrainRecipe
+    rec = TrainRecipe(name="curta", max_epochs=7, patience=1000)
+    arm = gate_prior(recipe=rec)
+    assert arm.name == "gate_prior[curta]"
+    h = fit(arm, problem).hyperparams
+    assert h["epochs_run"] == 7 and h["recipe"] == "curta"
+    assert mlp_full(recipe=rec).name == "mlp_full[curta]"
+    assert gate_prior_scaled(c=0.3, recipe=rec).name == "gate_prior(c=0.3)[curta]"
+
+
+def test_minibatches_are_deterministic_and_differ_from_one_batch(problem):
+    from tcc.arms.gate import TrainRecipe
+    X = problem[0]
+    rec = TrainRecipe(name="lotes", batch_size=16, max_epochs=20, patience=1000)
+    a, b = fit(gate_prior(recipe=rec), problem), fit(gate_prior(recipe=rec), problem)
+    np.testing.assert_array_equal(a.predict(X), b.predict(X))
+    one = fit(gate_prior(recipe=TrainRecipe(name="um", max_epochs=20, patience=1000)), problem)
+    assert not np.array_equal(a.predict(X), one.predict(X))
+    assert a.hyperparams["batch_size"] == 16
+    # 64 linhas de ajuste em lotes de 16: 4 passos por época; lote único, 1
+    assert a.hyperparams["n_steps"] == 4 * a.hyperparams["epochs_run"]
+    assert one.hyperparams["n_steps"] == one.hyperparams["epochs_run"]
+
+
+def test_a_last_batch_of_one_row_is_merged(problem):
+    # 64 linhas de ajuste em lotes de 21: sobraria um lote de 1 linha, que o
+    # BatchNorm recusa; ele vai junto com o anterior.
+    from tcc.arms.gate import TrainRecipe
+    rec = TrainRecipe(name="sobra", batch_size=21, max_epochs=3, patience=1000)
+    assert len(problem[2][0][0]) == 64
+    assert fit(gate_prior(recipe=rec), problem).hyperparams["epochs_run"] == 3
+
+
+@pytest.mark.parametrize("kw", [{"batch_size": 1}, {"lr": 0.0}, {"max_epochs": 0},
+                                {"patience": 0}])
+def test_invalid_recipes_are_rejected(kw):
+    from tcc.arms.gate import TrainRecipe
+    with pytest.raises(ValueError):
+        TrainRecipe(name="ruim", **kw)
+
+
+def test_recipe_patience_and_lr_are_used(problem):
+    from tcc.arms.gate import TrainRecipe
+    impaciente = fit(gate_prior(recipe=TrainRecipe(name="p1", patience=1)), problem).hyperparams
+    assert impaciente["epochs_run"] - impaciente["best_epoch"] == 1 or impaciente["epochs_run"] == 200
+    assert impaciente["epochs_run"] < fit(gate_prior(), problem).hyperparams["epochs_run"]
+    X = problem[0]
+    devagar = fit(gate_prior(recipe=TrainRecipe(name="lr", lr=0.001, max_epochs=20, patience=1000)), problem)
+    rapido = fit(gate_prior(recipe=TrainRecipe(name="lr2", max_epochs=20, patience=1000)), problem)
+    assert not np.array_equal(devagar.predict(X), rapido.predict(X))

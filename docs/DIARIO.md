@@ -4846,3 +4846,22 @@ dois artigos pagos pela CAPES.
   O livro também confirma as bandas do Gasoline do Bohács (aromático em
   1142–1143 e 1680–1685 nm, metila em 1194–1195 nm, metileno em 1395 nm) e
   dá o pico da água líquida em 976 nm. Cópia em `docs/privado/`.
+
+### A receita de treino configurável (para o Mango)
+
+O braço neural passou a aceitar uma receita de treino (taxa, épocas,
+paciência e lote), com a do artigo como padrão. Não escolhi nenhuma: é a
+estrutura para, quando a orientação responder sobre o Mango, declarar os
+candidatos e rodar a escolha pela fold de parada. O teste mais importante
+confere que, com a receita padrão, os números são os mesmos gravados na
+varredura de `c`. Uma mutação (trocar os mini-lotes por um passo só) escapou
+na primeira rodada, porque o embaralhamento já mudava os números de
+qualquer jeito; o braço passou a registrar quantos passos de otimização
+deu, e o teste confere 4 por época com lotes de 16. Suíte: 267 passaram, 1
+pulado. Detalhes no ADR 017.
+
+**Conferência da receita** (`scripts/conferir_receita.py`): as 660
+execuções de rede do Tecator com o código novo ficaram idênticas às de
+antes da receita; e, no Mango, o braço com a receita "até 2.000 épocas"
+refaz exatamente o laço à mão do diagnóstico (melhor época 1459, 1813 e
+1708; RMSE na fold de parada igual até a décima casa).

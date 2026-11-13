@@ -58,6 +58,34 @@ WEIGHT_DECAY = 1e-4
 CLIP = 1e-7
 
 
+@dataclass(frozen=True)
+class TrainRecipe:
+    """A receita de treino, igual em todos os braços de uma comparação.
+
+    O padrão (`ARTICLE`) é a receita do artigo: Adam com lr 0,01, até 200
+    épocas em lote único, paciência 30. Existe para que outra receita possa
+    ser declarada e escolhida pela validação interna (ADR 017, item 7: no
+    Mango, a do artigo não ajusta nem o treino), sem mudar o resultado de
+    quem usa a padrão. Outra receita põe o nome dela no nome do braço, para
+    os resultados das duas nunca se confundirem.
+    """
+
+    name: str = "artigo"
+    lr: float = LR
+    max_epochs: int = MAX_EPOCHS
+    patience: int = PATIENCE
+    batch_size: int | None = None  # None: lote único, como no artigo
+
+    def __post_init__(self):
+        if self.batch_size is not None and self.batch_size < 2:
+            raise ValueError("lote de pelo menos 2 linhas (o BatchNorm precisa)")
+        if self.lr <= 0 or self.max_epochs < 1 or self.patience < 1:
+            raise ValueError("lr, max_epochs e patience precisam ser positivos")
+
+
+ARTICLE = TrainRecipe()
+
+
 class GateNet(nn.Module):
     """Reimplementação do `BandSelectNetLight` do artigo.
 
@@ -213,9 +241,10 @@ def _gate_metrics(theta0: np.ndarray, theta1: np.ndarray) -> dict:
 class GateArm:
     """Um braço neural. Use as fábricas abaixo, não o construtor."""
 
-    def __init__(self, *, name: str, config: GateConfig):
-        self.name = name
+    def __init__(self, *, name: str, config: GateConfig, recipe: TrainRecipe = ARTICLE):
+        self.name = name if recipe == ARTICLE else f"{name}[{recipe.name}]"
         self.config = config
+        self.recipe = recipe
 
     def initial_net(
         self, Xz_fit: np.ndarray, y_fit: np.ndarray, seed: int
@@ -277,18 +306,36 @@ class GateArm:
                                "weight_decay": WEIGHT_DECAY if cfg.gate_weight_decay else 0.0})
             else:
                 net.gates.requires_grad_(False)
-            opt = torch.optim.Adam(groups, lr=LR)
+            rec = self.recipe
+            opt = torch.optim.Adam(groups, lr=rec.lr)
             use_kl = cfg.gated and cfg.kl_ref != "none"
 
-            best, best_state, best_epoch, bad, epochs = float("inf"), None, 0, 0, 0
-            for epoch in range(MAX_EPOCHS):
-                net.train()
-                loss = F.mse_loss(net(Xf).squeeze(1), yf)
+            n_steps = 0
+
+            def step(xb, yb):
+                nonlocal n_steps
+                n_steps += 1
+                loss = F.mse_loss(net(xb).squeeze(1), yb)
                 if use_kl:
                     loss = loss + KL_WEIGHT * net.kl()
                 opt.zero_grad()
                 loss.backward()
                 opt.step()
+
+            best, best_state, best_epoch, bad, epochs = float("inf"), None, 0, 0, 0
+            for epoch in range(rec.max_epochs):
+                net.train()
+                if rec.batch_size is None:
+                    step(Xf, yf)  # lote único: o caminho do artigo, inalterado
+                else:
+                    # Mini-lotes embaralhados a cada época, pelo gerador do
+                    # torch já semeado; um último lote de uma linha só vai
+                    # junto com o anterior (o BatchNorm não aceita uma linha).
+                    chunks = list(torch.split(torch.randperm(Xf.shape[0]), rec.batch_size))
+                    if len(chunks) > 1 and len(chunks[-1]) < 2:
+                        chunks[-2] = torch.cat([chunks[-2], chunks.pop()])
+                    for idx in chunks:
+                        step(Xf[idx], yf[idx])
                 epochs = epoch + 1
                 net.eval()
                 with torch.no_grad():
@@ -297,7 +344,7 @@ class GateArm:
                     best, best_state, best_epoch, bad = r, copy.deepcopy(net.state_dict()), epochs, 0
                 else:
                     bad += 1
-                    if bad >= PATIENCE:
+                    if bad >= rec.patience:
                         break
             if best_state is None:
                 raise RuntimeError("o RMSE no conjunto de parada nunca foi finito")
@@ -318,6 +365,12 @@ class GateArm:
             "best_epoch": best_epoch,
             "epochs_run": epochs,
             "torch_seed": seed,
+            "recipe": rec.name,
+            "lr": rec.lr,
+            "max_epochs": rec.max_epochs,
+            "patience": rec.patience,
+            "batch_size": rec.batch_size,
+            "n_steps": n_steps,  # passos do otimizador, para conferir os mini-lotes
         }
         band_scores = None
         if cfg.gated:
@@ -336,50 +389,50 @@ def _fmt(c: float) -> str:
     return f"{c:g}"
 
 
-def mlp_full() -> GateArm:
+def mlp_full(*, recipe: TrainRecipe = ARTICLE) -> GateArm:
     """B1: o MLP sem porta."""
     return GateArm(name="mlp_full", config=GateConfig(
         gated=False, init="prior", c=1.0, trainable=False,
-        gate_weight_decay=False, kl_ref="none"))
+        gate_weight_decay=False, kl_ref="none"), recipe=recipe)
 
 
-def mlp_weighted() -> GateArm:
+def mlp_weighted(*, recipe: TrainRecipe = ARTICLE) -> GateArm:
     """B2: a porta inicial do PGSG, congelada."""
     return GateArm(name="mlp_weighted", config=GateConfig(
         gated=True, init="prior", c=1.0, trainable=False,
-        gate_weight_decay=False, kl_ref="prior"))
+        gate_weight_decay=False, kl_ref="prior"), recipe=recipe)
 
 
-def mlp_weighted_scaled(*, c: float) -> GateArm:
+def mlp_weighted_scaled(*, c: float, recipe: TrainRecipe = ARTICLE) -> GateArm:
     """B2'(c): a porta do B5(c), congelada."""
     return GateArm(name=f"mlp_weighted(c={_fmt(c)})", config=GateConfig(
         gated=True, init="prior", c=c, trainable=False,
-        gate_weight_decay=False, kl_ref="prior"))
+        gate_weight_decay=False, kl_ref="prior"), recipe=recipe)
 
 
-def gate_uniform() -> GateArm:
+def gate_uniform(*, recipe: TrainRecipe = ARTICLE) -> GateArm:
     """B3: porta treinável, começando no uniforme exato, KL ancorado no uniforme."""
     return GateArm(name="gate_uniform", config=GateConfig(
         gated=True, init="uniform", c=1.0, trainable=True,
-        gate_weight_decay=False, kl_ref="uniform"))
+        gate_weight_decay=False, kl_ref="uniform"), recipe=recipe)
 
 
-def gate_prior_faithful() -> GateArm:
+def gate_prior_faithful(*, recipe: TrainRecipe = ARTICLE) -> GateArm:
     """B4-fiel: como o B4-limpo, mas com L2 também na porta, como no artigo."""
     return GateArm(name="gate_prior_fiel", config=GateConfig(
         gated=True, init="prior", c=1.0, trainable=True,
-        gate_weight_decay=True, kl_ref="prior"))
+        gate_weight_decay=True, kl_ref="prior"), recipe=recipe)
 
 
-def gate_prior() -> GateArm:
+def gate_prior(*, recipe: TrainRecipe = ARTICLE) -> GateArm:
     """B4-limpo: a porta inicial do PGSG, treinável, isenta de L2."""
     return GateArm(name="gate_prior", config=GateConfig(
         gated=True, init="prior", c=1.0, trainable=True,
-        gate_weight_decay=False, kl_ref="prior"))
+        gate_weight_decay=False, kl_ref="prior"), recipe=recipe)
 
 
-def gate_prior_scaled(*, c: float) -> GateArm:
+def gate_prior_scaled(*, c: float, recipe: TrainRecipe = ARTICLE) -> GateArm:
     """B5(c): logits iniciais escalados por c, porta treinável e isenta."""
     return GateArm(name=f"gate_prior(c={_fmt(c)})", config=GateConfig(
         gated=True, init="prior", c=c, trainable=True,
-        gate_weight_decay=False, kl_ref="prior"))
+        gate_weight_decay=False, kl_ref="prior"), recipe=recipe)
