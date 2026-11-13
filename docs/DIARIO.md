@@ -4600,3 +4600,69 @@ clássicas da grade, e não do piloto, para nenhum parâmetro do protocolo
 depender de números de piloto), média de todas as execuções ou das
 medianas por braço, a ressalva de que os tamanhos explícitos não são `k`,
 e os fatores da faixa.
+
+### As métricas (Estágio 6, ADR 019 proposto)
+
+`src/tcc/metrics.py`, funções puras sobre resultados gravados: desempenho
+(R², RMSE e RMSEP); Jaccard e Jaccard médio par a par; reprodutibilidade
+nos dois eixos de semente, passando pela camada de seleção, com a semente
+do outro eixo fixa; o Jaccard esperado pelo acaso, exato, pela interseção
+hipergeométrica; a fração de bandas em janelas químicas; e o custo pela
+mediana de `n_fits` e `wall_time`.
+
+14 testes, todos com entrada sintética de resposta conhecida, como o
+pipeline exige. Errei uma conta de cabeça num teste (o Jaccard de {2,3,4} e
+{4,5,6} é 1/5, não 1/4); a função estava certa. Oito mutações: sete pegas
+de primeira; a de trocar a mediana do custo pela média escapou, porque os
+dados do teste tinham média igual à mediana, e passou a ser pega com dados
+assimétricos. Suíte inteira: 227 passaram, 1 pulado.
+
+Ficam em aberto: a tabela de janelas químicas com as fontes (é leitura,
+nenhuma janela escolhida), reportar sempre o Jaccard do acaso ao lado, a
+linha de base do prior para a H5 e como agregar quando a semente fixa tem
+vários valores.
+
+### Conferência das métricas e da seleção
+
+Para não ficar só nos testes sintéticos:
+
+**Contra bibliotecas independentes** (testes permanentes em
+`tests/test_metrics.py`, agora 16): o Jaccard bate com o `jaccard_score` do
+scikit-learn em 500 pares sorteados, e o Jaccard do acaso bate com a
+hipergeométrica do scipy em quatro casos, inclusive tamanhos do Mango e do
+Gasoline.
+
+**Em dados reais** (`scripts/conferir_metricas_tecator.py`; Tecator,
+`seed_split` 0–9 com `seed_algo` 0, e `seed_split` 0 com `seed_algo` 0–4
+nos braços estocásticos; 106 resultados; piloto, só para ver se os números
+fazem sentido):
+- **desempenho:** a métrica recalcula o R² e o RMSEP de cada `Result` com
+  diferença zero nos 106;
+- **k pareado** desta amostra: 14 (iPLS 10 a 28 bandas, VIP 14 a 21, GA-PLS
+  9 a 18, CARS 3 a 16);
+
+| braço | Jaccard entre partições | acaso | Jaccard entre sementes do algoritmo |
+|---|---|---|---|
+| iPLS | 0,353 | 0,102 | — |
+| VIP | 0,837 | 0,078 | — |
+| GA-PLS | 0,193 | 0,077 | 0,097 |
+| CARS | 0,227 | 0,033 | 0,165 |
+| B2 (porta congelada) | 0,835 | 0,078 | — |
+| B3 (porta uniforme) | 0,630 | 0,078 | 0,394 |
+| B4-limpo | 0,867 | 0,078 | 1,000 |
+| prior, top-k | 0,835 | 0,078 | — |
+
+As métricas se comportam como deveriam:
+- **o B2 dá exatamente o Jaccard do prior** (0,835 nos dois): a porta
+  congelada é uma função monótona do prior e tem o mesmo top-k. É a
+  conferência mais forte de que a seleção e o Jaccard estão encadeados
+  certo;
+- **o B4 fica pouco acima do prior** (0,867 contra 0,835), e entre sementes
+  do algoritmo na mesma partição dá 1,000: a porta quase não sai do prior,
+  como na varredura de `c`. É o ponto que sugerimos à orientação para a H5;
+- **o B3, partindo do uniforme, chega a 0,630** entre partições, bem acima
+  do acaso;
+- **GA-PLS e CARS, estocásticos, ficam baixos** nos dois eixos; o GA-PLS
+  entre sementes do algoritmo fica perto do acaso (0,097 contra 0,077);
+- os braços sem seleção ficam de fora, e os determinísticos não aparecem
+  no eixo do algoritmo, porque só rodaram nele os estocásticos.
