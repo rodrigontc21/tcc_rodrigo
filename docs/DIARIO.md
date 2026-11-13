@@ -4574,3 +4574,29 @@ Ficaram perguntados:
   escolhidos pela fold de parada nas `seed_split` 0–29).
 
 O protocolo vai para congelamento depois da receita do Mango.
+
+## 2026-11-13
+
+### A camada de seleção (Estágio 4, ADR 018 proposto)
+
+Sem resposta da orientação ainda, segui pelo que não depende dela: o
+Estágio 4 do pipeline. `src/tcc/selection.py`:
+- o `evaluate()` passa a gravar em `Result.selection` a seleção explícita
+  dos braços que selecionam (iPLS, VIP, GA-PLS, CARS); antes ficava
+  `None`. Nenhum número muda;
+- `to_selection(result, k)`, pela regra do pipeline: quem tem escore por
+  banda (VIP e portas) dá as `k` de maior escore, com empate decidido pela
+  banda de menor índice; quem só tem seleção explícita (iPLS, GA-PLS e
+  CARS) dá o próprio conjunto; PLS completo e MLP sem porta ficam de fora;
+- `paired_k`, a média de bandas retidas por iPLS, VIP, GA-PLS e CARS
+  `protocolo` (o `fiel` fica de fora, porque é o portão contra o artigo);
+- `k_grid`, a faixa de sensibilidade de 0,5 a 1,5 vez o `k`.
+
+20 testes e sete mutações, todas pegas. Suíte inteira: 213 passaram, 1
+pulado.
+
+Ficam para a orientação: de onde sai o `k` (proposta: das execuções
+clássicas da grade, e não do piloto, para nenhum parâmetro do protocolo
+depender de números de piloto), média de todas as execuções ou das
+medianas por braço, a ressalva de que os tamanhos explícitos não são `k`,
+e os fatores da faixa.

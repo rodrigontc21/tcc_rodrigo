@@ -180,6 +180,12 @@ def _fit_and_score(
     return fitted, y_pred, r2, rmsep, budget, wall_time
 
 
+def _selection_of(fitted) -> set[int] | None:
+    """Bandas do ajuste final, se o braço seleciona; senão None."""
+    selection = getattr(fitted, "selection", None)
+    return None if selection is None else {int(j) for j in selection}
+
+
 def evaluate(
     arm: Arm,
     dataset: Dataset,
@@ -239,9 +245,10 @@ def evaluate(
         rmse_cv=fitted.rmse_cv,
         y_pred=y_pred,
         test_idx=test_idx,
-        # Conversão de saída bruta em conjunto de bandas é o Estágio 4;
-        # ainda não existe, então fica None até lá.
-        selection=None,
+        # A seleção explícita do braço (iPLS, VIP, GA-PLS, CARS), ou None
+        # para quem não seleciona. Converter em conjunto comparável, com o
+        # k pareado, é a camada de seleção (`tcc.selection`, ADR 018).
+        selection=_selection_of(fitted),
         band_scores=fitted.band_scores,
         n_fits=budget.n_fits,
         wall_time=wall_time,
