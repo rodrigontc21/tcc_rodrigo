@@ -53,7 +53,9 @@ Cada braço difere do vizinho por **exatamente uma característica**, o que torn
 Δ vs. clássico  =  B4 − max(iPLS, CARS, GA-PLS, VIP)
 ```
 
-A soma dos quatro primeiros termos reconstitui, por construção, a diferença **B4 − A1** — exatamente o ganho reportado na literatura. O trabalho consiste em mostrar como esse total se reparte.
+A soma dos três primeiros termos reconstitui, por construção, a diferença **B4 − A1** — exatamente o ganho reportado na literatura; o Δ prior é um contraste complementar, fora da soma. O trabalho consiste em mostrar como esse total se reparte.
+
+Depois do parecer da orientação (01/10/2026), o B4 se desdobrou em **B4-fiel** (como no artigo) e **B4-limpo** (porta sem decaimento de peso), e entraram o **B5(c)** (porta inicial sem a saturação, com o fator `c` varrido) e o **B2'(c)** (a mesma porta, congelada). Detalhes em [`docs/PROTOCOLO.md`](docs/PROTOCOLO.md) e no [ADR 017](docs/ADR/017-bracos-neurais-no-protocolo.md).
 
 ---
 
@@ -62,16 +64,25 @@ A soma dos quatro primeiros termos reconstitui, por construção, a diferença *
 ```
 tcc_rodrigo/
 ├── 📁 docs/
-│   ├── fontes/          proposta, pipeline e paper de referência
-│   ├── ADR/             decisões de projeto registradas
-│   ├── estudo_rodrigo/  material de estudo pessoal, inclui PERGUNTAS.md
-│   ├── DIARIO.md        progresso dia a dia
-│   └── PROTOCOLO.md     protocolo pré-registrado (congela na semana 11)
-├── 📁 src/tcc/          código do pipeline, um módulo por estágio
-├── 📁 tests/            testes automatizados
-├── 📁 scripts/          execuções avulsas (baselines, validações)
-├── 📁 notebooks/        exploração livre (não é entregável)
-└── 📁 results/          saída das execuções (só baselines versionados)
+│   ├── fontes/                       proposta, pipeline e paper de referência
+│   ├── ADR/                          decisões de projeto registradas (001 a 021)
+│   ├── estudo_rodrigo/               material de estudo pessoal, inclui PERGUNTAS.md
+│   ├── DIARIO.md                     progresso dia a dia
+│   ├── PROTOCOLO.md                  protocolo pré-registrado (provisório até o congelamento)
+│   ├── checklist_reprodutibilidade.md  os dez itens do pipeline e onde está a prova
+│   └── janelas_quimicas.md           bandas de atribuição química, com as fontes
+├── 📁 src/tcc/                       código do pipeline
+│   ├── data.py, protocol.py          dados e protocolo de avaliação (Estágios 0 e 1)
+│   ├── arms/                         braços clássicos e neurais (Estágios 2 e 3)
+│   ├── selection.py                  camada de seleção (Estágio 4)
+│   ├── grid.py                       executor da grade (Estágio 5)
+│   ├── metrics.py                    métricas (Estágio 6)
+│   └── decomposition.py              decomposição e TOST (Estágio 7)
+├── 📁 tests/                         testes automatizados
+├── 📁 scripts/                       execuções avulsas (medições, conferências, piloto)
+│   └── orientacao/                   scripts do orientador, guardados como chegaram
+├── 📁 notebooks/                     exploração livre (não é entregável)
+└── 📁 results/                       saída das execuções (só o que é citado fica versionado)
 ```
 
 ---
@@ -99,7 +110,32 @@ tcc_rodrigo/
 
 ## 🛠️ Stack
 
-`Python` · `NumPy` · `pandas` · `scikit-learn` · `matplotlib` · `Jupyter` · `pytest`
+`Python 3.12` · `NumPy` · `pandas` · `scikit-learn` · `SciPy` · `PyTorch` (CPU) · `statsmodels` · `R` + `rpy2` (`mdatools` para o iPLS, `GA` para o GA-PLS) · `pytest`
+
+---
+
+## ▶️ Como rodar
+
+O projeto roda no Linux (desenvolvido no Ubuntu do WSL).
+
+```bash
+python3.12 -m venv ~/venv-tcc && source ~/venv-tcc/bin/activate
+pip install -r requirements.txt
+```
+
+O iPLS e o GA-PLS usam o R (desenvolvido com o R 4.6.1), com os pacotes `mdatools` (0.16.0) e `GA` (3.2.5):
+
+```bash
+Rscript -e 'install.packages(c("mdatools", "GA"))'
+```
+
+Os testes (os dados são baixados na primeira execução):
+
+```bash
+python -m pytest
+```
+
+Os resultados dependem do número de threads; o protocolo fixa uma por processo (ver o ADR 017).
 
 ---
 
@@ -108,12 +144,16 @@ tcc_rodrigo/
 - [x] 🏗️ Estrutura do projeto
 - [x] 0️⃣ Protocolo de avaliação único
 - [x] 1️⃣ Camada de dados
-- [ ] 2️⃣ Braços clássicos *(iPLS, CARS, GA-PLS, VIP)*
-- [ ] 3️⃣ Braços neurais *(B1–B4)*
-- [ ] 4️⃣ Camada de seleção
-- [ ] 5️⃣ Executor da grade
-- [ ] 6️⃣ Métricas
-- [ ] 7️⃣ Decomposição + TOST
+- [x] 2️⃣ Braços clássicos *(iPLS, CARS, GA-PLS, VIP)*
+- [x] 3️⃣ Braços neurais *(B1–B5, com B2' e os dois B4)*
+- [x] 4️⃣ Camada de seleção
+- [x] 5️⃣ Executor da grade
+- [x] 6️⃣ Métricas
+- [x] 7️⃣ Decomposição + TOST
+- [ ] 📌 Congelamento do protocolo *(espera decisões da orientação)*
+- [ ] 🧮 Grade final
 - [ ] 8️⃣ Figuras e manuscrito
+
+Os resultados das partições 0–29 são **piloto** (reservadas a decisões de método); a grade final usa `seed_split` ≥ 100. O que falta para o congelamento está em [`docs/checklist_reprodutibilidade.md`](docs/checklist_reprodutibilidade.md).
 
 📌 Progresso detalhado em [`docs/DIARIO.md`](docs/DIARIO.md)

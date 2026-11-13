@@ -4865,3 +4865,18 @@ execuções de rede do Tecator com o código novo ficaram idênticas às de
 antes da receita; e, no Mango, o braço com a receita "até 2.000 épocas"
 refaz exatamente o laço à mão do diagnóstico (melhor época 1459, 1813 e
 1708; RMSE na fold de parada igual até a décima casa).
+
+### O checklist de reprodutibilidade e o README
+
+`docs/checklist_reprodutibilidade.md`: os dez itens do checklist do
+pipeline, cada um com onde está a prova. Sete feitos; dois em parte (a
+validação dos braços clássicos contra valores publicados, que só o CARS e o
+B4 têm, e o `k` pareado, cujo código existe mas a origem e a análise de
+sensibilidade não); e um que falta, o protocolo congelado com o δ declarado.
+
+O README estava desatualizado: o progresso ainda marcava os Estágios 2 a 7
+como não feitos, e dizia que os quatro primeiros termos somam B4 − A1,
+quando são os três primeiros (o Δ prior é contraste complementar, fora da
+soma, como o pipeline diz). Atualizei o progresso, os braços (B4-fiel e
+B4-limpo, B5 e B2'), a estrutura de pastas e as dependências, e acrescentei
+como rodar, com as versões do R e dos pacotes conferidas no ambiente.
