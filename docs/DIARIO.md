@@ -5072,3 +5072,44 @@ Seis testes novos e oito mutações, todas pegas (uma escapou na primeira
 rodada, porque o teste falhava antes de criar o arquivo temporário; o teste
 passou a simular uma gravação pela metade). Suíte inteira: 310 passaram, 1
 pulado. Notas nos ADRs 021 e 022.
+
+### A grade final montada, e um ensaio dela na partição piloto 0
+
+Cada parte da grade tinha sido conferida sozinha, mas a grade final, montada
+inteira, nunca tinha rodado. Escrevi a configuração dela em
+`src/tcc/final_grid.py`:
+- os quatro conjuntos;
+- os seis braços clássicos e os 23 de rede por conjunto (B1, B2, B3, os
+  dois B4 e as nove posições da grade de `c` no B2' e no B5, cada conjunto
+  com o seu `c_TOST`);
+- as partições e o eixo `seed_algo`.
+
+O que a orientação ainda não decidiu fica marcado "a decidir": o `c_TOST` e
+a receita do Mango, o número de partições, a partição e as sementes do eixo
+`seed_algo`. O modo final se recusa a montar a grade enquanto houver algum,
+e lista o que falta. Também se recusa a usar partição do piloto, e o ensaio
+se recusa a tocar as da grade final (≥ 100). 14 testes e 10 mutações, todas
+pegas.
+
+O ensaio (`scripts/rodar_grade_final.py ensaio`) roda a grade inteira na
+`seed_split` 0, com o eixo `seed_algo` nas sementes 0 a 2, no Tecator, no
+Gasoline e no Mango. O bioprocess fica de fora, porque uma partição dele
+leva ~3 h, e as 30 partições piloto dele testam esses braços. No Mango, as
+redes usam uma receita de nome "ensaio" com os valores da do artigo, para
+exercitar o caminho do nome com receita sem mudar número.
+
+Resultado, em 19,6 min com 4 processos: 243 de 243 execuções, nenhuma com
+erro, e nenhum problema nas conferências:
+- os 18 resultados clássicos iguais aos CSVs das 30 partições;
+- as 57 redes da varredura de `c` iguais à `varredura_c.csv`, inclusive as
+  do Mango com o nome `[ensaio]`: o nome da receita não muda nenhum número;
+- no Tecator, os 28 braços que a grade de conferência tem, iguais pelo
+  hash das predições;
+- nenhuma réplica idêntica;
+- a decomposição fecha nos três conjuntos (desvio da soma 0), com os nomes
+  de cada conjunto, inclusive os do Mango com a receita no nome;
+- o `k` pareado e o Jaccard no eixo `seed_algo` saem para os 25 braços que
+  selecionam.
+
+Quando a orientação decidir os valores, falta só preenchê-los em
+`final_grid.py` e rodar.

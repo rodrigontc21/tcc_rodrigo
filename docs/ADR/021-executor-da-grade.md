@@ -115,3 +115,13 @@ executor, corrigidos com teste:
 
 Nenhum número já medido muda: os nomes da grade de conferência já eram os
 dos braços, e nenhuma grade tinha rodado com outra receita.
+
+## A grade final montada (16/11/2026)
+
+A configuração da grade final está em `src/tcc/final_grid.py`, com o que
+ainda depende da orientação marcado "a decidir" (o `c_TOST` e a receita do
+Mango, o número de partições e o eixo `seed_algo`); o modo final se recusa
+a rodar enquanto houver algum. Um ensaio na partição piloto 0
+(`scripts/rodar_grade_final.py ensaio`: Tecator, Gasoline e Mango, 243
+execuções) rodou sem erro e reproduziu os resultados já medidos. Detalhes
+no DIARIO de 16/11.

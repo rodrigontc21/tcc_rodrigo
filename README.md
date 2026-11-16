@@ -76,6 +76,7 @@ tcc_rodrigo/
 │   ├── arms/                         braços clássicos e neurais (Estágios 2 e 3)
 │   ├── selection.py                  camada de seleção (Estágio 4)
 │   ├── grid.py                       executor da grade (Estágio 5)
+│   ├── final_grid.py                 configuração da grade final
 │   ├── metrics.py                    métricas (Estágio 6)
 │   ├── windows.py                    janelas químicas, com as fontes
 │   ├── decomposition.py              decomposição e TOST (Estágio 7)
