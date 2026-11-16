@@ -96,3 +96,22 @@ corrigidas. Suíte inteira: 257 passaram, 1 pulado.
 - **a cadeia inteira** (grade → leitura → métricas → decomposição) dá os
   mesmos números tirados por fora do executor. Detalhes no DIARIO de 13/11.
 
+## Revisão (16/11/2026)
+
+A revisão do caminho inteiro (DIARIO de 16/11) achou três pontos no
+executor, corrigidos com teste:
+- **receita de treino no arquivo:** um argumento de fábrica que é dataclass
+  (a `TrainRecipe`) não ia para o JSON, e o erro derrubava a grade inteira
+  na primeira rede com receita diferente da do artigo. Agora grava os
+  campos da receita;
+- **nome conferido:** o arquivo grava o nome da especificação, e a seleção
+  (`paired_k`) e a decomposição procuram o nome que o braço dá a si mesmo.
+  Se diferem, a execução falha com arquivo de erro, em vez de o braço
+  sumir dessas contas sem aviso. Um braço com outra receita se chama
+  `gate_prior[receita]`, e a decomposição vai precisar saber esse nome no
+  Mango, quando a receita for decidida;
+- **falha ao gravar** uma execução vira erro só daquela execução, sem
+  sobrar arquivo temporário.
+
+Nenhum número já medido muda: os nomes da grade de conferência já eram os
+dos braços, e nenhuma grade tinha rodado com outra receita.

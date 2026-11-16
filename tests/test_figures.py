@@ -70,6 +70,31 @@ def test_waterfall_colors_by_sign_and_references_in_gray():
     assert cores == [F.CINZA, F.AZUL, F.LARANJA, F.AZUL, F.CINZA]
 
 
+def test_waterfall_colors_by_improvement_when_lower_is_better():
+    # No RMSEP um termo positivo é piora: laranja, não azul (revisão de 16/11).
+    fig = F.waterfall(2.0, {"nao_lin": 0.3, "ponderacao": -0.2, "aprendizado": 0.0},
+                      metric="RMSEP")
+    cores = [_cor(p) for p in sorted(_barras(fig.axes[0]), key=lambda p: p.get_x())]
+    assert cores[1:3] == [F.LARANJA, F.AZUL]
+
+
+def test_figures_refuse_a_metric_of_unknown_direction():
+    with pytest.raises(ValueError, match="higher_is_better"):
+        F.waterfall(1.0, TERMOS, metric="MAE")
+    with pytest.raises(ValueError, match="higher_is_better"):
+        F.decomposition_by_regime({"a": TERMOS}, {"a": 10}, metric="MAE")
+    fig = F.waterfall(1.0, TERMOS, metric="MAE", higher_is_better=False)
+    cores = [_cor(p) for p in sorted(_barras(fig.axes[0]), key=lambda p: p.get_x())]
+    assert cores[1:4] == [F.LARANJA, F.AZUL, F.LARANJA]
+
+
+def test_decomposition_by_regime_colors_by_improvement_when_lower_is_better():
+    fig = F.decomposition_by_regime({"a": {"nao_lin": 0.3, "ponderacao": -0.2, "aprendizado": 0.1}},
+                                    {"a": 10}, metric="RMSEP")
+    cores = [_cor(p) for p in sorted(fig.axes[0].patches, key=lambda p: p.get_x())]
+    assert cores == [F.LARANJA, F.AZUL, F.LARANJA]
+
+
 def test_waterfall_labels_each_term_with_sign():
     fig = F.waterfall(0.90, TERMOS)
     assert _textos(fig.axes[0]) == ["+0.0040", "-0.0030", "+0.0020"]

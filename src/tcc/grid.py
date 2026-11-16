@@ -24,6 +24,7 @@ orientação em 12/11), fixada no ambiente antes de os processos nascerem.
 
 from __future__ import annotations
 
+import dataclasses
 import hashlib
 import importlib
 import json
@@ -149,6 +150,11 @@ def provenance() -> dict:
 
 
 def _jsonable(x):
+    # Argumento de fábrica que é dataclass, como a receita de treino
+    # (`TrainRecipe`): grava os campos. Sem isso a grade parava na primeira
+    # rede com receita diferente da do artigo (revisão de 16/11).
+    if dataclasses.is_dataclass(x) and not isinstance(x, type):
+        return _jsonable(dataclasses.asdict(x))
     if isinstance(x, np.ndarray):
         return x.tolist()
     if isinstance(x, (np.floating, np.integer, np.bool_)):
@@ -171,7 +177,15 @@ def _dataset(name: str):
 def run_task(task: Task) -> dict:
     """Uma execução, num processo próprio. Devolve o registro a gravar."""
     from tcc.protocol import evaluate
-    r = evaluate(task.arm.build(), _dataset(task.dataset),
+    arm = task.arm.build()
+    # O arquivo grava o nome da especificação, e a seleção (`paired_k`) e a
+    # decomposição (`ARMS`) procuram o nome que o braço dá a si mesmo. Se os
+    # dois diferem, o braço some dessas contas sem aviso: aqui a execução
+    # falha, com arquivo de erro (revisão de 16/11).
+    if arm.name != task.arm.name:
+        raise ValueError(f"nome na grade {task.arm.name!r} diferente do nome do braço "
+                         f"{arm.name!r}")
+    r = evaluate(arm, _dataset(task.dataset),
                  seed_split=task.seed_split, seed_algo=task.seed_algo)
     return {
         "run_id": task.run_id, "dataset": task.dataset, "arm": task.arm.name,
@@ -215,7 +229,12 @@ def run_grid(spec: GridSpec, out_dir: Path, processes: int = 4, log=print) -> di
             for fut in as_completed([ex.submit(_safe, t) for t in pending]):
                 task, record, error = fut.result()
                 if error is None:
-                    _write_atomic(out_dir / f"{task.run_id}.json", record)
+                    try:
+                        _write_atomic(out_dir / f"{task.run_id}.json", record)
+                    except Exception:  # noqa: BLE001 — gravar uma célula não derruba a grade
+                        error = traceback.format_exc()
+                        out_dir.joinpath(f"{task.run_id}.tmp").unlink(missing_ok=True)
+                if error is None:
                     erro = out_dir / f"{task.run_id}.erro.txt"
                     if erro.exists():
                         erro.unlink()

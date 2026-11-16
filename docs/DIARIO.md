@@ -4989,3 +4989,86 @@ superassinada. Mediana por partição, antes e agora: PLS 376 → 72 s; iPLS
 fiel 664 → 125 s. O `wall_time` é resultado declarado, então fica o CSV
 novo, medido como o protocolo manda. O iPLS quase não muda porque o R já
 rodava com uma thread.
+
+## 2026-11-16
+
+### Quanto a grade final deve custar (estimativa)
+
+Uma conta com os tempos já medidos, sem rodar nada novo, para planejar a
+grade final e levar à orientação. É estimativa, não medida.
+
+**Por partição, os braços clássicos em sequência** (mediana; Tecator,
+Gasoline e Mango das 30 partições com 1 thread por processo):
+- Tecator: 0,7 min;
+- Gasoline: 1,1 min;
+- Mango: 32,7 min, dos quais o iPLS leva 18 min e o CARS 8,5 min;
+- Bioprocess: só a `seed_split` 0 foi medida, braço a braço. O iPLS levou
+  9.059 s (28/10) e o GA-PLS 480 s; o PLS levou 275 s. O iPLS e o PLS
+  rodaram com o Mango ao mesmo tempo, então podem estar inflados. O CARS e o VIP nunca foram medidos no
+  bioprocess. Estimando pela proporção do Mango (o CARS custa 7 vezes o
+  PLS, o CARS fiel 1,7 vez), a partição fica entre 2h40 (só o iPLS e o
+  GA-PLS, que foram medidos) e umas 3h30.
+
+**Os braços neurais pesam pouco:** pela varredura de `c`, um treino leva
+0,2 s no Tecator e no Gasoline, 2,5 s no Mango e 13 s no bioprocess. Os 23
+treinos de uma partição (B1, B2, B3, os dois B4 e as 9 posições da grade de
+`c` no B2' e no B5) somam uns 5 min no bioprocess e 1 min no Mango.
+
+**A grade com 100 partições e 4 processos:**
+
+| conjunto | horas |
+|---|---|
+| Tecator e Gasoline | menos de 1 |
+| Mango | ~15 (a medida das 30 partições foi 4h35) |
+| Bioprocess | ~70 a 90 |
+| **total** | **~85 a 105** |
+
+O iPLS do bioprocess sozinho dá umas 63 h, cerca de dois terços da grade
+inteira. O eixo `seed_algo` depende de quantas sementes forem declaradas:
+com 10, os braços estocásticos (GA-PLS, os dois CARS e as redes) somam umas
+3 h a mais. Rodando só de noite, umas 10 noites; rodando direto, uns 4
+dias.
+
+Isso reforça a pergunta que já está com a orientação: aceitar o custo do
+iPLS no bioprocess, ou reduzir a faixa de `int_num` ou a busca. As 30
+partições piloto do bioprocess, que vou rodar agora, medem o CARS e o VIP e
+deixam a conta mais firme.
+
+### Revisão do caminho inteiro, do dado à figura
+
+Cada estágio foi conferido sozinho; faltava olhar as emendas entre eles,
+antes da grade final, que é cara de refazer. Li `evaluate()`, o executor,
+a seleção, as métricas, a decomposição e as figuras procurando onde a
+saída de um não casa com a entrada do outro. Três problemas, nenhum em
+número já medido, porque aparecem em situações que ainda não rodaram:
+
+1. **A grade quebrava com outra receita de treino.** O executor grava os
+   argumentos da fábrica no JSON, e a receita (`TrainRecipe`) não é
+   serializável: rodei e deu `TypeError`. O erro acontecia no processo
+   principal, então derrubava a grade inteira, e não só aquela execução, na
+   primeira rede do Mango quando a receita dele for decidida. Corrigido: a
+   receita é gravada pelos campos, e uma falha ao gravar vira erro só da
+   execução, sem sobrar arquivo temporário.
+2. **Nome do braço.** O arquivo grava o nome que o script dá ao braço; o `k`
+   pareado e a decomposição procuram o nome que o braço dá a si mesmo. Hoje
+   batem (conferi a grade de conferência inteira), mas se não batessem o `k`
+   sairia de menos braços sem aviso. Agora a execução falha, com arquivo de
+   erro. Fica uma decisão para quando houver receita do Mango: o braço com
+   outra receita se chama `gate_prior[receita]`, e a decomposição vai
+   precisar desse nome no Mango.
+3. **Cores da cascata.** Azul era termo positivo. No R² está certo, mas o
+   protocolo declara o δ pelo RMSEP, em que menor é melhor: um termo
+   positivo é piora e sairia azul. Agora a cor segue o sentido da métrica
+   (melhora azul, piora laranja), e métrica de sentido desconhecido é
+   recusada até o sentido ser dito.
+
+Duas observações sem correção: a primeira chamada ao R em cada processo
+carrega o pacote (1,2 s no iPLS) dentro do tempo medido daquela execução,
+o que a mediana do custo absorve; e a decomposição recusa a pasta inteira
+da grade final, porque o eixo `seed_algo` repete braços na mesma partição
+(de propósito: como reduzir as sementes é a pergunta 8 do protocolo).
+
+Seis testes novos e oito mutações, todas pegas (uma escapou na primeira
+rodada, porque o teste falhava antes de criar o arquivo temporário; o teste
+passou a simular uma gravação pela metade). Suíte inteira: 310 passaram, 1
+pulado. Notas nos ADRs 021 e 022.

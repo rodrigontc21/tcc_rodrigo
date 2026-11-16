@@ -152,9 +152,13 @@ Os resultados dependem do número de threads; o protocolo fixa uma por processo 
 - [x] 5️⃣ Executor da grade
 - [x] 6️⃣ Métricas
 - [x] 7️⃣ Decomposição + TOST
+- [x] 8️⃣ Código das figuras *(testado; as figuras finais saem da grade final)*
 - [ ] 📌 Congelamento do protocolo *(espera decisões da orientação)*
 - [ ] 🧮 Grade final
-- [ ] 8️⃣ Figuras e manuscrito *(código das figuras pronto e testado; as figuras finais saem da grade final)*
+
+Os itens não têm o mesmo tamanho. O que está marcado é o código, testado e conferido contra referências externas. Os dois que faltam são os mais pesados:
+- o **congelamento** depende das decisões da orientação, que podem pedir mudanças no código;
+- a **grade final** são dias de processamento. Só os braços clássicos do Mango nas 30 partições do piloto levaram 4h35 com 4 processos, e a grade final usa ≥ 100 partições nos quatro conjuntos, com os braços neurais e o eixo `seed_algo`.
 
 Os resultados das partições 0–29 são **piloto** (reservadas a decisões de método); a grade final usa `seed_split` ≥ 100. O que falta para o congelamento está em [`docs/checklist_reprodutibilidade.md`](docs/checklist_reprodutibilidade.md).
 

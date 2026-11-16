@@ -56,6 +56,26 @@ def _num(v: float) -> str:
     return f"{v:.2g}".replace(".", ",")
 
 
+# Sentido de cada métrica: no R² maior é melhor; nos erros, menor é melhor.
+MAIOR_E_MELHOR = {"R²": True, "R2": True, "RMSEP": False, "RMSE": False, "RMSECV": False}
+
+
+def _sentido(metric: str, higher_is_better: bool | None) -> bool:
+    """Se aumentar a métrica é melhorar. Métrica fora da tabela precisa do
+    `higher_is_better` explícito: a cor da cascata depende disso, e com o
+    RMSEP um termo positivo é piora (revisão de 16/11)."""
+    if higher_is_better is not None:
+        return higher_is_better
+    if metric not in MAIOR_E_MELHOR:
+        raise ValueError(f"sentido da métrica {metric!r} desconhecido: passe higher_is_better")
+    return MAIOR_E_MELHOR[metric]
+
+
+def _cor_do_termo(d: float, maior_melhor: bool) -> str:
+    """Azul se o termo melhora (ou não muda), laranja se piora."""
+    return AZUL if (d >= 0 if maior_melhor else d <= 0) else LARANJA
+
+
 def _fig(w=7.0, h=4.0, ncols=1, sharey=False):
     fig, axes = plt.subplots(1, ncols, figsize=(w, h), sharey=sharey, squeeze=False)
     fig.patch.set_facecolor(SUPERFICIE)
@@ -64,22 +84,24 @@ def _fig(w=7.0, h=4.0, ncols=1, sharey=False):
     return fig, list(axes[0])
 
 
-def waterfall(a1: float, terms: dict[str, float], *, metric: str = "R²", title: str = ""):
+def waterfall(a1: float, terms: dict[str, float], *, metric: str = "R²",
+              higher_is_better: bool | None = None, title: str = ""):
     """Cascata: A1, depois cada termo aditivo empilhado, até B4 = A1 + soma.
 
     `terms` traz as **médias** de "nao_lin", "ponderacao" e "aprendizado",
     e `a1` a média do A1. Mediana não serve: não é aditiva, e a barra do B4
     (A1 + soma) deixaria de ser o B4 (no piloto do Tecator, 0,97088 contra
-    0,97305 de mediana real). Aumento em azul, queda em laranja; A1 e B4 em
-    cinza.
+    0,97305 de mediana real). Melhora em azul, piora em laranja, pelo
+    sentido da métrica (`MAIOR_E_MELHOR`); A1 e B4 em cinza.
     """
+    maior_melhor = _sentido(metric, higher_is_better)
     fig, (ax,) = _fig()
     nivel = a1
     rotulos = ["A1\n(PLS)"]
     ax.bar(0, a1, color=CINZA, width=0.6)
     for i, (chave, rot) in enumerate(TERMOS, start=1):
         d = terms[chave]
-        ax.bar(i, d, bottom=nivel, color=AZUL if d >= 0 else LARANJA, width=0.6,
+        ax.bar(i, d, bottom=nivel, color=_cor_do_termo(d, maior_melhor), width=0.6,
                edgecolor=SUPERFICIE, linewidth=2)
         # deslocamento em pontos, não em unidades da métrica: serve para R² e RMSE
         ax.annotate(f"{d:+.4f}", (i, nivel + d), xytext=(0, 3 if d >= 0 else -3),
@@ -246,14 +268,16 @@ def cost(costs: dict[str, float], *, label: str = "tempo por execução (s, medi
 
 
 def decomposition_by_regime(by_dataset: dict[str, dict[str, float]], n_samples: dict[str, int],
-                            *, metric: str = "R²", title: str = ""):
+                            *, metric: str = "R²", higher_is_better: bool | None = None,
+                            title: str = ""):
     """Os três termos aditivos por conjunto (médias, como na cascata), os
-    conjuntos em ordem de n."""
+    conjuntos em ordem de n. Cores pelo sentido da métrica, como na cascata."""
+    maior_melhor = _sentido(metric, higher_is_better)
     conjuntos = sorted(by_dataset, key=lambda d: n_samples[d])
     fig, axes = _fig(w=2.4 * len(conjuntos) + 1, h=3.6, ncols=len(conjuntos), sharey=True)
     for ax, ds in zip(axes, conjuntos):
         vals = [by_dataset[ds][k] for k, _ in TERMOS]
-        ax.bar(range(3), vals, color=[AZUL if v >= 0 else LARANJA for v in vals], width=0.6,
+        ax.bar(range(3), vals, color=[_cor_do_termo(v, maior_melhor) for v in vals], width=0.6,
                edgecolor=SUPERFICIE, linewidth=2)
         ax.axhline(0, color=CINZA, linewidth=1)
         ax.set_xticks(range(3), ["não-lin.", "ponder.", "aprend."], fontsize=8)

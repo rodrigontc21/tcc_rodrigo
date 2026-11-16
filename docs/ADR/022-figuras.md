@@ -40,7 +40,10 @@ uma rodada com o piloto só para olhar.
 - **Cores:** azul (#2a78d6) e laranja (#eb6834), validados juntos para as
   três formas de daltonismo; cinza para o que é referência (A1 e B4 na
   cascata, faixa ±δ, janelas químicas); texto sempre em tinta neutra, nunca
-  na cor da série. Na cascata e por regime, azul é ganho e laranja é perda;
+  na cor da série. Na cascata e por regime, azul é melhora e laranja é
+  piora, pelo sentido da métrica: no R² um termo positivo melhora, no
+  RMSEP piora (corrigido na revisão de 16/11; antes a cor seguia só o
+  sinal, e com o RMSEP a figura pintaria piora de azul);
   na figura 3, azul é braço clássico e laranja é rede, com legenda.
 - **Números escritos na figura em formato brasileiro** (vírgula decimal)
   onde o texto é nosso: rótulos de custo e eixo log.

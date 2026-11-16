@@ -143,6 +143,52 @@ def test_a_failing_task_is_recorded_and_retried(tmp_path):
     assert again["skipped"] == 1 and again["failed"] == 1  # tenta de novo
 
 
+def test_an_arm_with_another_recipe_is_written_and_read(tmp_path):
+    # A receita (dataclass) ia para o JSON como objeto e derrubava a grade
+    # inteira na primeira rede com receita diferente da do artigo (16/11).
+    from tcc.arms.gate import TrainRecipe
+    rec = TrainRecipe(name="curta", max_epochs=3, patience=3)
+    arm = ArmSpec("gate_prior[curta]", "tcc.arms.gate:gate_prior", kwargs=(("recipe", rec),))
+    spec = GridSpec(datasets=["tecator"], arms=[arm], seed_splits=[0])
+    assert run_grid(spec, tmp_path, processes=1, log=quiet)["done"] == 1
+    d = json.loads((tmp_path / "tecator__gate_prior[curta]__s0__a0.json").read_text(encoding="utf-8"))
+    assert d["arm_kwargs"]["recipe"]["name"] == "curta"
+    assert d["arm_kwargs"]["recipe"]["max_epochs"] == 3
+    (r,) = load_results(tmp_path)
+    assert r.arm_name == "gate_prior[curta]" and r.hyperparams["recipe"] == "curta"
+
+
+def test_a_spec_name_different_from_the_arm_name_fails_the_cell(tmp_path):
+    # A seleção e a decomposição procuram o nome que o braço dá a si mesmo;
+    # com outro nome no arquivo, o braço sumia dessas contas sem aviso.
+    spec = GridSpec(datasets=["tecator"], arms=[MEAN, ArmSpec("b4", "tcc.arms.gate:gate_prior")],
+                    seed_splits=[0])
+    counts = run_grid(spec, tmp_path, processes=1, log=quiet)
+    assert counts["done"] == 1 and counts["failed"] == 1
+    erro = (tmp_path / "tecator__b4__s0__a0.erro.txt").read_text(encoding="utf-8")
+    assert "'b4'" in erro and "'gate_prior'" in erro
+    assert not (tmp_path / "tecator__b4__s0__a0.json").exists()
+
+
+def test_a_record_that_cannot_be_written_fails_only_its_cell(tmp_path, monkeypatch):
+    import tcc.grid as grid
+    original = grid._write_atomic
+
+    def falha_no_pls(path, record):
+        if "pls_full" in path.name:
+            path.with_suffix(".tmp").write_text("{", encoding="utf-8")  # gravação pela metade
+            raise OSError("disco cheio")
+        original(path, record)
+
+    monkeypatch.setattr(grid, "_write_atomic", falha_no_pls)
+    spec = GridSpec(datasets=["tecator"], arms=[MEAN, PLS], seed_splits=[0, 1])
+    counts = run_grid(spec, tmp_path, processes=1, log=quiet)
+    assert counts["done"] == 2 and counts["failed"] == 2
+    assert len(list(tmp_path.glob("tecator__mean__*.json"))) == 2
+    assert len(list(tmp_path.glob("tecator__pls_full__*.erro.txt"))) == 2
+    assert not list(tmp_path.glob("*.tmp"))
+
+
 # --- réplicas idênticas -------------------------------------------------------------
 
 def test_the_real_grid_has_no_identical_replicas(ran):
