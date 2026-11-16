@@ -25,6 +25,7 @@ mesmo dia.
 | `verify_wd_on_gate.py` | 30/10/2026 | se o deslocamento da porta é aprendizado ou decaimento de peso | `a7bf6f2093c02356b5b3d1304229c25f6ee31a9978b889ccfb174677ed2853b2` |
 | `verify_tecator_replicates.py` | 09/11/2026 | as réplicas do Tecator (regra das três relações, ADR 009) | `90a8da2aa75291a5c9c3ad3eec2d6a751aa00fb140c56a17b79814bf8131fe50` |
 | `verify_b5_logit_scale.py` | 12/11/2026 | a varredura do fator `c` dos logits iniciais do B5 | `9ba78973b41d12a992e2e7a6fc58351b5e5492f40deab438d952e551575a1bca` |
+| `verify_plateau_vs_gate.py` | 16/11/2026 | se o platô do começo do treino vem da concentração da porta (varre o `c`) | `5c498be972296e0e43915c09ad56c1f45eecf803d50b83c10e2f97cc669268dc` |
 
 ## Onde e como rodaram aqui
 
@@ -44,6 +45,9 @@ com o ambiente virtual `~/venv-tcc` (Python 3.12.3).
   números da orientação (ADR 009, adendo de 10/11). As versões dos pacotes
   não foram anotadas no dia; o ambiente em 12/11 tinha torch 2.14.1+cpu,
   numpy 2.5.2, scikit-learn 1.9.0, pandas 3.0.5 e scipy 1.18.0.
+- **`verify_plateau_vs_gate.py`:** ainda não rodado aqui. Os números dele
+  são da máquina do orientador (Tecator e Gasoline, 10 sementes) e entram
+  no PROTOCOLO como o motivo medido da ressalva entre valores de `c`.
 - **`verify_b5_logit_scale.py`:** ainda não rodado aqui. Os números dele são
   da máquina do orientador e são piloto (PROTOCOLO, seção do B5).
 

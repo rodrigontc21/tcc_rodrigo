@@ -20,6 +20,9 @@ Uso:
       padrão: 1 processo, sementes 0 a 29. Acrescenta as linhas em
       results/bracos_<conjunto>_30_particoes.csv; partições e braços que já
       estão no CSV são pulados, então dá para interromper e retomar.
+      `--sem <braço>` (repetível) deixa um braço para outra rodada; por
+      exemplo `--sem ipls` no bioprocess, onde ele sozinho leva ~2h30 por
+      partição. Rodando de novo sem a opção, só o que falta é rodado.
   python -B rodar_bracos_30_particoes.py resumo <conjunto>
 """
 
@@ -93,16 +96,24 @@ def uma_particao(conjunto, s, pular):
     return s, linhas
 
 
-def rodar(conjunto, processos, primeira, ultima):
+def rodar(conjunto, processos, primeira, ultima, sem=()):
+    # `sem`: braços deixados para outra rodada (no bioprocess, o iPLS, que
+    # leva ~2h30 por partição, para os outros cinco caberem numa janela
+    # curta). Os que faltarem são rodados depois; nenhum número muda.
+    sem = set(sem)
+    if not sem <= set(ORDEM):
+        raise ValueError(f"braço desconhecido em --sem: {sorted(sem - set(ORDEM))}")
+    alvo = set(ORDEM) - sem
     feitos = {}
     for r in ler(conjunto):
         feitos.setdefault(int(r["seed_split"]), set()).add(r["braco"])
     tarefas = [s for s in range(primeira, ultima + 1)
-               if feitos.get(s, set()) != set(ORDEM)]
+               if not alvo <= feitos.get(s, set())]
     p = saida(conjunto)
     novo = not p.exists()
     print(f"{conjunto}: seed_split {primeira} a {ultima}, {len(tarefas)} partições "
-          f"a rodar, {processos} processo(s), {THREADS} thread(s) por processo",
+          f"a rodar, {processos} processo(s), {THREADS} thread(s) por processo"
+          + (f", sem {', '.join(sorted(sem))}" if sem else ""),
           flush=True)
     t0 = time.time()
     with open(p, "a", newline="", encoding="utf-8") as f:
@@ -112,7 +123,7 @@ def rodar(conjunto, processos, primeira, ultima):
             f.flush()
         with ProcessPoolExecutor(max_workers=processos,
                                  mp_context=mp.get_context("spawn")) as ex:
-            futuros = [ex.submit(uma_particao, conjunto, s, feitos.get(s, set()))
+            futuros = [ex.submit(uma_particao, conjunto, s, feitos.get(s, set()) | sem)
                        for s in tarefas]
             for fut in as_completed(futuros):
                 s, linhas = fut.result()
@@ -158,10 +169,15 @@ def resumo(conjunto):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) >= 3 and sys.argv[1] == "rodar":
-        a = sys.argv[3:]
-        rodar(sys.argv[2], int(a[0]) if a else 1,
-              int(a[1]) if len(a) > 1 else 0, int(a[2]) if len(a) > 2 else 29)
+    argv, sem = list(sys.argv), []
+    while "--sem" in argv:
+        i = argv.index("--sem")
+        sem.append(argv[i + 1])
+        del argv[i:i + 2]
+    if len(argv) >= 3 and argv[1] == "rodar":
+        a = argv[3:]
+        rodar(argv[2], int(a[0]) if a else 1,
+              int(a[1]) if len(a) > 1 else 0, int(a[2]) if len(a) > 2 else 29, sem=sem)
     elif len(sys.argv) >= 3 and sys.argv[1] == "resumo":
         resumo(sys.argv[2])
     else:

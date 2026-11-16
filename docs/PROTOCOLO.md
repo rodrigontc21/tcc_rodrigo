@@ -515,6 +515,14 @@ Seção 5) ficam como estão. O ajuste é este:
   a mesma (o prior é calculado uma vez sobre o treino); entre partições o
   prior é recalculado em cada treino, e o quanto ele varia de uma partição
   para outra ainda não foi medido — é a primeira coisa a medir no piloto.
+  **Adendo de 16/11/2026: medido, e fechado pela orientação.** Jaccard do
+  top-10 do prior entre pares de partições com mediana de 0,67 a 1,00,
+  de 12 a mais de 300 vezes o acaso, e correlação acima de 0,95 (DIARIO de
+  12/11, "Quanto o prior muda entre partições"). **Por isso a H5 é lida
+  contra três referências** (orientação, 16/11): o Jaccard do prior, que é
+  a linha de base pré-declarada; o da porta; e o do B3, o piso sem prior.
+  Não contra o acaso: comparar a porta contra o acaso é o erro que esta
+  reinterpretação corrige.
   O mesmo raciocínio vale para a H6: a vantagem do B4 sobre o B3 em
   reprodutibilidade pode vir da saturação do prior, e não de aprendizado. A
   leitura de H5 e H6 passa a exigir a comparação com o B5, abaixo: só a
@@ -566,6 +574,13 @@ dois braços, como a orientação sugeriu:
 
 Onde este protocolo diz só "B4" (H6, `R²(B5) − R²(B4)`), vale o
 B4-limpo, salvo na comparação contra o artigo, que usa o B4-fiel.
+
+**"Fiel" não quer dizer "fiel ao artigo em tudo"** (orientação, 16/11/2026).
+Dentro deste protocolo, o B4-fiel difere do B4-limpo **só** pelo L2 na
+porta, e é só para isso que ele existe: usa a mesma fold de parada interna
+e a mesma melhor época dos outros braços. A reprodução fiel do artigo vive
+no modo da literatura (paciência no teste, última época), que é onde está a
+do critério 2 do Estágio 3.
 
 O MLP tem decaimento 1e-4 em todos os braços. **Em aberto:** a mesma
 questão vale para os outros braços de porta treinável. No B5 e no B3, o
@@ -642,6 +657,28 @@ tendendo ao B3. Restrições de pré-registro:
 - a grade de `c` é declarada antes de rodar (declarada abaixo, em 12/11);
 - **um** valor por conjunto é o do TOST: o do critério com a porta isenta;
   o resto da curva é contexto, não escolha a posteriori.
+
+**Comparar no mesmo `c` é limpo; entre valores de `c`, com ressalva**
+(orientação, 16/11/2026, com o motivo medido por ela). O B5(c) e o B2'(c)
+partem da mesma porta inicial e enfrentam o mesmo começo de treino, então
+todo Δ e o TOST, que comparam braços no mesmo `c`, estão a salvo. O nível
+da curva entre valores de `c`, e o B4 contra o B3, não estão, por dois
+motivos:
+- **a parada interage com a concentração da porta.** No Tecator e no
+  Gasoline (`scripts/orientacao/verify_plateau_vs_gate.py`, 10 sementes,
+  com o desenho deste protocolo), o platô das épocas 1 a 20 aparece em todo
+  `c`, inclusive em `c` = 0: é propriedade da receita, não da porta. Mas a
+  melhor época cai dentro da janela da paciência em 0 de 10 sementes com
+  `c` = 1 e em 10 a 50% delas com `c` < 1, e no Tecator o ajuste de treino
+  piora quando a porta achata (R² de treino 0,918 em `c` = 1, de 0,41 a
+  0,85 abaixo), sem mecanismo isolado;
+- **o `c` move duas coisas ao mesmo tempo.** O softmax soma 1 sobre as
+  bandas, então a porta achatada divide toda entrada por `p` (a massa no
+  topo em `c` = 0 é 0,0100 no Tecator e 0,0025 no Gasoline): o `c` muda a
+  concentração e a amplitude por banda juntas, e sob a normalização softmax
+  as duas não se separam.
+
+Declarado, e sem braço novo por isso.
 
 **A grade de `c` (declarada em 12/11/2026, antes de qualquer execução do
 B5 sob este protocolo).**

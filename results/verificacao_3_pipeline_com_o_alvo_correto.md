@@ -234,6 +234,14 @@ certa:
 A causa acima não as explica. A diferença de ambiente que aparece na Plain
 CNN é candidata plausível, mas não foi medida nessas duas linhas.
 
+**Adendo de 16/11/2026: as threads, medidas.** Em 12/11, ao reproduzir o B4
+contra o código do artigo, o número de threads mudou o resultado do treino:
+na água, 0,922 com 8 threads (exatamente o número desta seção) e 0,916 com
+uma (DIARIO de 12/11, "O B4 contra o artigo"). Isso explica **em parte** a
+linha do ANOVA em teste único: é uma fonte de variação de ambiente agora
+medida, da ordem certa e no modelo certo. **Não fecha** a diferença contra
+os 0,932 da orientação, que fica fora das duas. A linha continua aberta.
+
 ### Ressalvas obrigatórias sobre estes números
 
 1. **Nenhuma linha desta tabela é medida limpa de desempenho.** Os braços de

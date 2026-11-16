@@ -5135,3 +5135,89 @@ e se o site recusar explica o download manual (o arquivo, a página da
 versão 6 e onde pôr), sem deixar arquivo pela metade; o hash continua
 conferido. O README diz o mesmo. Dois testes novos: o download recusado, e
 um arquivo com hash errado recusado.
+
+### Bioprocess, os cinco braços sem o iPLS (partições 0 a 3)
+
+Com duas horas livres à tarde, acrescentei ao script das 30 partições a
+opção `--sem <braço>`, para rodar os outros cinco braços sem o iPLS, que
+sozinho leva ~2h30 por partição. Rodando depois sem a opção, só o que falta
+é rodado. Conferido numa cópia, no Tecator, partições 0 a 3: sem o iPLS,
+de novo (nada a rodar) e completa (só o iPLS); os 24 valores iguais ao CSV.
+
+O processo foi encerrado de fora por volta das 16h28, ligado à sessão em
+que rodava, com as partições 0 a 3 gravadas (20 linhas) e a leva seguinte
+perdida. Na próxima vez roda desligado da sessão. Saíram os tempos que
+faltavam no bioprocess, mediana de 4 partições: PLS 314 s, VIP 332 s,
+GA-PLS 475 s, CARS 1.715 s e CARS fiel 663 s, uns 58 min por partição.
+Com o iPLS (9.059 s em 28/10, medido com outro processo rodando junto), a
+partição fica em ~3h30, no topo da faixa da estimativa de hoje.
+
+### A resposta da orientação (16/11)
+
+Mandei uma mensagem curta lembrando a receita do Mango, e a orientação
+respondeu as mensagens de 12/11 em dez itens, com um script novo,
+`verify_plateau_vs_gate.py`, guardado em `scripts/orientacao/` byte a
+byte (SHA-256 igual ao do arquivo recebido). Em resumo:
+1. **Receita do Mango:** é um parâmetro escolhido por conjunto, como o H\*
+   do PLS, por procedimento declarado na fold de parada. Só candidatos de
+   lote único (mini-lote muda o orçamento de passos, que é o objeto da
+   tese); escolha pela regra de um erro-padrão, ficando com o mais barato;
+   filtro de admissibilidade declarado antes de rodar (a faixa de
+   `d_s / g_s`, que no Mango é 70×, contra 1,5× a 3,4× nos outros, e
+   nenhum treino com a melhor época na janela da paciência). Ordem:
+   receita, `c_TOST` dos quatro conjuntos, varredura, congelamento.
+2. **A minha hipótese do platô estava errada, e ao contrário.** A
+   orientação mediu no Tecator e no Gasoline: o platô aparece em todo `c`,
+   então vem da receita; e a ponta saturada (`c` = 1) é a que nunca para
+   cedo. Comparar no mesmo `c` é limpo; entre valores de `c`, com ressalva.
+   Previsão para eu conferir no Mango: as paradas precoces no `c` baixo.
+3. **Ficar com a reimplementação,** sem copiar o código do artigo.
+4. **Melhor época, sim,** e uma frase sobre o que "B4-fiel" quer dizer.
+5. **A fold de parada muda:** reajuste no treino inteiro, no número de
+   passos escolhido (`n_fits` = 2), com o `d` do reajuste. Sem isso, a rede
+   treinaria em 80% do treino e os clássicos em 100%, um viés a favor da
+   conclusão deste trabalho.
+6. **`c_TOST` confirmado.**
+7. **VIP no Mango:** o limiar escolhido é 0,8, o menor da grade (borda).
+   Aviso de borda em todo hiperparâmetro escolhido de grade, e alargar a
+   grade do VIP agora, antes da grade final.
+8. **H5 com o Jaccard do prior como linha de base: sim,** com três
+   referências (prior, porta e B3), e o item do prior entre partições
+   fechado.
+9. **Gasoline +0,0014:** sobrevive a Bonferroni, mas está dentro do ruído;
+   nada muda. **Threads:** explicam em parte a diferença do relatório 3,
+   sem fechá-la.
+10. **Mandar os ADRs 018 a 022 de uma vez,** com a pergunta de cada um numa
+    linha.
+
+Feito hoje, do que não espera a receita: a frase do B4-fiel (PROTOCOLO e
+ADR 017); o item do prior fechado e a H5 com três referências (PROTOCOLO);
+a ressalva "mesmo `c`" contra "entre `c`" com o motivo medido pela
+orientação (PROTOCOLO); a nota das threads no relatório 3; e a resposta
+item a item no ADR 017, sem mudar o status, porque a orientação não disse
+"aceito".
+
+### A previsão do platô no Mango: não se confirma
+
+Cruzei os 570 treinos de rede do Mango (`results/varredura_c.csv`, receita
+do artigo) por braço e por `c`. Melhor época até a 20: 114 treinos; dentro
+da janela da paciência (até a 30, a definição do script da orientação):
+127. No B2' e no B5 juntos, 60 treinos por `c`, as paradas até a 30 foram:
+
+| `c` | 1 | 0,5 | 0,3 | 0,17 | 0,1 | 0,054 | 0,0417 | 0,026 | 0 |
+|---|---|---|---|---|---|---|---|---|---|
+| paradas | 15 | 11 | 17 | 15 | 15 | 12 | 10 | 14 | 13 |
+
+No B3, 5 de 30. **As paradas não se concentram no `c` baixo:** a proporção
+não difere entre os nove `c` (qui-quadrado, p = 0,87), e a tendência, se
+houvesse, iria para o lado oposto (Spearman entre a proporção e o `c`,
++0,39, p = 0,30). **O que concentra é a partição:** 15 das 30 não têm
+nenhuma parada; nas partições 19 e 23 os 19 treinos param cedo, e cinco
+partições (1, 3, 11, 19 e 23) somam 84 das 127. Com `seed_algo` 0 em
+todos os treinos, a partição e a inicialização da rede andam juntas, e não
+dá para separar as duas aqui.
+
+Leitura: no Mango, com a receita do artigo, a parada precoce é coisa da
+partição, e não do `c`. Não contradiz a medida da orientação, que é de
+outros dois conjuntos, em que o treino funciona. Vai na mensagem, como ela
+pediu ("se a previsão falhar quero saber").

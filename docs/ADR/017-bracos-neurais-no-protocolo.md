@@ -89,7 +89,10 @@ mudam as quatro colunas:
   é constante. O teste de sanidade do pipeline (B2 com a porta em 1,0
   igual ao B1) entra como teste.
 - **O B4-fiel** só difere do B4-limpo pelo L2 na porta. A parada continua
-  na fold interna, nunca no teste.
+  na fold interna, nunca no teste. **"Fiel" não quer dizer "fiel ao artigo
+  em tudo"** (orientação, 16/11): dentro do protocolo o B4-fiel existe só
+  para isolar o L2 na porta. A reprodução fiel do artigo (paciência no
+  teste, última época) vive no modo da literatura, onde está a do critério 2.
 - **B5(1) é o B4-limpo e B2'(1) é o B2**, por construção; um teste confere.
 
 ### O treino e a parada
@@ -295,3 +298,36 @@ PROTOCOLO antes de rodar, a escolha sai da fold de parada nas `seed_split`
   torch, deu a mesma melhor época (1459, 1813 e 1708) e o mesmo RMSE na
   fold de parada (0,3771497905; 0,3523367941; 0,3545934260) que o laço
   escrito à mão do diagnóstico, com diferença zero.
+
+## Resposta da orientação aos itens em aberto (16/11/2026)
+
+Nas palavras e na ordem da mensagem de 16/11 (DIARIO de 16/11). O status
+deste ADR não muda: a orientação respondeu item a item, sem dizer "aceito".
+
+1. **Vendorizar:** não. "Fique com a reimplementação", mantendo o teste de
+   equivalência contra a cópia local, pulado quando ela não existir, como
+   está. A falta de licença no repositório do artigo fica com a orientação
+   (lista do corrigendum).
+2. **Melhor época:** "sim", em todos os braços do protocolo, inclusive o
+   B4-fiel; mais a frase sobre o que "fiel" quer dizer, já acrescentada
+   acima e no PROTOCOLO.
+3. **Uma fold de parada, sem reajuste: muda.** Certa entre os braços de
+   rede, mas não entre a rede e os clássicos, que entregam modelo ajustado
+   em 100% do treino; o viés apontaria a favor da conclusão deste trabalho.
+   **Reajuste no treino inteiro, no número de passos escolhido na fold de
+   parada**, como segundo treino; o `d` sai do modelo entregue, isto é, do
+   reajuste. Ainda não implementado.
+4. **`c_TOST`:** "confirmado", inclusive a razão partição a partição.
+5. **`n_fits`:** passa a 2 por treino, com o reajuste do item 3.
+
+**A receita de treino** (item 7 de "O treino e a parada"): é um parâmetro
+escolhido **por conjunto**, como o H\* do PLS, por procedimento declarado
+sobre a fold de parada. Só candidatos de lote único (mini-lote muda o
+orçamento de passos, que é o objeto da tese); escolha pela regra de um
+erro-padrão, ficando com o candidato mais barato; e um filtro de
+admissibilidade declarado antes de rodar (a faixa de `d_s / g_s` na ordem
+da dos conjuntos em que o treino funciona, e nenhum treino com a melhor
+época dentro da janela da paciência). A grade de candidatos ainda vai ser
+declarada no PROTOCOLO. Depois: `c_TOST` dos quatro conjuntos, varredura,
+congelamento.
+
