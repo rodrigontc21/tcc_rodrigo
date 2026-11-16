@@ -314,3 +314,34 @@ def test_tecator_target_matches_known_fat_values(tecator):
     assert y.min() == pytest.approx(0.9, abs=0.01)
     assert y.max() == pytest.approx(49.1, abs=0.01)
     assert y.mean() == pytest.approx(18.14, abs=0.01)
+
+
+def test_mango_download_refused_explains_the_manual_download(tmp_path, monkeypatch):
+    # No clone limpo de 16/11/2026 o Mendeley respondeu 403 ao download
+    # automático. Sem o arquivo, o erro tem que dizer o que baixar e onde pôr,
+    # e não deixar arquivo pela metade.
+    import urllib.error
+    import urllib.request
+
+    import tcc.data as data
+
+    def recusa(*args, **kwargs):
+        raise urllib.error.HTTPError(data._MANGO_URL, 403, "Forbidden", {}, None)
+
+    monkeypatch.setattr(data, "DATA_DIR", tmp_path)
+    monkeypatch.setattr(urllib.request, "urlopen", recusa)
+    with pytest.raises(RuntimeError) as e:
+        data._ensure_mango_csv()
+    msg = str(e.value)
+    assert "MangoDMC_NIR_Data_v3.csv" in msg and data._MANGO_PAGE in msg
+    assert str(tmp_path / "MangoDMC_NIR_Data_v3.csv") in msg and "403" in msg
+    assert not (tmp_path / "MangoDMC_NIR_Data_v3.csv").exists()
+
+
+def test_mango_file_with_wrong_hash_is_refused(tmp_path, monkeypatch):
+    import tcc.data as data
+
+    monkeypatch.setattr(data, "DATA_DIR", tmp_path)
+    (tmp_path / "MangoDMC_NIR_Data_v3.csv").write_text("a,b\n1,2\n", encoding="utf-8")
+    with pytest.raises(RuntimeError, match="hash inesperado"):
+        data._ensure_mango_csv()

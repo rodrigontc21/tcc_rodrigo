@@ -132,7 +132,9 @@ O iPLS e o GA-PLS usam o R (desenvolvido com o R 4.6.1), com os pacotes `mdatool
 Rscript -e 'install.packages(c("mdatools", "GA"))'
 ```
 
-Os testes (os dados são baixados na primeira execução):
+Os dados são baixados na primeira execução e conferidos pelo hash. O Mango é a exceção possível: o Mendeley Data pode recusar o download automático. Nesse caso, baixe à mão o arquivo `MangoDMC_NIR_Data_v3.csv` da [página do conjunto, versão 6](https://data.mendeley.com/datasets/46htwnp833/6) e coloque em `data/`. O hash é conferido na leitura do mesmo jeito.
+
+Os testes:
 
 ```bash
 python -m pytest

@@ -259,14 +259,26 @@ _MANGO_URL = (
 )
 # Hash publicado pelo próprio Mendeley no registro do arquivo
 _MANGO_SHA256 = "1e0e450417ed96b47b3808556706afa84a2e6441a76e380a8b64b18d85fddee1"
+_MANGO_PAGE = "https://data.mendeley.com/datasets/46htwnp833/6"
 
 
 def _ensure_mango_csv() -> Path:
     path = DATA_DIR / "MangoDMC_NIR_Data_v3.csv"
     if not path.exists():
         DATA_DIR.mkdir(exist_ok=True)
-        with urllib.request.urlopen(_MANGO_URL) as response:
-            path.write_bytes(response.read())
+        # O Mendeley passou a recusar o download automático (HTTP 403, no
+        # teste do clone limpo de 16/11/2026). Tenta, e se não der explica o
+        # download manual; o hash abaixo confere o arquivo de qualquer jeito.
+        try:
+            with urllib.request.urlopen(_MANGO_URL, timeout=120) as response:
+                blob = response.read()
+        except OSError as exc:
+            raise RuntimeError(
+                f"não consegui baixar o Mango ({exc}). Baixe à mão o arquivo "
+                f"MangoDMC_NIR_Data_v3.csv da página {_MANGO_PAGE} e coloque em "
+                f"{path}. O hash SHA-256 é conferido na leitura."
+            ) from exc
+        path.write_bytes(blob)
     actual = hashlib.sha256(path.read_bytes()).hexdigest()
     if actual != _MANGO_SHA256:
         raise RuntimeError(

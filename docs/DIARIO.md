@@ -5113,3 +5113,25 @@ erro, e nenhum problema nas conferências:
 
 Quando a orientação decidir os valores, falta só preenchê-los em
 `final_grid.py` e rodar.
+
+### Retomada da grade montada, e um clone limpo do GitHub
+
+**Retomada.** Rodei o ensaio de novo: pulou as 243 execuções. Apaguei seis
+(dos três conjuntos, inclusive redes do Mango com a receita no nome e
+execuções do eixo `seed_algo`) e rodei: refez só as seis, e os 243 hashes
+ficaram iguais aos de antes.
+
+**Clone limpo.** Clonei o repositório do GitHub numa pasta nova e rodei os
+testes, para pegar arquivo esquecido fora do git e ver o que quem reproduzir
+o trabalho encontra. 306 passaram e 3 foram pulados: os dois de comparação
+com o código do artigo, que fica fora do git, e o de sempre. Nenhum arquivo
+faltando. Mas os 12 testes que carregam o Mango falharam: o Mendeley Data
+respondeu **HTTP 403** ao download automático. Aqui não aparecia porque o
+arquivo já estava em `data/`.
+
+Não mudou nenhum número: o arquivo daqui é o mesmo, conferido pelo hash que
+o Mendeley publica. Corrigi a reprodução: o código continua tentando baixar,
+e se o site recusar explica o download manual (o arquivo, a página da
+versão 6 e onde pôr), sem deixar arquivo pela metade; o hash continua
+conferido. O README diz o mesmo. Dois testes novos: o download recusado, e
+um arquivo com hash errado recusado.
