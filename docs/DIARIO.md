@@ -4967,3 +4967,25 @@ mutações, todas pegas. Suíte inteira: 304 passaram, 1 pulado.
 
 Para a orientação: a métrica das figuras segue a do δ; vírgula decimal
 também nos eixos; PDF vetorial para o manuscrito.
+
+## 2026-11-14
+
+### O Mango refeito de uma vez
+
+O Mango nas 30 partições tinha rodado em três partes, de 10 a 12/11, com
+os processos abrindo muitas threads cada. Rodei tudo de novo do zero, numa
+vez só, com a configuração de produção (4 processos, 1 thread por
+processo), no commit dcab80d: 4h35, das 03h31 às 08h07. O CSV antigo ficou
+guardado como `results/bracos_mango_30_particoes_antes.csv`, fora do git,
+para a comparação.
+
+Resultado: as mesmas 180 linhas (30 partições × 6 braços), e **nenhuma
+diferença** em R², RMSEP, RMSECV, número de bandas, número de componentes e
+`n_ajustes`. Rodar em partes e com outro número de threads não mudou nada.
+
+Só o tempo mudou, como esperado: o antigo foi medido com a CPU
+superassinada. Mediana por partição, antes e agora: PLS 376 → 72 s; iPLS
+1325 → 1077 s; VIP 345 → 68 s; GA-PLS 515 → 116 s; CARS 2769 → 513 s; CARS
+fiel 664 → 125 s. O `wall_time` é resultado declarado, então fica o CSV
+novo, medido como o protocolo manda. O iPLS quase não muda porque o R já
+rodava com uma thread.
