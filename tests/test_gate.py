@@ -235,9 +235,10 @@ def test_trainable_gates_move(problem):
 
 
 def test_initial_gates(problem):
+    # A porta do modelo entregue (o reajuste) parte do prior calculado em
+    # todas as linhas do treino, padronizadas nelas (17/11).
     X, y, folds = problem
-    fit_idx = folds[0][0]
-    s = anova_prior((X[fit_idx] - X[fit_idx].mean(0)) / X[fit_idx].std(0), y[fit_idx])
+    s = anova_prior((X - X.mean(0)) / X.std(0), y)
     np.testing.assert_array_equal(fit(gate_uniform(), problem)._theta0, np.zeros(X.shape[1]))
     np.testing.assert_allclose(fit(gate_prior(), problem)._theta0, prior_logits(s))
     np.testing.assert_allclose(fit(gate_prior_scaled(c=0.3), problem)._theta0,
@@ -266,14 +267,30 @@ def test_gate_weight_decay_only_in_the_faithful_b4(problem):
 
 # --- o prior não vê a fold de parada (pergunta 7) -----------------------------
 
-def test_prior_ignores_the_stopping_fold(problem):
+def test_stopping_run_prior_ignores_the_stopping_fold(problem):
+    # No treino de parada, o prior vem só das linhas de ajuste: mudar o y da
+    # fold de parada não muda a porta inicial dele (o g é a distância entre
+    # os dois maiores logits iniciais).
+    X, y, folds = problem
+    stop_idx = folds[0][1]
+    y_stop_changed = y.copy()
+    y_stop_changed[stop_idx] += 50.0
+    a = fit(gate_prior(), problem).hyperparams
+    b = fit(gate_prior(), problem, y=y_stop_changed).hyperparams
+    assert a["stop_gate_gap"] == b["stop_gate_gap"]
+    assert a["stop_gate_top_band_initial"] == b["stop_gate_top_band_initial"]
+
+
+def test_refit_prior_uses_every_training_row(problem):
+    # No reajuste, todas as linhas do treino ajustam a rede, inclusive as da
+    # fold de parada, e o prior vem delas (o teste externo nunca chega ao
+    # braço: `evaluate` só passa o treino).
     X, y, folds = problem
     stop_idx = folds[0][1]
     y_stop_changed = y.copy()
     y_stop_changed[stop_idx] += 50.0
     a, b = fit(gate_prior(), problem), fit(gate_prior(), problem, y=y_stop_changed)
-    np.testing.assert_array_equal(a._prior, b._prior)
-    np.testing.assert_array_equal(a._theta0, b._theta0)
+    assert not np.array_equal(a._prior, b._prior)
 
 
 def test_prior_does_see_the_fitting_rows(problem):
@@ -296,11 +313,43 @@ def test_best_epoch_is_kept(problem):
 
 
 def test_rmse_cv_is_the_stopping_rmse_at_the_best_epoch(problem):
+    # Refaz por fora só o treino de parada (mesma semente, mesmas linhas) e
+    # confere que o rmse_cv é o RMSE dele na melhor época, e não o do
+    # modelo entregue, que já viu a fold de parada.
     X, y, folds = problem
-    stop_idx = folds[0][1]
-    f = fit(gate_prior(), problem)
-    rmse = float(np.sqrt(np.mean((f.predict(X[stop_idx]) - y[stop_idx]) ** 2)))
-    assert f.rmse_cv == pytest.approx(rmse, rel=1e-5)
+    fit_idx, stop_idx = folds[0]
+    arm = gate_prior()
+    f = fit(arm, problem)
+    seed = int(np.random.default_rng(0).integers(2**31 - 1))
+    m, sd = X[fit_idx].mean(0), X[fit_idx].std(0)
+    ym, ys = y[fit_idx].mean(), y[fit_idx].std()
+    before = torch.get_num_threads()
+    torch.set_num_threads(1)  # o braço treina com uma thread; o resultado depende disso
+    try:
+        net, _, _ = arm.initial_net((X[fit_idx] - m) / sd, y[fit_idx], seed)
+        run = arm._train(net, torch.as_tensor((X[fit_idx] - m) / sd, dtype=torch.float32),
+                         torch.as_tensor((y[fit_idx] - ym) / ys, dtype=torch.float32),
+                         max_epochs=200,
+                         stop=(torch.as_tensor((X[stop_idx] - m) / sd, dtype=torch.float32),
+                               torch.as_tensor((y[stop_idx] - ym) / ys, dtype=torch.float32)))
+    finally:
+        torch.set_num_threads(before)
+    assert f.rmse_cv == pytest.approx(run["best"] * ys, rel=1e-6)
+    assert f.hyperparams["best_epoch"] == run["best_epoch"]
+    entregue = float(np.sqrt(np.mean((f.predict(X[stop_idx]) - y[stop_idx]) ** 2)))
+    assert entregue != pytest.approx(f.rmse_cv, rel=1e-3)
+
+
+def test_refit_runs_exactly_the_best_epoch_count(problem):
+    for arm in (gate_prior(), mlp_full(), mlp_weighted(), gate_uniform()):
+        h = fit(arm, problem).hyperparams
+        assert h["refit_epochs"] == h["best_epoch"]
+        assert h["refit_steps"] == h["best_epoch"]  # lote único: uma época, um passo
+
+
+def test_frozen_gate_does_not_move_in_either_training(problem):
+    h = fit(mlp_weighted(), problem).hyperparams
+    assert h["gate_max_disp"] == 0.0 and h["stop_gate_max_disp"] == 0.0
 
 
 def test_same_seed_same_model_other_seed_other_model(problem):
@@ -310,12 +359,12 @@ def test_same_seed_same_model_other_seed_other_model(problem):
     assert not np.array_equal(a.predict(X), c.predict(X))
 
 
-def test_one_fit_per_training_and_one_thread_restored(problem):
+def test_two_fits_per_training_and_one_thread_restored(problem):
     X, y, folds = problem
     before = torch.get_num_threads()
     budget = Budget()
     gate_prior().fit(X, y, folds, np.random.default_rng(0), budget)
-    assert budget.n_fits == 1
+    assert budget.n_fits == 2  # o treino de parada e o reajuste (17/11)
     assert torch.get_num_threads() == before
 
 
@@ -340,9 +389,10 @@ def test_gate_metrics_are_reported(problem):
 # --- receita de treino (ADR 017, item 7) --------------------------------------------
 
 def test_default_recipe_reproduces_the_recorded_sweep():
-    # Regressão: com a receita padrão, o braço dá os mesmos números gravados
-    # na varredura de c de 12/11 (results/varredura_c.csv), antes de a
-    # receita existir.
+    # Regressão: com a receita padrão, o treino de parada dá os mesmos números
+    # gravados na varredura de c de 12/11 (results/varredura_c.csv), antes da
+    # receita e do reajuste existirem: a mesma melhor época e o mesmo
+    # deslocamento da porta. O R² mudou, porque agora vem do reajuste.
     import csv
     from tcc.data import load
     from tcc.protocol import evaluate
@@ -355,8 +405,7 @@ def test_default_recipe_reproduces_the_recorded_sweep():
                             (("B2'", "0.3"), mlp_weighted_scaled(c=0.3))):
         r = evaluate(arm, ds, seed_split=0, seed_algo=0)
         row = rows[(braco, c)]
-        assert f"{r.r2:.6f}" == row["r2"]
-        assert f"{r.hyperparams['gate_max_disp']:.6f}" == row["d"]
+        assert f"{r.hyperparams['stop_gate_max_disp']:.6f}" == row["d"]
         assert str(r.hyperparams["best_epoch"]) == row["melhor_epoca"]
 
 
@@ -422,3 +471,31 @@ def test_recipe_patience_and_lr_are_used(problem):
     devagar = fit(gate_prior(recipe=TrainRecipe(name="lr", lr=0.001, max_epochs=20, patience=1000)), problem)
     rapido = fit(gate_prior(recipe=TrainRecipe(name="lr2", max_epochs=20, patience=1000)), problem)
     assert not np.array_equal(devagar.predict(X), rapido.predict(X))
+
+
+def test_delivered_model_is_an_independent_refit(problem):
+    # Refaz o reajuste por fora: todas as linhas do treino, padronizadas
+    # nelas, a mesma semente do torch e exatamente best_epoch épocas, sem
+    # parada. As predições e o deslocamento da porta têm de ser os do braço.
+    X, y, folds = problem
+    arm = gate_prior()
+    f = fit(arm, problem)
+    h = f.hyperparams
+    seed = int(np.random.default_rng(0).integers(2**31 - 1))
+    m, sd, ym, ys = X.mean(0), X.std(0), y.mean(), y.std()
+    before = torch.get_num_threads()
+    torch.set_num_threads(1)
+    try:
+        net, theta0, _ = arm.initial_net((X - m) / sd, y, seed)
+        arm._train(net, torch.as_tensor((X - m) / sd, dtype=torch.float32),
+                   torch.as_tensor((y - ym) / ys, dtype=torch.float32),
+                   max_epochs=h["best_epoch"])
+        with torch.no_grad():
+            pred = net(torch.as_tensor((X - m) / sd, dtype=torch.float32)).numpy().ravel() * ys + ym
+    finally:
+        torch.set_num_threads(before)
+    # o braço faz a última conta em float32 e esta em float64: 1e-6 é arredondamento
+    np.testing.assert_allclose(f.predict(X), pred, rtol=1e-6, atol=1e-6)
+    d = np.abs(net.gates.detach().numpy().astype(float) - theta0).max()
+    assert h["gate_max_disp"] == d
+    assert h["gate_max_disp"] != h["stop_gate_max_disp"]

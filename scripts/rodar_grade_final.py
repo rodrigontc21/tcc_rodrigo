@@ -7,12 +7,16 @@ O ensaio roda a grade inteira (6 braços clássicos, 23 de rede, eixo
 `seed_algo`) no Tecator, no Gasoline e no Mango, na `seed_split` 0, e
 confere:
 1. nenhuma execução falhou, e todas as tarefas têm arquivo;
-2. os clássicos são iguais aos CSVs das 30 partições, na partição 0;
-3. as redes da varredura de `c` (B3, B2' e B5) são iguais a
-   `results/varredura_c.csv`, inclusive no Mango, com a receita "ensaio",
-   que tem os valores da do artigo e só muda o nome;
-4. no Tecator, todas as redes que a grade de conferência tem são iguais a
-   ela, pelo hash das predições;
+2. os clássicos são iguais aos CSVs das 30 partições, na partição 0; o
+   VIP, à `results/conferencia_grade_vip.csv`, porque a grade dele foi
+   alargada em 16/11 e os CSVs das 30 partições são da grade antiga;
+3. nas redes da varredura de `c` (B3, B2' e B5), o treino de parada é igual
+   ao de `results/varredura_c.csv` (melhor época e deslocamento da porta),
+   inclusive no Mango, com a receita "ensaio", que tem os valores da do
+   artigo e só muda o nome. O R² não entra: desde 17/11 ele vem do reajuste
+   no treino inteiro, que a varredura de 12/11 não tinha;
+4. no Tecator, os braços clássicos são iguais aos da grade de conferência,
+   pelo hash das predições (as redes mudaram com o reajuste);
 5. nenhuma réplica idêntica onde não deveria haver;
 6. a decomposição fecha (identidade aditiva) em cada conjunto, com os nomes
    dos braços daquele conjunto;
@@ -78,12 +82,21 @@ def conferir(specs):
         ds = spec.datasets[0]
         receita = G.TRIAL["recipe"].get(ds, G.RECIPE[ds])
 
-        # 2. clássicos contra os CSVs das 30 partições
+        # 2. clássicos contra os CSVs das 30 partições; o VIP, contra a
+        # conferência da grade alargada (16/11)
+        with open(RAIZ / "results/conferencia_grade_vip.csv", encoding="utf-8") as f:
+            vip_novo = {(l["conjunto"], l["seed_split"]): l for l in csv.DictReader(f)}
         n = 0
         with open(RAIZ / f"results/bracos_{ds}_30_particoes.csv", encoding="utf-8") as f:
             for linha in csv.DictReader(f):
                 if linha["seed_split"] != "0":
                     continue
+                if linha["braco"] == "vip":
+                    # essa conferência não gravou o RMSEP: para o VIP ficam o
+                    # R² e os ajustes (o RMSEP é comparado consigo mesmo)
+                    novo = vip_novo[(ds, "0")]
+                    linha = {**linha, "r2": novo["r2"], "n_ajustes": novo["n_ajustes"],
+                             "rmsep": f"{por[(ds, 'vip_threshold', 0, 0)].rmsep:.6f}"}
                 r = por[(ds, CSV_NOME[linha["braco"]], 0, 0)]
                 n += 1
                 for campo, valor in (("r2", r.r2), ("rmsep", r.rmsep)):
@@ -105,9 +118,14 @@ def conferir(specs):
                         "B5": f"gate_prior(c={float(linha['c'] or 0):g})"}[linha["braco"]]
                 r = por[(ds, G.arm_name(base, receita), 0, 0)]
                 n += 1
-                if abs(float(linha["r2"]) - r.r2) > TOL:
-                    problemas.append(f"{ds} {base} r2: varredura {linha['r2']}, grade {r.r2:.6f}")
-        print(f"3. {ds}: {n} redes comparadas com a varredura de c")
+                h = r.hyperparams
+                if str(h["best_epoch"]) != linha["melhor_epoca"]:
+                    problemas.append(f"{ds} {base} melhor época: varredura {linha['melhor_epoca']}, "
+                                     f"grade {h['best_epoch']}")
+                if f"{h['stop_gate_max_disp']:.6f}" != linha["d"]:
+                    problemas.append(f"{ds} {base} d da parada: varredura {linha['d']}, "
+                                     f"grade {h['stop_gate_max_disp']:.6f}")
+        print(f"3. {ds}: {n} redes com o treino de parada comparado à varredura de c")
 
         # 6. decomposição com os nomes do conjunto
         papeis = G.roles(ds, receita)
@@ -120,15 +138,16 @@ def conferir(specs):
             problemas.append(f"{ds}: decomposição não fecha")
 
     # 4. Tecator contra a grade de conferência, pelo hash
+    classicos = {a.name for a in G.CLASSICAL}
     conf = {(r.arm_name, r.seed_split): r for r in load_results(RAIZ / "results/grade_conferencia/tecator")
-            if r.seed_split == 0 and r.seed_algo == 0}
+            if r.seed_split == 0 and r.seed_algo == 0 and r.arm_name in classicos}
     n = 0
     for (arm, s), r in conf.items():
         if ("tecator", arm, 0, 0) in por:
             n += 1
             if result_hash(r) != result_hash(por[("tecator", arm, 0, 0)]):
                 problemas.append(f"tecator {arm}: hash difere da grade de conferência")
-    print(f"4. tecator: {n} braços iguais à grade de conferência, pelo hash")
+    print(f"4. tecator: {n} braços clássicos comparados à grade de conferência, pelo hash")
 
     # 5. réplicas
     det = {a.name for s in specs for a in s.arms if a.deterministic}

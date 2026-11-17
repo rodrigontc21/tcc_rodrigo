@@ -19,7 +19,7 @@ from dataclasses import dataclass
 import numpy as np
 from sklearn.cross_decomposition import PLSRegression
 
-from tcc.arms.base import Budget, CVFolds
+from tcc.arms.base import Budget, CVFolds, grid_edge, warn_edge
 from tcc.arms.pls import PLSArm
 
 # Faixa de candidatos declarada a priori no ADR 012, igual nos quatro
@@ -329,10 +329,13 @@ class IPLSArm:
             selections = self._fold_selections(
                 X_train, y_train, cv_folds, int_num, glob_ncomp, budget
             )
+            edge = None
         else:
             int_num, rmse_cv, selections = self._search(
                 X_train, y_train, cv_folds, glob_ncomp, budget
             )
+            edge = grid_edge(int_num, self._candidates)
+            warn_edge(self.name, "int_num", int_num, edge)
 
         segments = _segments_from_folds(len(y_train), cv_folds)
         final_bands, n_final_fits, executed_int_num = _select_intervals(
@@ -353,6 +356,7 @@ class IPLSArm:
                 # largura. Os dois entram porque a busca escolhe o
                 # primeiro e o experimento roda o segundo.
                 "int_num": int_num,
+                "int_num_edge": edge,  # escolha na borda da grade (16/11)
                 "int_num_executed": executed_int_num,
                 "glob_ncomp": glob_ncomp,
                 "n_components": n_components,

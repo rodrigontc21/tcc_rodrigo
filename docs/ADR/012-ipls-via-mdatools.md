@@ -389,3 +389,19 @@ texto como resultado, e nada do protocolo muda com base neles. "Não se
 distingue do PLS" no Wilcoxon não é equivalência; equivalência é o TOST
 com δ, na grade. Os Wilcoxon são cinco testes contra a mesma referência
 e, por serem piloto, não levam correção de multiplicidade.
+
+## Escolha na borda (17/11/2026)
+
+Com o aviso de borda novo (PROTOCOLO, "Escolha na borda da grade"), o iPLS
+escolheu `int_num` = 10, o menor candidato de {10, 15, 20, 25, 30}, na
+partição piloto 0 do Tecator, do Gasoline e do Mango. Nas `seed_split` 0–29
+(`scripts/conferir_borda_ipls.py`, piloto), na borda de baixo em **20 de 30
+no Tecator e 24 de 30 no Gasoline**; o Mango não foi rodado (~18 min por
+partição).
+
+Isso encontra a pergunta 12: a regra de um erro-padrão do iPLS fica com o
+**menor** `int_num` dentro do limite, o que retém mais bandas. Com o que
+está gravado, não dá para separar se a borda vem da grade (o ótimo abaixo de
+10) ou da direção do desempate. As duas saídas, alargar a grade para baixo
+ou inverter o desempate, são decisão da orientação, antes da grade final.
+Não mudei nada.

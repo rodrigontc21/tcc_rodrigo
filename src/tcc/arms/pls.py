@@ -86,7 +86,13 @@ class PLSArm:
         model = PLSRegression(n_components=n_components).fit(X_train, y_train)
         return _FittedPLSArm(
             _model=model,
-            _hyperparams={"n_components": n_components},
+            _hyperparams={
+                "n_components": n_components,
+                # Só a borda de cima conta: abaixo de 1 componente não há
+                # modelo, e o teto pelo posto também não é restrição da grade.
+                "n_components_edge": ("superior" if self._fixed_n_components is None
+                                      and n_components == MAX_COMPONENTS else None),
+            },
             _rmse_cv=rmse_cv,
         )
 

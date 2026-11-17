@@ -35,6 +35,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from tcc.arms.base import grid_edge, warn_edge
 from tcc.arms.gate import ARTICLE, TrainRecipe
 
 MAX_DSG_RANGE = 5.0
@@ -105,8 +106,15 @@ def choose(results: Mapping[TrainRecipe, CandidateResult],
                          "se": float(r.std(ddof=1) / np.sqrt(r.size))}
     ok = [rc for rc in table if table[rc]["admissible"]]
     if not ok:
-        return {"chosen": None, "table": table, "limit": None}
+        return {"chosen": None, "table": table, "limit": None, "edge": None}
     best = min(ok, key=lambda rc: table[rc]["mean"])
     limit = table[best]["mean"] + table[best]["se"]
     within = [rc for rc in ok if table[rc]["mean"] <= limit]
-    return {"chosen": min(within, key=cost_key), "table": table, "limit": limit}
+    chosen = min(within, key=cost_key)
+    # Borda nas duas dimensões da grade: o orçamento de épocas e a taxa. A
+    # taxa tem dois valores, então sempre cai numa borda; fica registrada.
+    edge = {"max_epochs": grid_edge(chosen.max_epochs, [e for e, _ in BUDGETS]),
+            "lr": grid_edge(chosen.lr, RATES)}
+    for param, e in edge.items():
+        warn_edge("receita", param, getattr(chosen, param), e)
+    return {"chosen": chosen, "table": table, "limit": limit, "edge": edge}

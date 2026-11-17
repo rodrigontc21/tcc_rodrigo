@@ -192,3 +192,12 @@ texto como resultado, e nada do protocolo muda com base neles. "Não se
 distingue do PLS" no Wilcoxon não é equivalência; equivalência é o TOST
 com δ, na grade. Os Wilcoxon são cinco testes contra a mesma referência
 e, por serem piloto, não levam correção de multiplicidade.
+
+## Escolha na borda (17/11/2026)
+
+A grade do GA-PLS tem dois candidatos, (30, 50) e (50, 100), então toda
+escolha cai numa borda e fica registrada como tal (`ga_config_edge`). No
+ensaio da grade final (partição 0, três sementes do algoritmo), o Tecator
+escolheu (30, 50) nas três; o Gasoline, (30, 50) em duas e (50, 100) em
+uma; o Mango, (50, 100) em duas e (30, 50) em uma. A grade é pequena por
+custo (este ADR); o registro deixa isso visível, sem mudar nada.

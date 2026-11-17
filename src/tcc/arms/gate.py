@@ -272,6 +272,68 @@ class GateArm:
             net.gated = False
         return net, theta0, prior
 
+    def _train(self, net: GateNet, Xf: torch.Tensor, yf: torch.Tensor, *, max_epochs: int,
+               stop: tuple[torch.Tensor, torch.Tensor] | None = None) -> dict:
+        """Treina `net` no lugar. Com `stop`, para pela paciência e volta aos
+        pesos da melhor época no conjunto de parada; sem `stop` (o reajuste),
+        roda exatamente `max_epochs` épocas e fica com a última."""
+        cfg, rec = self.config, self.recipe
+        rest = [prm for n, prm in net.named_parameters() if n != "gates"]
+        groups = [{"params": rest, "weight_decay": WEIGHT_DECAY}]
+        if cfg.gated and cfg.trainable:
+            groups.append({"params": [net.gates],
+                           "weight_decay": WEIGHT_DECAY if cfg.gate_weight_decay else 0.0})
+        else:
+            net.gates.requires_grad_(False)
+        opt = torch.optim.Adam(groups, lr=rec.lr)
+        use_kl = cfg.gated and cfg.kl_ref != "none"
+
+        n_steps = 0
+
+        def step(xb, yb):
+            nonlocal n_steps
+            n_steps += 1
+            loss = F.mse_loss(net(xb).squeeze(1), yb)
+            if use_kl:
+                loss = loss + KL_WEIGHT * net.kl()
+            opt.zero_grad()
+            loss.backward()
+            opt.step()
+
+        best, best_state, best_epoch, bad, epochs = float("inf"), None, 0, 0, 0
+        for epoch in range(max_epochs):
+            net.train()
+            if rec.batch_size is None:
+                step(Xf, yf)  # lote único: o caminho do artigo, inalterado
+            else:
+                # Mini-lotes embaralhados a cada época, pelo gerador do
+                # torch já semeado; um último lote de uma linha só vai
+                # junto com o anterior (o BatchNorm não aceita uma linha).
+                chunks = list(torch.split(torch.randperm(Xf.shape[0]), rec.batch_size))
+                if len(chunks) > 1 and len(chunks[-1]) < 2:
+                    chunks[-2] = torch.cat([chunks[-2], chunks.pop()])
+                for idx in chunks:
+                    step(Xf[idx], yf[idx])
+            epochs = epoch + 1
+            if stop is None:
+                continue
+            Xs, ys = stop
+            net.eval()
+            with torch.no_grad():
+                r = torch.sqrt(F.mse_loss(net(Xs).squeeze(1), ys)).item()
+            if r < best:
+                best, best_state, best_epoch, bad = r, copy.deepcopy(net.state_dict()), epochs, 0
+            else:
+                bad += 1
+                if bad >= rec.patience:
+                    break
+        if stop is not None:
+            if best_state is None:
+                raise RuntimeError("o RMSE no conjunto de parada nunca foi finito")
+            net.load_state_dict(best_state)
+        net.eval()
+        return {"best": best, "best_epoch": best_epoch, "epochs_run": epochs, "n_steps": n_steps}
+
     def fit(
         self,
         X_train: np.ndarray,
@@ -280,10 +342,23 @@ class GateArm:
         rng_algo: np.random.Generator,
         budget: Budget,
     ) -> _FittedGateArm:
+        """Dois treinos (orientação, 16/11/2026; ADR 017).
+
+        1. **Parada:** a rede ajusta nas linhas de `fit_idx` e para pela
+           fold de parada, ficando com a melhor época. Daqui saem a melhor
+           época e o `rmse_cv`.
+        2. **Reajuste:** a rede é treinada de novo em **todas** as linhas do
+           treino, com o prior e a padronização recalculados nelas, a mesma
+           semente do torch, e exatamente o número de épocas da melhor época
+           (em lote único, uma época é um passo). É o modelo entregue: as
+           predições, a porta e o `d` saem dele. Sem isso, a rede treinaria
+           em 80% do treino e os clássicos em 100%.
+        """
         cfg = self.config
         fit_idx, stop_idx = cv_folds[0]
-        X_fit, y_fit = X_train[fit_idx], np.ravel(y_train)[fit_idx]
-        X_stop, y_stop = X_train[stop_idx], np.ravel(y_train)[stop_idx]
+        y_all = np.ravel(y_train)
+        X_fit, y_fit = X_train[fit_idx], y_all[fit_idx]
+        X_stop, y_stop = X_train[stop_idx], y_all[stop_idx]
 
         x_mean, x_std = _zscore(X_fit)
         y_mean, y_std = float(y_fit.mean()), float(y_fit.std()) or 1.0
@@ -292,67 +367,32 @@ class GateArm:
         Xs = torch.as_tensor((X_stop - x_mean) / x_std, dtype=torch.float32)
         ys = torch.as_tensor((y_stop - y_mean) / y_std, dtype=torch.float32)
 
+        # O reajuste: padronização das linhas todas do treino.
+        a_mean, a_std = _zscore(X_train)
+        ya_mean, ya_std = float(y_all.mean()), float(y_all.std()) or 1.0
+        Xa = torch.as_tensor((X_train - a_mean) / a_std, dtype=torch.float32)
+        ya = torch.as_tensor((y_all - ya_mean) / ya_std, dtype=torch.float32)
+
         p = X_train.shape[1]
         seed = int(rng_algo.integers(2**31 - 1))
         threads = torch.get_num_threads()
         torch.set_num_threads(1)
         try:
-            net, theta0, prior = self.initial_net((X_fit - x_mean) / x_std, y_fit, seed)
+            net, theta0_stop, _ = self.initial_net((X_fit - x_mean) / x_std, y_fit, seed)
+            run = self._train(net, Xf, yf, max_epochs=self.recipe.max_epochs, stop=(Xs, ys))
+            budget.increment()
+            theta1_stop = (net.gates.detach().numpy().astype(float).copy()
+                           if cfg.gated else None)
 
-            rest = [prm for n, prm in net.named_parameters() if n != "gates"]
-            groups = [{"params": rest, "weight_decay": WEIGHT_DECAY}]
-            if cfg.gated and cfg.trainable:
-                groups.append({"params": [net.gates],
-                               "weight_decay": WEIGHT_DECAY if cfg.gate_weight_decay else 0.0})
-            else:
-                net.gates.requires_grad_(False)
-            rec = self.recipe
-            opt = torch.optim.Adam(groups, lr=rec.lr)
-            use_kl = cfg.gated and cfg.kl_ref != "none"
-
-            n_steps = 0
-
-            def step(xb, yb):
-                nonlocal n_steps
-                n_steps += 1
-                loss = F.mse_loss(net(xb).squeeze(1), yb)
-                if use_kl:
-                    loss = loss + KL_WEIGHT * net.kl()
-                opt.zero_grad()
-                loss.backward()
-                opt.step()
-
-            best, best_state, best_epoch, bad, epochs = float("inf"), None, 0, 0, 0
-            for epoch in range(rec.max_epochs):
-                net.train()
-                if rec.batch_size is None:
-                    step(Xf, yf)  # lote único: o caminho do artigo, inalterado
-                else:
-                    # Mini-lotes embaralhados a cada época, pelo gerador do
-                    # torch já semeado; um último lote de uma linha só vai
-                    # junto com o anterior (o BatchNorm não aceita uma linha).
-                    chunks = list(torch.split(torch.randperm(Xf.shape[0]), rec.batch_size))
-                    if len(chunks) > 1 and len(chunks[-1]) < 2:
-                        chunks[-2] = torch.cat([chunks[-2], chunks.pop()])
-                    for idx in chunks:
-                        step(Xf[idx], yf[idx])
-                epochs = epoch + 1
-                net.eval()
-                with torch.no_grad():
-                    r = torch.sqrt(F.mse_loss(net(Xs).squeeze(1), ys)).item()
-                if r < best:
-                    best, best_state, best_epoch, bad = r, copy.deepcopy(net.state_dict()), epochs, 0
-                else:
-                    bad += 1
-                    if bad >= rec.patience:
-                        break
-            if best_state is None:
-                raise RuntimeError("o RMSE no conjunto de parada nunca foi finito")
-            net.load_state_dict(best_state)
-            net.eval()
+            net, theta0, prior = self.initial_net((X_train - a_mean) / a_std, y_all, seed)
+            refit = self._train(net, Xa, ya, max_epochs=run["best_epoch"])
+            budget.increment()
         finally:
             torch.set_num_threads(threads)
-        budget.increment()
+        best, best_epoch, epochs, n_steps = (run["best"], run["best_epoch"], run["epochs_run"],
+                                             run["n_steps"])
+        rec = self.recipe
+        x_mean, x_std, y_mean_all, y_std_all = a_mean, a_std, ya_mean, ya_std
 
         hyper = {
             "n_bands": p,
@@ -371,15 +411,21 @@ class GateArm:
             "patience": rec.patience,
             "batch_size": rec.batch_size,
             "n_steps": n_steps,  # passos do otimizador, para conferir os mini-lotes
+            "refit_epochs": refit["epochs_run"],  # = best_epoch: o reajuste
+            "refit_steps": refit["n_steps"],
         }
         band_scores = None
         if cfg.gated:
+            # As medidas da porta são do modelo entregue, o reajuste; as do
+            # treino de parada ficam com o prefixo "stop_", para conferência.
             theta1 = net.gates.detach().numpy().astype(float).copy()
             hyper.update(_gate_metrics(theta0, theta1))
+            hyper.update({f"stop_{k}": v for k, v in
+                          _gate_metrics(theta0_stop, theta1_stop).items()})
             band_scores = net.gate_probs().detach().numpy().astype(float)
 
         return _FittedGateArm(
-            _net=net, _x_mean=x_mean, _x_std=x_std, _y_mean=y_mean, _y_std=y_std,
+            _net=net, _x_mean=x_mean, _x_std=x_std, _y_mean=y_mean_all, _y_std=y_std_all,
             _hyperparams=hyper, _rmse_cv=best * y_std, _band_scores=band_scores,
             _theta0=theta0, _prior=prior,
         )

@@ -141,3 +141,28 @@ def cost_summary(results: Iterable) -> dict:
     return {key: {"n_fits": float(np.median(f)), "wall_time": float(np.median(t)),
                   "n": len(f)}
             for key, (f, t) in acc.items()}
+
+
+# --- escolha na borda da grade ---------------------------------------------------------
+
+def edge_summary(results: Iterable) -> dict:
+    """Quantas execuções escolheram um hiperparâmetro na borda da grade.
+
+    Lê as chaves `*_edge` de `hyperparams` (o braço registra "inferior",
+    "superior" ou None). Devolve {(conjunto, braço, chave): {"inferior": n,
+    "superior": n, "total": n}}, só para as chaves com alguma borda. Escolha
+    na borda é reportada (orientação, 16/11/2026).
+    """
+    out: dict = {}
+    totals: dict = defaultdict(int)
+    for r in results:
+        for key, value in r.hyperparams.items():
+            if not key.endswith("_edge"):
+                continue
+            k = (r.dataset_name, r.arm_name, key)
+            totals[k] += 1
+            if value is not None:
+                out.setdefault(k, {"inferior": 0, "superior": 0})[value] += 1
+    for k in out:
+        out[k]["total"] = totals[k]
+    return out

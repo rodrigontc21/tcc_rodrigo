@@ -5306,3 +5306,117 @@ escrito como 70.
 
 A escolha roda depois do reajuste no treino inteiro e de a orientação ver
 a declaração. O limite de 5 vezes é escolha minha, a confirmar.
+
+### O reajuste no treino inteiro (item 3 da resposta de 16/11)
+
+Cada braço de rede passou a treinar duas vezes. O treino de parada é o de
+antes: ajusta nas linhas de ajuste e para pela fold de parada, na melhor
+época; dele saem a melhor época e o `rmse_cv`. O reajuste treina de novo em
+todas as linhas do treino, com o prior e a padronização recalculados nelas,
+a mesma semente do torch e exatamente o número de épocas da melhor época,
+sem parada. É o modelo entregue: predições, porta e `d` saem dele; as
+medidas da porta do treino de parada ficam com o prefixo `stop_`. `n_fits`
+passou a 2. Sem o reajuste, a rede treinava em 80% do treino e os
+clássicos em 100%.
+
+Conferências:
+- **o treino de parada não mudou:** no Tecator `seed_split` 0, a melhor
+  época e o deslocamento da porta na parada são os gravados na varredura de
+  12/11. Era o teste de regressão da receita; passou a comparar o treino de
+  parada, porque o R² agora vem do reajuste;
+- **o reajuste refeito por fora**, sem passar pelo braço, dá as mesmas
+  predições (diferença de 1e-7, o arredondamento de float32 numa conta que
+  o teste faz em float64) e o mesmo `d`;
+- dez mutações no reajuste, todas pegas;
+- suíte inteira: 340 passaram, 1 pulado.
+
+Dois tropeços meus: a primeira recontagem por fora não fixou uma thread no
+torch e não bateu (o número de threads muda o treino, como já se sabia); e o
+ensaio da grade final, rodado de novo na mesma pasta, reaproveitaria os
+resultados de rede de antes do reajuste, porque o executor pula o que já
+tem arquivo. Apaguei a pasta do ensaio e rodei do zero. **Na grade final,
+qualquer mudança de código antes de rodar pede pasta nova.**
+
+**O ensaio da grade final de novo** (partição piloto 0, Tecator, Gasoline e
+Mango, 243 execuções, 22 min): nenhuma falha. As conferências do ensaio
+mudaram com o reajuste e com a grade nova do VIP: nas 57 redes da
+varredura de `c`, compara-se o treino de parada (melhor época e
+deslocamento da porta), idêntico ao de 12/11 nos três conjuntos; o VIP é
+comparado à conferência da grade alargada (R² e ajustes; essa conferência
+não gravou o RMSEP), e não aos CSVs das 30 partições, que são da grade
+antiga; a comparação por hash com a grade de conferência fica só para os
+braços clássicos. Nenhum problema. O `k` pareado do Mango foi de 104 para
+132, porque o VIP passou a ficar com cerca de 258 bandas.
+
+Todos os números de rede medidos antes (`c_TOST`, varredura de `c`, grade de
+conferência) são do desenho sem reajuste. Os `c_TOST` e a varredura são
+medidos de novo depois da receita.
+
+### O reajuste piora a rede: uma interação que a orientação pediu para saber
+
+Depois de implementar o reajuste, conferi se ele faz sentido nos dados, e
+não só se o código faz o que foi declarado. Na partição piloto 0, as 57
+redes do ensaio ficaram quase todas piores no teste do que sem o reajuste,
+e no Mango muito piores.
+
+**Por quê** (diagnóstico no B4-limpo, partição 0): com a receita do artigo
+(lr 0,01, lote único, dropout 0,5), o erro de treino oscila de uma época
+para outra. Nas 20 últimas épocas do reajuste ele vai de 0,157 a 0,272 no
+Tecator, de 0,172 a 0,239 no Gasoline e de 0,708 a 1,939 no Mango (y
+padronizado). O treino de parada se protege disso ficando com a melhor
+época. O reajuste roda o número de épocas da parada e fica com a última,
+que cai num ponto qualquer da oscilação.
+
+**Medido nas 30 partições** (`scripts/conferir_reajuste.py`, B1, B2, B3 e
+B4-limpo, Tecator, Gasoline e Mango, receita do artigo, piloto), três
+versões do modelo entregue: (a) o da parada, sem reajuste; (b) o reajuste
+com a última época, o implementado; (c) o reajuste com a época de menor
+erro nas próprias linhas do treino, medido sem dropout. A versão (b) do
+script é igual ao braço nas 360 execuções. Diferença mediana de R² de
+teste:
+
+| conjunto | (b) − (a): B1 / B2 / B3 / B4 | (c) − (a): B1 / B2 / B3 / B4 |
+|---|---|---|
+| Tecator | −0,008 / −0,006 / −0,009 / −0,006 | −0,000 / +0,001 / −0,004 / −0,001 |
+| Gasoline | −0,005 / −0,010 / −0,005 / −0,010 | +0,007 / −0,006 / 0,000 / −0,005 |
+| Mango | −0,015 / −0,214 / −0,518 / −0,107 | +0,006 / −0,010 / −0,029 / −0,016 |
+
+- o reajuste implementado (b) piora em todos os 12 casos, e ganha de (a)
+  em só 2 a 12 das 30 partições. O viés que ele cria vai **contra a rede**,
+  a mesma direção que o reajuste devia tirar;
+- a versão (c) é melhor que (b) nos 12 casos (mediana de +0,002 a +0,38) e
+  fica perto de (a), mas não ganha com os 20% de dados a mais: nesta
+  receita, o ruído do fim do treino pesa mais que os dados.
+
+Não mudei o código: o reajuste está como a orientação definiu, e a escolha
+entre (b), (c) ou voltar a (a) com o handicap declarado é dela. Vai na
+próxima mensagem, como ela pediu ("se o reajuste interagir com alguma coisa
+que eu não estou vendo, me diga"). Piloto, com o Mango ainda na receita
+quebrada.
+
+### O aviso de borda de grade (item 7 da resposta de 16/11)
+
+Todo hiperparâmetro escolhido de grade declarada passou a registrar, em
+`hyperparams`, se a escolha caiu num extremo da grade (`*_edge`), e a
+avisar: o limiar do VIP, o `int_num` do iPLS, a (população, gerações) do
+GA-PLS, o número de componentes do PLS (só a borda de cima, que já tinha
+aviso desde outubro, agora também registrado) e a receita das redes
+(orçamento e taxa). O resumo por conjunto e braço é
+`tcc.metrics.edge_summary`. O CARS não escolhe de grade declarada.
+
+14 testes e 11 mutações, todas pegas. Suíte inteira: 350 passaram, 1
+pulado; um teste antigo do PLS esperava `hyperparams` sem a chave nova e foi
+atualizado.
+
+**O que o aviso mostra nos dados.** No ensaio da grade final (partição 0):
+o VIP, com a grade alargada, fica no meio nos três conjuntos; o GA-PLS cai
+sempre numa borda, porque a grade dele tem dois candidatos; e **o iPLS
+escolhe `int_num` = 10, o menor candidato, nos três conjuntos.** Nas 30
+partições piloto (`scripts/conferir_borda_ipls.py`): na borda de baixo em
+20 de 30 no Tecator e 24 de 30 no Gasoline (o Mango, a ~18 min por
+partição, não rodou). Isso encontra a pergunta 12: a regra de um
+erro-padrão do iPLS fica com o menor `int_num` dentro do limite, o que
+retém mais bandas, e com o que está gravado não dá para separar se a borda
+vem da grade ou da direção do desempate. Alargar a grade para baixo ou
+inverter o desempate é decisão da orientação; não mudei nada, e entra na
+mensagem.

@@ -17,7 +17,7 @@ from dataclasses import dataclass
 import numpy as np
 from sklearn.cross_decomposition import PLSRegression
 
-from tcc.arms.base import Budget, CVFolds
+from tcc.arms.base import Budget, CVFolds, grid_edge, warn_edge
 from tcc.arms.ipls import _fit_pls
 from tcc.arms.pls import PLSArm
 
@@ -147,10 +147,13 @@ class VIPArm:
         if self._fixed_threshold is not None:
             threshold = self._fixed_threshold
             rmse_cv = float("nan")
+            edge = None
         else:
             threshold, rmse_cv = self._search(
                 X_train, y_train, cv_folds, vips, n_components, budget
             )
+            edge = grid_edge(threshold, self._candidates)
+            warn_edge(self.name, "limiar", threshold, edge)
         selections = [_select(vip, threshold) for vip in vips]
 
         full = PLSRegression(n_components=n_components).fit(X_train, y_train)
@@ -173,6 +176,7 @@ class VIPArm:
             _vip=vip,
             _hyperparams={
                 "threshold": threshold,
+                "threshold_edge": edge,  # escolha na borda da grade (16/11)
                 "vip_ncomp": n_components,
                 "n_components": refit_ncomp,
                 "n_bands": len(columns),

@@ -1,9 +1,41 @@
 from __future__ import annotations
 
+import warnings
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Protocol, runtime_checkable
 
 import numpy as np
+
+
+class GridEdgeWarning(RuntimeWarning):
+    """Hiperparâmetro escolhido num extremo da grade declarada."""
+
+
+def grid_edge(chosen, candidates: Sequence) -> str | None:
+    """"inferior" ou "superior" se `chosen` é o primeiro ou o último de
+    `candidates` (na ordem declarada), None se fica no meio.
+
+    Escolha na borda quer dizer que a grade pode estar restringindo e o
+    ótimo pode estar fora dela (orientação, 16/11/2026: o teto de 20
+    componentes do PLS e o limiar 0,8 do VIP no Mango). Com um candidato só
+    não há busca, e não há borda.
+    """
+    cands = list(candidates)
+    if len(cands) < 2:
+        return None
+    if chosen == cands[0]:
+        return "inferior"
+    if chosen == cands[-1]:
+        return "superior"
+    return None
+
+
+def warn_edge(arm: str, param: str, chosen, edge: str | None) -> None:
+    """Avisa, sem interromper, quando `edge` não é None."""
+    if edge is not None:
+        warnings.warn(f"{arm}: {param} = {chosen}, na borda {edge} da grade declarada",
+                      GridEdgeWarning, stacklevel=3)
 
 # Índices (relativos a X_train/y_train) de cada fold da CV interna. Gerados
 # por evaluate() a partir de seed_split e injetados em fit() — o braço nunca

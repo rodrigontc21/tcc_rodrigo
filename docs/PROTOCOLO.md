@@ -344,6 +344,16 @@ obstáculo. Nenhuma redução de sementes ou partições é feita em silêncio.
 Qualquer corte, por custo ou por outro motivo, entra declarado, com o
 motivo, antes de rodar.
 
+**Escolha na borda da grade é reportada (orientação, 16/11/2026;
+implementado em 17/11).** Todo hiperparâmetro escolhido de uma grade
+declarada registra em `hyperparams` se a escolha caiu num extremo da grade
+(`*_edge`: "inferior", "superior" ou nada) e avisa (`GridEdgeWarning`): o
+limiar do VIP, o `int_num` do iPLS, a (população, gerações) do GA-PLS, o
+número de componentes do PLS (só a borda de cima: abaixo de 1 não há
+modelo) e a receita das redes (orçamento de épocas e taxa). O resumo por
+conjunto e braço é `tcc.metrics.edge_summary`, e entra no relatório da
+grade. O CARS não escolhe nada de grade declarada.
+
 ---
 
 ## Piso de ruído de partição (medido nos 4 conjuntos)
@@ -552,6 +562,18 @@ artigo faz. Vale para B2, B3, B4, B5 e B2', com o mesmo orçamento.
 de épocas: com menos parâmetros no otimizador, os braços congelados podem
 parar em outra época (ADR 013).
 
+**Reajuste no treino inteiro (orientação, 16/11/2026; implementado em
+17/11).** Cada braço de rede treina duas vezes. O **treino de parada**
+ajusta nas linhas da fold interna de ajuste e para pela fold de parada,
+ficando com a melhor época; dele saem a melhor época e o `rmse_cv`. O
+**reajuste** treina de novo em **todas** as linhas do treino, com o prior e
+a padronização recalculados nelas, a mesma semente do torch e exatamente o
+número de épocas da melhor época, sem parada (em lote único, uma época é um
+passo, e o número de passos transfere direto). O modelo entregue é o
+reajuste: as predições, a porta e o `d` saem dele. Sem isso, a rede
+treinaria em 80% do treino e os braços clássicos, que reajustam em tudo, em
+100%, um viés a favor da conclusão deste trabalho. `n_fits` = 2 por treino.
+
 **Decaimento de peso e os dois B4 (proposta de 04/11, a partir da mensagem
 da orientação de 30/10).** O `train_light.py` aplica `weight_decay=1e-4` a
 todos os parâmetros, inclusive aos logits da porta. Na porta, isso puxa os
@@ -692,7 +714,10 @@ B5 sob este protocolo).**
   - `d_s` é o maior deslocamento |θ_final − θ_inicial| dos logits da porta
     no treino com `c` = 1 e porta isenta (o B4-limpo), sob este protocolo
     (partição agrupada, folds internas, parada pela fold interna), na
-    partição `s`;
+    partição `s`. **Desde 17/11, o `d` é o do reajuste no treino inteiro**,
+    o modelo entregue, cuja porta é a que a tese discute (orientação,
+    16/11); os `c_TOST` da tabela abaixo foram medidos antes, no treino de
+    parada, e são medidos de novo depois da receita;
   - `g_s` é a distância inicial entre o 1º e o 2º logit da porta em `c` = 1
     na mesma partição, que muda com ela porque o prior é recalculado em
     cada treino.

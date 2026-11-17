@@ -167,6 +167,6 @@ def test_fixed_n_components_skips_search(flat_curve_problem):
     budget = Budget()
     fitted = PLSArm(n_components=3).fit(X, y, folds, np.random.default_rng(0), budget)
 
-    assert fitted.hyperparams == {"n_components": 3}
+    assert fitted.hyperparams == {"n_components": 3, "n_components_edge": None}
     assert np.isnan(fitted.rmse_cv)
     assert budget.n_fits == 1

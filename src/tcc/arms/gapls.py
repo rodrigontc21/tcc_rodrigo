@@ -20,7 +20,7 @@ from dataclasses import dataclass
 import numpy as np
 from sklearn.cross_decomposition import PLSRegression
 
-from tcc.arms.base import Budget, CVFolds
+from tcc.arms.base import Budget, CVFolds, grid_edge, warn_edge
 from tcc.arms.ipls import _fit_pls, _inner_folds
 from tcc.arms.pls import PLSArm
 
@@ -270,10 +270,15 @@ class GAPLSArm:
             selections = self._fold_selections(
                 X_train, y_train, cv_folds, n_components, config, seeds, budget
             )
+            edge = None
         else:
             config, rmse_cv, selections = self._search(
                 X_train, y_train, cv_folds, n_components, seeds, budget
             )
+            # Com dois candidatos, toda escolha é borda: a grade do GA é
+            # pequena por custo (ADR 015), e o registro deixa isso visível.
+            edge = grid_edge(tuple(config), [tuple(c) for c in self._candidates])
+            warn_edge(self.name, "(população, gerações)", tuple(config), edge)
 
         final_bands = self._run_ga(
             X_train, y_train, cv_folds, n_components, config, seeds[-1], budget
@@ -287,6 +292,7 @@ class GAPLSArm:
             _hyperparams={
                 "pop_size": config[0],
                 "max_iter": config[1],
+                "ga_config_edge": edge,  # escolha na borda da grade (16/11)
                 "ga_ncomp": n_components,
                 "n_components": refit_ncomp,
                 "n_bands": len(columns),

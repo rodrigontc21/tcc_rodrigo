@@ -109,7 +109,8 @@ mudam as quatro colunas:
 - **Sem reajuste no treino inteiro:** as linhas da fold de parada não
   ajustam a rede. Reajustar com o número de épocas encontrado é a
   alternativa, registrada e não adotada, porque o número de épocas depende
-  do tamanho do conjunto.
+  do tamanho do conjunto. **Mudou em 16/11, por decisão da orientação, e
+  foi implementado em 17/11:** ver "O reajuste no treino inteiro", no fim.
 - **`rmse_cv`:** o RMSE no conjunto de parada, na melhor época. É otimista,
   porque o mesmo conjunto escolheu a época, e isso é declarado.
 
@@ -138,7 +139,7 @@ o 2º logit. `band_scores` é a porta final.
 
 ### Orçamento
 
-`n_fits` = 1 por treino; as épocas vão em `hyperparams`. Como no GA-PLS,
+`n_fits` = 1 por treino (2 desde 17/11, com o reajuste); as épocas vão em `hyperparams`. Como no GA-PLS,
 `n_fits` de rede não é comparável em custo com o dos braços clássicos, e
 isso é declarado.
 
@@ -348,4 +349,46 @@ O procedimento está no PROTOCOLO ("A receita de treino das redes") e em
 A regra tem 13 testes com entrada sintética e 11 mutações, todas pegas.
 Ainda não rodou: espera a orientação ver a declaração e o reajuste no
 treino inteiro (item 3 da resposta de 16/11), que muda o treino.
+
+## O reajuste no treino inteiro (17/11/2026)
+
+Item 3 da resposta de 16/11, implementado em `GateArm.fit`:
+- **treino de parada:** como antes, nas linhas de ajuste, parando pela fold
+  de parada e ficando com a melhor época. Dele saem `best_epoch` e o
+  `rmse_cv` (otimista, porque a mesma fold escolheu a época, e declarado);
+- **reajuste:** nas linhas todas do treino, com o prior e a padronização
+  recalculados nelas, a mesma semente do torch e exatamente `best_epoch`
+  épocas, sem parada. É o modelo entregue: predições, porta (`band_scores`)
+  e as medidas da porta (`gate_max_disp`, o `d`, e as outras) saem dele. As
+  do treino de parada ficam em `hyperparams` com o prefixo `stop_`;
+- `n_fits` = 2; `refit_epochs` e `refit_steps` registram o reajuste.
+
+**Conferência:**
+- o treino de parada não mudou: com a receita do artigo, a melhor época e o
+  deslocamento da porta na parada são, no Tecator `seed_split` 0, os
+  mesmos gravados na varredura de 12/11 (teste de regressão);
+- o `rmse_cv` é o do treino de parada, e o modelo entregue é um reajuste
+  refeito por fora (mesma semente, todas as linhas, `best_epoch` épocas):
+  predições iguais a menos do arredondamento de float32, e o mesmo `d`;
+- dez mutações no reajuste, todas pegas (sem reajuste, orçamento inteiro,
+  uma época a mais, outra semente, só as linhas de ajuste, prior das
+  linhas de ajuste, escala de y errada, um ajuste só, `d` da parada,
+  `rmse_cv` do reajuste).
+
+**Consequência:** todos os números de rede medidos antes (`c_TOST`,
+varredura de `c`, grade de conferência) são do desenho sem reajuste. Os
+`c_TOST` e a varredura são medidos de novo depois da receita, como a
+orientação já tinha mandado.
+
+**O reajuste piora a rede (17/11, piloto; para a orientação decidir).** Com
+a receita do artigo, o erro de treino oscila de época para época, e o
+reajuste fica com a última época, num ponto qualquer da oscilação. Nas 30
+partições (`scripts/conferir_reajuste.py`; DIARIO de 17/11), o R² de teste
+do reajuste ficou abaixo do da parada nos quatro braços da decomposição e
+nos três conjuntos (mediana de −0,005 a −0,010 no Tecator e no Gasoline,
+até −0,52 no Mango): um viés contra a rede. Ficar com a época de menor erro
+de treino, dentro do mesmo reajuste, desfaz quase todo o estrago, mas não
+ganha da parada. Opções: (b) manter como está; (c) reajuste com a época de
+menor erro de treino; (a) voltar a não reajustar, declarando o handicap de
+80% contra 100% com a direção dele. Não mudei nada.
 
