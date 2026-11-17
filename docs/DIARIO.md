@@ -5221,3 +5221,88 @@ Leitura: no Mango, com a receita do artigo, a parada precoce é coisa da
 partição, e não do `c`. Não contradiz a medida da orientação, que é de
 outros dois conjuntos, em que o treino funciona. Vai na mensagem, como ela
 pediu ("se a previsão falhar quero saber").
+
+### O script do platô rodado aqui
+
+Rodei o `verify_plateau_vs_gate.py` da orientação sem alteração, fora do
+repositório, com o código do artigo da cópia local e uma thread. No
+Gasoline precisei passar `--col 0`: o padrão do script é `--col 1`, e o
+Gasoline tem um alvo só. As conclusões dela se repetem nos dois conjuntos:
+
+| | orientação (Tecator / Gasoline) | aqui (Tecator / Gasoline) |
+|---|---|---|
+| RMSE de parada nas épocas 1 a 20 | 0,906–0,910 / 1,27–1,33 | 0,900–0,909 / 1,27–1,33 |
+| parada na janela da paciência, `c` = 1 | 0% / 0% | 0% / 0% |
+| idem, `c` < 1 | 10–50% / 20–30% | 20–40% / 10–30% |
+| R² de treino, Tecator | 0,918 em `c` = 1; 0,41–0,85 abaixo | 0,926; 0,76–0,86 abaixo |
+| massa inicial no topo, `c` = 0 | 0,0100 / 0,0025 | 0,0100 / 0,0025 |
+
+Os números não são idênticos aos da máquina dela, como nos scripts
+anteriores; a maior diferença é o R² de treino do Tecator abaixo de `c` =
+1, que ela mediu mais espalhado.
+
+### A grade do VIP alargada (ADR 014)
+
+O VIP escolhia 0,8, o menor limiar da grade, nas 30 partições do Mango. Como
+a orientação preferiu, alarguei a grade agora, antes da grade final: para
+baixo até 0,2, no passo de 0,2. A conferência
+(`scripts/conferir_grade_vip.py`) mostrou que o Mango saiu da borda (0,6 em
+30 de 30, 256 a 260 bandas de 281), mas que o bioprocess escolhia 1,5, a
+borda de cima, em 3 das 4 partições, e já escolhia com a grade antiga.
+Alarguei também para cima, até 3,0 (limiar que esvazia algum fold sai da
+disputa). Grade: {0,2; 0,4; 0,6; 0,8; 1,0; 1,2; 1,5; 2,0; 2,5; 3,0}.
+
+Na segunda conferência, nenhum conjunto escolhe na borda. Fora do Mango, a
+escolha é a mesma da grade antiga, com uma exceção: na partição 9 do
+Tecator, o menor RMSE da CV passou a um limiar novo, isso move o limite de
+um erro-padrão, e a escolha foi de 1,2 para 0,8. Um teste fixa a grade
+declarada.
+
+Piloto, só para registro: com a grade nova, o VIP no Mango continua abaixo
+do PLS nas 30 partições, mas a diferença mediana cai de −0,0113 para
+−0,0023 em R². Os CSVs das 30 partições continuam com a grade antiga.
+
+### O WSL desliga quando o último terminal fecha
+
+A primeira conferência do VIP morreu: o processo rodava com `nohup`, mas o
+WSL reiniciou às 16h56. Quando o último `wsl.exe` aberto pelo Windows
+fecha, o Windows desliga o Ubuntu e mata o que estiver rodando. Rodadas
+longas passam a ser abertas por um `wsl.exe` próprio, escondido, iniciado
+pelo Windows, que vive enquanto a rodada durar.
+
+## 2026-11-17
+
+### A receita de treino declarada (antes de rodar)
+
+A banca ficou marcada para 07/12, às 15h15, online.
+
+Declarei no PROTOCOLO o procedimento de escolha da receita de treino das
+redes, como a orientação pediu em 16/11, e escrevi a regra em
+`src/tcc/recipe_selection.py`, sem rodar:
+- **oito candidatos, todos em lote único:** taxa 0,01 (a do artigo) ou
+  0,003, orçamento de 200, 500, 1.000 ou 2.000 épocas, paciência de 10% do
+  orçamento e no mínimo 30. Os orçamentos e a taxa menor vêm do diagnóstico
+  do Mango de 12/11;
+- **admissibilidade:** faixa de `d_s / g_s` do B4-limpo de no máximo 5
+  vezes, e nenhum treino com a melhor época dentro da paciência;
+- **escolha:** o candidato mais barato dentro de um erro-padrão do melhor,
+  no RMSE da fold de parada médio entre B1, B2, B3 e B4-limpo, nas
+  `seed_split` 0–29.
+
+Antes de declarar o filtro de paradas, conferi nos dados que ele separa o
+que deve separar. A própria medida da orientação, com outra partição,
+tinha paradas cedo com `c` < 1 no Tecator. Mas sob este protocolo, com a
+receita do artigo, nenhum dos 570 treinos de rede do Tecator, do Gasoline
+e do bioprocess tem a melhor época dentro da paciência, e 127 dos 570 do
+Mango têm. O filtro estrito ("nenhum treino") deixa passar a receita do
+artigo onde ela funciona e barra o Mango.
+
+13 testes com entrada sintética e 11 mutações, todas pegas. Uma escapou na
+primeira rodada (tirar a paciência da ordem de custo), porque na grade
+declarada a paciência acompanha o orçamento; um teste com receitas fora da
+grade passou a pegá-la. Três testes meus falharam antes, por erro meu nos
+dados: melhores épocas abaixo da paciência dos candidatos longos, e 69,9
+escrito como 70.
+
+A escolha roda depois do reajuste no treino inteiro e de a orientação ver
+a declaração. O limite de 5 vezes é escolha minha, a confirmar.

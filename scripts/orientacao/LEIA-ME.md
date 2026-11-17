@@ -45,9 +45,15 @@ com o ambiente virtual `~/venv-tcc` (Python 3.12.3).
   números da orientação (ADR 009, adendo de 10/11). As versões dos pacotes
   não foram anotadas no dia; o ambiente em 12/11 tinha torch 2.14.1+cpu,
   numpy 2.5.2, scikit-learn 1.9.0, pandas 3.0.5 e scipy 1.18.0.
-- **`verify_plateau_vs_gate.py`:** ainda não rodado aqui. Os números dele
-  são da máquina do orientador (Tecator e Gasoline, 10 sementes) e entram
-  no PROTOCOLO como o motivo medido da ressalva entre valores de `c`.
+- **`verify_plateau_vs_gate.py`:** rodado em 16/11/2026, sem alteração e
+  fora do repositório, com o código do artigo da cópia local e uma thread
+  (torch 2.14.1+cpu, numpy 2.5.2, scikit-learn 1.9.0). No Tecator, `--col
+  1` (gordura, o padrão); no Gasoline, `--col 0`, porque o padrão `--col 1`
+  dá erro num conjunto de alvo único. As conclusões do orientador se
+  repetem (DIARIO de 16/11): o platô das épocas 1 a 20 em todo `c`; nenhuma
+  parada dentro da janela da paciência em `c` = 1, e 10 a 40% abaixo; a
+  massa inicial no topo igual à dele. Os números não saem idênticos aos da
+  máquina dele, como nos scripts anteriores.
 - **`verify_b5_logit_scale.py`:** ainda não rodado aqui. Os números dele são
   da máquina do orientador e são piloto (PROTOCOLO, seção do B5).
 

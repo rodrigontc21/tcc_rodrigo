@@ -331,3 +331,21 @@ da dos conjuntos em que o treino funciona, e nenhum treino com a melhor
 declarada no PROTOCOLO. Depois: `c_TOST` dos quatro conjuntos, varredura,
 congelamento.
 
+## A receita declarada (17/11/2026, antes de rodar)
+
+O procedimento está no PROTOCOLO ("A receita de treino das redes") e em
+`src/tcc/recipe_selection.py`:
+- **oito candidatos em lote único:** taxa 0,01 (a do artigo) ou 0,003;
+  orçamento de 200, 500, 1.000 ou 2.000 épocas, com paciência de 10% do
+  orçamento e no mínimo 30. O primeiro é a receita do artigo, e um braço
+  que fica com ela mantém o nome sem sufixo;
+- **admissível** se a faixa de `d_s / g_s` do B4-limpo nas partições não
+  passa de 5 vezes e nenhum treino tem a melhor época dentro da paciência;
+- **escolha:** o mais barato (orçamento, depois paciência, depois a taxa do
+  artigo) dentro de um erro-padrão do melhor, no RMSE da fold de parada
+  médio entre B1, B2, B3 e B4-limpo, nas `seed_split` 0–29.
+
+A regra tem 13 testes com entrada sintética e 11 mutações, todas pegas.
+Ainda não rodou: espera a orientação ver a declaração e o reajuste no
+treino inteiro (item 3 da resposta de 16/11), que muda o treino.
+

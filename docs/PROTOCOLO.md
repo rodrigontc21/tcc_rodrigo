@@ -745,6 +745,64 @@ Os números da orientação são piloto (parada olhando o teste, partição
 precisa ser refeita sob este protocolo** antes de qualquer coisa ir para o
 texto.
 
+### A receita de treino das redes (declarada em 17/11/2026, antes de rodar)
+
+**O enquadramento** (orientação, 16/11/2026). A receita de treino é, para a
+rede, o que o H\* é para o PLS: um parâmetro escolhido **por conjunto**,
+por um procedimento declarado, na validação interna, sem olhar o teste. No
+mesmo conjunto, os sete braços de rede usam a mesma receita.
+
+**Os candidatos**, todos em **lote único**, Adam, KL 0,001, L2 1e-4 no MLP
+(`src/tcc/recipe_selection.py`):
+
+| taxa | orçamento de épocas | paciência |
+|---|---|---|
+| 0,01 (a do artigo) e 0,003 | 200 | 30 |
+| | 500 | 50 |
+| | 1.000 | 100 |
+| | 2.000 | 200 |
+
+Oito candidatos; o primeiro (0,01, 200, 30) é a receita do artigo. A
+paciência é 10% do orçamento, no mínimo 30. Em lote único uma época é um
+passo do otimizador: o orçamento de passos é o objeto da tese (o mecanismo
+(a) do ADR 013 é a distância de 11,5 logits contra o que o Adam anda em 200
+passos), então só o valor muda entre conjuntos, nunca a forma do
+otimizador. Os orçamentos vêm do diagnóstico do Mango (DIARIO de 12/11): em
+200 passos a rede não ajusta nem o treino, e com até 2.000 chega ao nível do
+PLS. A taxa 0,003 entra porque, em treino longo, a de 0,01 ficou instável
+no Mango. **Mini-lote só se nenhum candidato for admissível**, e então nos
+quatro conjuntos, com o orçamento de passos recalculado e os `c_TOST`
+medidos de novo, como mudança declarada no objeto da tese.
+
+**Admissibilidade**, num conjunto, sobre as `seed_split` 0–29:
+1. a faixa de `d_s / g_s` do B4-limpo (maior sobre menor, entre partições)
+   não passa de **5 vezes**. Com a receita do artigo, ela foi de 1,5 a 3,4
+   vezes nos três conjuntos em que o treino funciona, e de 67 vezes no
+   Mango (66,6; a orientação citou 70, pela tabela arredondada), a
+   assinatura do treino quebrado (tabela do `c_TOST`, acima);
+2. **nenhum** treino tem a melhor época dentro da janela da paciência
+   (melhor época ≤ paciência). Com a receita do artigo, sob este protocolo,
+   isso não aconteceu em nenhum dos 570 treinos de rede do Tecator, do
+   Gasoline e do bioprocess, e aconteceu em 127 dos 570 do Mango.
+
+O valor de 5 vezes é escolha minha, acima da maior faixa dos conjuntos que
+funcionam, a confirmar com a orientação.
+
+**A escolha:** em cada conjunto e cada candidato, rodam os braços da
+decomposição de rede (B1, B2, B3 e B4-limpo) nas `seed_split` 0–29. Por
+partição, o critério é o RMSE na fold de parada, na melhor época, médio
+entre os quatro braços. Entre os candidatos admissíveis, o de menor média
+define o limite de um erro-padrão (erro-padrão entre as 30 partições), e
+fica o **mais barato** dentro do limite: o menor orçamento de épocas; no
+empate, a menor paciência; no empate, a taxa do artigo. É a regra de um
+erro-padrão do H\* do PLS, com o custo no lugar do número de componentes.
+
+**A ordem:** receita, depois o `c_TOST` dos quatro conjuntos (não só do
+Mango: se a receita mudar num conjunto, o `d` dele muda), depois a
+varredura de `c`, o congelamento e a grade final. A escolha só roda depois
+do reajuste no treino inteiro (ADR 017, resposta de 16/11, item 3), que
+muda o treino dos braços de rede.
+
 ---
 
 ## Decisões em aberto

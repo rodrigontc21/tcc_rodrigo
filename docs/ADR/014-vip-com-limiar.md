@@ -124,6 +124,8 @@ inclusivo. Candidatos declarados a priori, iguais nos quatro conjuntos:
 limiar ∈ {0,8; 1,0; 1,2; 1,5}
 ```
 
+**Alargada em 16/11/2026**, antes da grade final: ver "A grade alargada", no fim.
+
 O 1,0 é a convenção "geralmente aceita" registrada em Mehmood et al. (2020).
 O limite inclusivo segue a forma do artigo: elimina-se a variável com VIP
 abaixo do limiar. A faixa inclui um valor abaixo de 1 porque, no estudo
@@ -250,3 +252,47 @@ texto como resultado, e nada do protocolo muda com base neles. "Não se
 distingue do PLS" no Wilcoxon não é equivalência; equivalência é o TOST
 com δ, na grade. Os Wilcoxon são cinco testes contra a mesma referência
 e, por serem piloto, não levam correção de multiplicidade.
+
+## A grade alargada (16/11/2026, antes da grade final)
+
+**O problema** (orientação, 16/11). No Mango, o limiar escolhido foi 0,8 em
+todas as 30 partições piloto: o menor candidato, a borda de baixo da grade.
+Escolha na borda quer dizer que a grade está restringindo e o ótimo pode
+estar fora dela. É a mesma forma do teto de 20 componentes do PLS, achado
+em outubro. Alargar a grade depois de ver resultado é mudança de protocolo;
+a orientação preferiu alargar agora, declarando, antes de a grade final
+rodar, a manter e declarar a borda.
+
+**A grade nova**, igual nos quatro conjuntos:
+
+```
+limiar ∈ {0,2; 0,4; 0,6; 0,8; 1,0; 1,2; 1,5; 2,0; 2,5; 3,0}
+```
+
+Para baixo, no mesmo passo de 0,2 entre 0,8, 1,0 e 1,2, até 0,2. Para
+cima, até 3,0: a conferência da grade alargada só para baixo mostrou que o
+bioprocess escolhe 1,5, a borda de cima, em 3 das 4 partições rodadas, e
+já escolhia com a grade antiga (o mesmo resultado nas quatro). Limiar que
+esvazia algum fold sai da disputa, então os valores altos nunca levam a uma
+seleção vazia. A regra de escolha não muda (um erro-padrão, desempate para
+o maior limiar). Os valores em si são escolha deste ADR.
+
+**Conferência** (`scripts/conferir_grade_vip.py`, piloto, `seed_split`
+0–29 no Tecator, no Gasoline e no Mango, 0–3 no bioprocess):
+
+| conjunto | limiares escolhidos | na borda |
+|---|---|---|
+| Tecator | 1,2 em 26; 1,0 em 3; 0,8 em 1 | 0 |
+| Gasoline | 1,0 em 18; 1,2 em 9; 0,8 em 3 | 0 |
+| Mango | 0,6 em 30 (256 a 260 de 281 bandas) | 0 |
+| bioprocess | 1,5 em 3; 1,2 em 1 | 0 |
+
+No Tecator o 1,2 não é borda: o 1,5 esvazia os folds e sai da disputa. No
+bioprocess o 1,5 deixou de ser borda com o 2,0 disponível e não escolhido.
+Fora do Mango, a grade nova repete a escolha antiga (inclusive nas quatro
+partições do bioprocess), com uma exceção: na
+partição 9 do Tecator o menor RMSE da CV passou a um limiar novo, o que
+move o limite de um erro-padrão, e a escolha foi de 1,2 para 0,8. Os
+resultados piloto do VIP nos CSVs das 30 partições são da grade antiga e
+ficam como estão; a grade final roda com a nova.
+

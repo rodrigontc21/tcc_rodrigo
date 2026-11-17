@@ -21,10 +21,14 @@ from tcc.arms.base import Budget, CVFolds
 from tcc.arms.ipls import _fit_pls
 from tcc.arms.pls import PLSArm
 
-# Faixa declarada a priori no ADR 014, igual nos quatro conjuntos. O 1,0 é
-# a convenção da literatura (a média dos VIP² é 1); 0,8 e os valores acima
-# de 1 cobrem os dois lados dela.
-DEFAULT_THRESHOLD_CANDIDATES = (0.8, 1.0, 1.2, 1.5)
+# Faixa declarada no ADR 014, igual nos quatro conjuntos. O 1,0 é a
+# convenção da literatura (a média dos VIP² é 1). A faixa original era
+# {0,8; 1,0; 1,2; 1,5}; em 16/11/2026, antes da grade final, foi alargada
+# nos dois lados (orientação, 16/11; ADR 014): para baixo, no passo de 0,2,
+# até 0,2, porque no Mango a escolha caía sempre no 0,8; e para cima, até
+# 3,0, porque no bioprocess passou a cair no 1,5. Limiar que esvazia algum
+# fold sai da disputa sozinho, então o lado de cima não escolhe seleção vazia.
+DEFAULT_THRESHOLD_CANDIDATES = (0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.5, 2.0, 2.5, 3.0)
 
 
 def vip_scores(model: PLSRegression) -> np.ndarray:
@@ -185,7 +189,7 @@ class VIPArm:
 
         Um limiar que deixe algum fold sem banda nenhuma fica de fora. Isso
         só pode acontecer acima de 1: como a média dos VIP² é 1, o maior VIP
-        é sempre >= 1, e 0,8 e 1,0 nunca esvaziam.
+        é sempre >= 1, e os limiares até 1,0 nunca esvaziam.
         """
         mean_rmse = np.full(len(self._candidates), np.inf)
         se_rmse = np.zeros(len(self._candidates))

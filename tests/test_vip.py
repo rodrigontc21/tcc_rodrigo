@@ -197,3 +197,11 @@ def test_searched_n_components_is_the_one_se_value(spectral_problem):
     expected, _ = PLSArm()._search(X, y, folds, Budget())
     fitted = VIPArm(threshold=1.0).fit(X, y, folds, np.random.default_rng(0), Budget())
     assert fitted.hyperparams["vip_ncomp"] == expected
+
+
+def test_default_threshold_grid_is_the_declared_one():
+    # Faixa declarada no ADR 014, alargada nos dois lados em 16/11/2026 antes da
+    # grade final; mudar a grade é mudar o protocolo.
+    from tcc.arms.vip import DEFAULT_THRESHOLD_CANDIDATES
+    assert DEFAULT_THRESHOLD_CANDIDATES == (0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.5, 2.0, 2.5, 3.0)
+    assert VIPArm()._candidates == DEFAULT_THRESHOLD_CANDIDATES
