@@ -5539,3 +5539,27 @@ O RMSECV interno não vê nada disso, porque o espectro com pico estava no
 teste. O que fazer com espectros com pico no bioprocess (deixar como está
 e reportar, ou tirar picos antes do SNV para todos os braços, o que muda o
 pré-processamento declarado) é decisão da orientação. Não mudei nada.
+
+**Contraprova** (`scripts/conferir_cars_fiel_pico.py`, com o modelo
+entregue pelo braço, sem mudança). A linha 3208 cai no teste em cinco das
+30 partições: 10, 11, 14, 16 e 26. O CARS fiel só cai em duas, e são
+exatamente as duas em que ele **selecionou a banda do pico** (a 1.481; o
+pico ocupa a 1.480 e a 1.481). Nas outras três, a banda ficou de fora e o
+R² é normal (0,826, 0,851 e 0,845), mesmo com 18 a 24 componentes. Nas
+partições 10 e 16:
+
+| | partição 10 | partição 16 |
+|---|---|---|
+| R² entregue | 0,129 | 0,497 |
+| sem a linha 3208 no teste | 0,870 | 0,823 |
+| espectro dela trocado pelo da réplica | 0,870 | 0,824 |
+| só as duas bandas do pico trocadas | 0,869 | 0,822 |
+| previsão da linha 3208 (real 0,71): entregue → pico trocado | −213,7 → −8,0 | −144,1 → −9,7 |
+
+Os outros braços, nas mesmas duas partições, ficam entre 0,849 e 0,902.
+Então a causa é a combinação das duas coisas: a banda do pico entre as
+selecionadas e muitos componentes (com 6 a 7, nas mesmas bandas, o R²
+seria 0,84 a 0,89, como acima). Uma ressalva: mesmo sem a banda do pico, o
+CARS fiel prevê essa linha entre −20 e −8, longe do 0,71; o espectro dela
+tem outras diferenças menores contra a réplica, e o erro dessa linha sozinha
+não move o R² nessas partições.
