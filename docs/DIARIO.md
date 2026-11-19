@@ -5504,3 +5504,38 @@ investiguei a causa; fica anotado para olhar antes da grade final.
 
 O iPLS, nas 4 partições: ΔR² mediano +0,0023 (−0,0002 a +0,0063), 842
 bandas na mediana. Faltam as partições 4 a 29, umas 7 levas de ~3h20.
+
+### Por que o CARS fiel cai nas partições 10 e 16: um espectro com pico
+
+Rodei o mesmo braço, sem mudança, nas partições 10 e 16 e em duas normais
+(0 e 7), gravando os resíduos de teste e o R² de teste contra o número de
+componentes do modelo final (`scripts/conferir_cars_fiel_bioprocess.py`,
+piloto). Conferência: o R² recalculado é igual ao do CSV nas quatro.
+
+**Não é defeito do código, é uma amostra.** Nas duas partições ruins, o
+pior resíduo é a **mesma linha, 3208**, que cai no teste nas duas: valor
+real 0,71, previsto −213,7 na partição 10 e −144,1 na 16. Os cinco maiores
+resíduos levam 87% do erro quadrático na 10 e 70% na 16, contra 16 a 17%
+nas partições normais. A linha 3208 é um espectro com um pico estreito: o
+máximo depois do SNV é 20,2, contra 4,2 na mediana dos espectros, em duas
+bandas (em torno da 1.481 de 1.870), e a distância ao espectro mediano é a
+7ª maior de 6.472. A réplica dela (linha 3207, mesma mistura, mesmo valor)
+é normal. O formato, estreito e numa réplica só, é o de um raio cósmico,
+artefato comum em Raman; não conferi isso de outro modo.
+
+**Por que só o CARS fiel sente.** O modo `fiel` fica com o número de
+componentes de menor RMSECV dentro do teto, e escolheu 19 e 23 (teto 24),
+contra 8 do PLS completo. Com tantos componentes, o modelo extrapola o
+pico. O R² de teste contra o número de componentes, nas mesmas bandas,
+mostra isso: na partição 10 ele chega a 0,885 com 6 componentes e cai a
+0,129 com os 19 escolhidos; na 16, 0,836 com 7 e 0,497 com 23. O modelo
+autoescalado, nas mesmas bandas, cai do mesmo jeito, então não é o modelo
+só centrado. Nas partições normais a curva também tem o máximo em 6 a 8
+componentes (0,867 na 0, 0,878 na 7) e cai devagar até o número escolhido
+(0,836 e 0,848): o menor RMSECV sem a regra de um erro-padrão sobreajusta
+em toda partição, e o pico só torna isso visível.
+
+O RMSECV interno não vê nada disso, porque o espectro com pico estava no
+teste. O que fazer com espectros com pico no bioprocess (deixar como está
+e reportar, ou tirar picos antes do SNV para todos os braços, o que muda o
+pré-processamento declarado) é decisão da orientação. Não mudei nada.
