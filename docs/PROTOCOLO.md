@@ -760,6 +760,16 @@ do artigo (lr 0,01, lote único, paciência 30) foi feita para 172 amostras,
 e no Mango a parada às vezes corta o treino na primeira época. É questão de
 desenho, observada só no treino, e vai à orientação.
 
+**Dois pontos para depois da receita (orientação, 16/11/2026):**
+- o `c_TOST` do bioprocess é cerca de 4 vezes o dos outros conjuntos,
+  porque o `d` dele é 1,603 contra 0,35 a 0,49. Não é problema, mas está
+  sem explicação, e vale um olhar quando a receita estiver fechada, porque
+  o `d` e a época de parada estão ligados;
+- o Δ do Gasoline na varredura (+0,0014 em R², 24 de 30, p = 0,003)
+  sobrevive a Bonferroni, mas está abaixo do piso de ruído do Gasoline e é
+  piloto: nada muda. Fica como linha a reconferir na grade final, no
+  conjunto de menor poder, onde isso não se decide.
+
 **Atualização de 12/11, depois da varredura (piloto):** no Mango, a receita
 falha também no teste (R² de rede em torno de 0,5, contra 0,86 do PLS
 completo; ADR 017, item 7). **O `c_TOST` do Mango fica suspenso** até a

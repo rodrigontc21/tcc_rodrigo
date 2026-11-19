@@ -5420,3 +5420,87 @@ retém mais bandas, e com o que está gravado não dá para separar se a borda
 vem da grade ou da direção do desempate. Alargar a grade para baixo ou
 inverter o desempate é decisão da orientação; não mudei nada, e entra na
 mensagem.
+
+### Por que o iPLS cai na borda: a curva de erro é plana
+
+A borda do iPLS ficou com a pergunta em aberto: o ótimo está abaixo de 10
+(a grade) ou o 10 só ganha pela direção do desempate? Para separar, rodei o
+mesmo braço, sem mudança, com dois candidatos a mais embaixo (5 e 8),
+gravando o erro médio e o erro-padrão de cada candidato, nas `seed_split`
+0–29 do Tecator e do Gasoline (`scripts/conferir_causa_borda_ipls.py`,
+piloto, 9 min). Conferência: restrita à grade declarada, a regra
+reproduzida escolhe o mesmo `int_num` da rodada anterior nas 60 partições.
+
+- **Nas partições em que a escolha foi 10**, o mínimo do erro também estava
+  em 10 em 6 de 20 no Tecator e 13 de 24 no Gasoline; nas outras, estava
+  acima, e o 10 entrou pelo desempate.
+- **Com 5 e 8 na grade**, o mínimo cai em 5 ou 8 em 10 de 30 no Tecator e
+  19 de 30 no Gasoline, e a escolha vai para o 5, a nova borda, em 22 de
+  30 e 25 de 30.
+- **Com o desempate invertido** (o maior `int_num` dentro do limite), sobre
+  o erro já gravado, a escolha vai para o 30, a borda de cima, em 14 de 30
+  no Tecator e 7 de 30 no Gasoline.
+- **A curva é plana:** dos 7 candidatos, a mediana dentro de um erro-padrão
+  do mínimo é 5 no Tecator e 3 no Gasoline; a distância entre o pior e o
+  melhor candidato é, na mediana, 1,8 erro-padrão no Tecator e 3,2 no
+  Gasoline.
+
+Ou seja, as duas causas existem, mas nenhuma das duas saídas tira a escolha
+da borda: alargar só leva a borda para o 5, e inverter leva para o 30. A
+borda vem de o `int_num` quase não mudar o erro de validação, e a regra de
+um erro-padrão então fica com o extremo que a direção do desempate manda.
+A decisão continua com a orientação; não mudei nada.
+
+## 2026-11-18
+
+### O custo do iPLS já tinha resposta
+
+Na entrada de 16/11 escrevi que aceitar o custo do iPLS no bioprocess era
+"pergunta que já está com a orientação". Não estava: a orientação já tinha
+respondido em 05/11 (entrada daquele dia). O custo é resultado, e não
+obstáculo; nada de cortar sementes ou a busca sem declarar antes;
+paralelismo por partição com 4 processos, que já é o que fazemos; e o
+OpenBLAS no R só se as seleções das `seed_split` 0 a 4 saírem idênticas
+nos dois BLAS, conferência que não fiz. Então o iPLS do bioprocess roda com
+a busca completa, e a pergunta saiu da mensagem. O que segue em aberto no
+iPLS é só a borda do `int_num`, que é de 17/11.
+
+## 2026-11-19
+
+### Bioprocess: os cinco braços sem o iPLS nas 30 partições, e o iPLS nas 4 primeiras
+
+Entre 18/11 e a madrugada de 19/11 rodei, em levas de 4 partições em
+paralelo (uma thread por processo), as `seed_split` 4 a 29 dos cinco braços
+sem o iPLS (`rodar_bracos_30_particoes.py rodar bioprocess ... --sem ipls`)
+e depois o iPLS nas partições 0 a 3. Piloto: decisão de método, nada daqui
+entra no texto.
+
+**Execução.** Cada leva de quatro partições sem o iPLS levou de 49 a 72 min
+(30 min a última, com duas). Três interrupções vindas de fora, nenhuma do
+código: o processo encerrado junto com a sessão em que rodava (duas vezes)
+e uma falha do serviço do WSL (`Wsl/Service/E_UNEXPECTED`), resolvida
+reiniciando o WSL. Como o script grava cada partição ao terminar e pula as
+gravadas, só se perderam as partições em andamento, rodadas de novo; o CSV
+ficou íntegro, com uma linha por braço e partição. O iPLS levou de 8.503 a
+11.367 s por partição (2h22 a 3h09), com quatro em paralelo.
+
+**Os cinco braços, 30 partições, contra o PLS na mesma partição** (R² de
+teste; Wilcoxon pareado):
+
+| braço | R² mediano | ΔR² mediano | faixa do ΔR² | ≥ PLS | Wilcoxon p | bandas | tempo mediano |
+|---|---|---|---|---|---|---|---|
+| PLS | 0,8853 | — | — | — | — | 1.870 | 324 s |
+| VIP | 0,8844 | −0,0024 | −0,0105 a +0,0076 | 12/30 | 0,096 | 141 | 352 s |
+| GA-PLS | 0,8810 | −0,0029 | −0,0139 a +0,0084 | 9/30 | 0,0013 | 198 | 467 s |
+| CARS | 0,8928 | +0,0077 | +0,0005 a +0,0197 | 30/30 | 2×10⁻⁹ | 89 | 1.555 s |
+| CARS fiel | 0,8540 | −0,0296 | −0,7624 a −0,0030 | 0/30 | 2×10⁻⁹ | 248 | 545 s |
+
+O CARS `protocolo` fica acima do `fiel` nas 30 partições (ΔR² mediano
++0,0346), o contrário do Mango, onde o `protocolo` ficou abaixo do `fiel`
+em 23 de 30 (ADR 016). **O CARS fiel tem duas partições
+destoantes:** R² 0,129 na `seed_split` 10 e 0,497 na 16, contra 0,83 a
+0,89 nas outras. A mediana não se move com elas, mas a faixa sim. Não
+investiguei a causa; fica anotado para olhar antes da grade final.
+
+O iPLS, nas 4 partições: ΔR² mediano +0,0023 (−0,0002 a +0,0063), 842
+bandas na mediana. Faltam as partições 4 a 29, umas 7 levas de ~3h20.

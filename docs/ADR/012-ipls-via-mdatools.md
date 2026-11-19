@@ -405,3 +405,12 @@ está gravado, não dá para separar se a borda vem da grade (o ótimo abaixo de
 10) ou da direção do desempate. As duas saídas, alargar a grade para baixo
 ou inverter o desempate, são decisão da orientação, antes da grade final.
 Não mudei nada.
+
+**Causa (17/11/2026).** Rodando o mesmo braço com 5 e 8 a mais na grade e
+gravando o erro de cada candidato (`scripts/conferir_causa_borda_ipls.py`,
+piloto, Tecator e Gasoline, `seed_split` 0–29): a curva de erro do
+`int_num` é plana (mediana de 5 de 7 candidatos dentro de um erro-padrão do
+mínimo no Tecator, 3 de 7 no Gasoline). Com a grade alargada, a escolha vai
+para o 5, a nova borda, em 22 e 25 de 30; com o desempate invertido, para o
+30 em 14 e 7 de 30. Nenhuma das duas saídas tira a escolha da borda.
+Detalhe no DIARIO de 17/11.
