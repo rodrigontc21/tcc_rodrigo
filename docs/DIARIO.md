@@ -5704,3 +5704,28 @@ Ou seja, no Mango a borda de baixo é onde está o ótimo: o erro cai até
 perto de 10 intervalos e fica quase igual entre 5 e 10. Alargar a grade
 leva a escolha para o 5 com ganho menor que um erro-padrão. A decisão
 continua com a orientação; não mudei nada.
+
+### OpenBLAS no R: seleções idênticas, mas sem ganho de tempo no iPLS
+
+Em 05/11 a orientação deixou o OpenBLAS no R condicionado a as seleções das
+`seed_split` 0 a 4 saírem idênticas nos dois BLAS. Conferi hoje
+(`scripts/conferir_blas_ipls.py`, piloto): o iPLS sem mudança, com
+`evaluate()` como na produção e uma thread por processo, nas partições 0 a
+4 do Tecator, do Gasoline e do Mango, primeiro com o BLAS de referência
+(o que o R usa) e depois com o OpenBLAS 0.3.26 (`libopenblas0-pthread`),
+conferindo pelo `La_library()` qual o R carregou em cada rodada. O
+bioprocess ficou de fora pelo tempo (1h26 a 3h09 por partição).
+
+- **Conferência da base:** com o BLAS de referência, o R² e o número de
+  bandas batem com os CSVs de produção nas 15 partições.
+- **Seleções idênticas nas 15**, com o mesmo `int_num` e o mesmo número de
+  componentes; o R² não muda nem na última casa (diferença zero).
+- **Tempo somado das 5 partições:** Tecator 158 s contra 128 s; Gasoline
+  266 s contra 214 s; Mango 5.385 s contra 5.415 s. O ganho de ~20% fica
+  nos conjuntos em que o iPLS já é rápido; no Mango, onde o iPLS custa,
+  não há ganho.
+
+Com uma thread por processo, então, o OpenBLAS não reduz o custo do iPLS,
+que era o motivo da pergunta. Voltei o R para o BLAS de referência
+(desinstalei o pacote; o `La_library()` voltou ao LAPACK de referência) e
+nada mudou na produção.
