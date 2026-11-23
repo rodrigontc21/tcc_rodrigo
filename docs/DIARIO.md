@@ -5707,7 +5707,7 @@ continua com a orientação; não mudei nada.
 
 ### OpenBLAS no R: seleções idênticas, mas sem ganho de tempo no iPLS
 
-Em 05/11 a orientação deixou o OpenBLAS no R condicionado a as seleções das
+Em 12/11 a orientação deixou o OpenBLAS no R condicionado a as seleções das
 `seed_split` 0 a 4 saírem idênticas nos dois BLAS. Conferi hoje
 (`scripts/conferir_blas_ipls.py`, piloto): o iPLS sem mudança, com
 `evaluate()` como na produção e uma thread por processo, nas partições 0 a
@@ -5729,3 +5729,11 @@ Com uma thread por processo, então, o OpenBLAS não reduz o custo do iPLS,
 que era o motivo da pergunta. Voltei o R para o BLAS de referência
 (desinstalei o pacote; o `La_library()` voltou ao LAPACK de referência) e
 nada mudou na produção.
+
+**Correção de data (entrada de 18/11).** Lá escrevi que a orientação
+tinha respondido o custo do iPLS "em 05/11". Não foi bem assim: em 05/11
+quem perguntou fui eu (paralelismo ou OpenBLAS). A resposta veio em duas
+vezes: o custo como resultado, o paralelismo e nada de cortar sementes em
+silêncio nas mensagens de 29/10 e 30/10; o OpenBLAS
+condicionado às seleções idênticas na resposta de 12/11. A conclusão de
+18/11 não muda.
