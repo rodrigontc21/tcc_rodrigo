@@ -5476,10 +5476,11 @@ e depois o iPLS nas partições 0 a 3. Piloto: decisão de método, nada daqui
 entra no texto.
 
 **Execução.** Cada leva de quatro partições sem o iPLS levou de 49 a 72 min
-(30 min a última, com duas). Três interrupções vindas de fora, nenhuma do
-código: o processo encerrado junto com a sessão em que rodava (duas vezes)
-e uma falha do serviço do WSL (`Wsl/Service/E_UNEXPECTED`), resolvida
-reiniciando o WSL. Como o script grava cada partição ao terminar e pula as
+(30 min a última, com duas). Interrupções, nenhuma do código: o processo
+encerrado de fora junto com a sessão em que rodava três vezes (18/11 às
+03h21 e logo depois de reiniciado; 19/11 às 03h38), a janela do terminal
+fechada sem querer uma vez, e uma falha do serviço do WSL
+(`Wsl/Service/E_UNEXPECTED`), resolvida reiniciando o WSL. Como o script grava cada partição ao terminar e pula as
 gravadas, só se perderam as partições em andamento, rodadas de novo; o CSV
 ficou íntegro, com uma linha por braço e partição. O iPLS levou de 8.503 a
 11.367 s por partição (2h22 a 3h09), com quatro em paralelo.
@@ -5563,3 +5564,143 @@ seria 0,84 a 0,89, como acima). Uma ressalva: mesmo sem a banda do pico, o
 CARS fiel prevê essa linha entre −20 e −8, longe do 0,71; o espectro dela
 tem outras diferenças menores contra a réplica, e o erro dessa linha sozinha
 não move o R² nessas partições.
+
+### Quantos espectros do bioprocess têm pico: dois tipos
+
+Para saber se a linha 3208 é caso único, comparei cada espectro com a(s)
+réplica(s) da mesma mistura, depois do SNV, e contei os picos positivos
+estreitos (até 5 bandas) acima de um limiar (`scripts/conferir_picos_bioprocess.py`,
+piloto). Os 6.472 espectros têm réplica. A diferença típica entre réplicas
+é pequena (mediana do maior |dif| por espectro: 0,13; percentil 99: 6,84).
+
+| limiar (SNV) | picos estreitos | largos |
+|---|---|---|
+| > 3 | 75 | 1 |
+| > 5 | 49 | 0 |
+| > 10 | 23 | 0 |
+
+**Os picos são de dois tipos.**
+
+1. **Em posição solta, poucos:** a linha 3208 (banda 1.481, 2.928 cm⁻¹, 20,9),
+   a 6387 (banda 242, 916 cm⁻¹, 19,5), a 3128 (banda 1.115, 8,3) e a 2083
+   (banda 242, 3,8); mais três na última banda do eixo (1.869), a ponta do
+   detector. O formato é o de raio cósmico; não conferi de outro modo.
+2. **Sempre na mesma banda, a 663 (1.712,9 cm⁻¹):** 68 dos 75. Reconferido
+   nos dados crus, antes do SNV (`scripts/conferir_pico_663_cru.py`), o
+   quadro é outro do que a contagem sugere:
+   o pico de uma banda só (passo do eixo ali: 1,74 cm⁻¹) está em **todos**
+   os 6.472 espectros, com altura quase constante sobre as vizinhas (em
+   contagens: percentis 1, 25, 50, 75 e 99 de 1.204, 1.520, 3.183, 3.235 e
+   3.311; em dois grupos, 2.798 espectros entre 1.000 e 1.800 e 3.667 entre
+   3.000 e 3.500, só 7 no meio e nenhum abaixo de 1.000; na banda 600, como
+   controle, a mesma conta dá 99 na mediana). Entre as duas
+   réplicas da mesma mistura, a altura crua difere 1,5% na mediana (5,7% no
+   percentil 95). **A diferença entre réplicas vem do SNV:** a altura depois
+   do SNV é a altura crua dividida pelo desvio-padrão do espectro
+   (correlação 1,0), então o mesmo pico fica alto num espectro fraco e baixo
+   num forte. Exemplo, linha 274 e a réplica 273: pico de ~3.260 e ~3.290
+   contagens sobre fundos de ~1.250 e ~2.200. Um pico constante, de um pixel,
+   em todo espectro, sem relação com a mistura (correlação da altura com a
+   glicose: −0,07 na crua, 0,06 depois do SNV), tem jeito de pixel do detector; é leitura minha, não
+   conferida.
+
+Os espectros com pico alto na 663 depois do SNV também aparecem entre os
+maiores resíduos do CARS fiel nas quatro partições conferidas hoje: 6 dos 12
+maiores (linhas 4906, 989, 4603, 214, 615 e 5469). A banda 663 não foi
+conferida contra a seleção de cada braço.
+
+O pico da linha 3208, reconferido nos dados crus: 63.879 contagens acima da
+réplica na banda 1.481 e 63.855 na 1.480, contra 38 de diferença típica
+entre as duas; as bandas ao lado, 4.481 e 6.040.
+
+Então a pergunta para a orientação não é só sobre uma amostra: há picos
+soltos raros e um pico fixo de um pixel em todos os espectros, que o SNV
+torna variável. As saídas que vejo (deixar como está e reportar; tirar
+picos antes do SNV; ou tirar a banda 663 do eixo para todos os braços)
+mudam o pré-processamento declarado, e são decisão da orientação. Não
+mudei nada.
+
+## 2026-11-21
+
+### Bioprocess: o iPLS nas partições 4 a 23
+
+Da noite de 20/11 à manhã de 21/11 rodei o iPLS do bioprocess nas
+`seed_split` 4 a 23, em cinco levas de quatro partições em paralelo (uma
+thread por processo; `rodar_bracos_30_particoes.py rodar bioprocess 4 <a>
+<b>`). Piloto: decisão de método, nada daqui entra no texto.
+
+**Execução.** Sem interrupção e sem erro: as cinco levas saíram com código
+0 e o CSV ficou com uma linha por braço e partição (174 linhas: os cinco
+braços nas 30 e o iPLS em 24). Cada leva levou de 2h13 a 3h06; cada
+partição, de 6.331 a 11.095 s (1h46 a 3h05). A leva 24 a 27 estava
+programada para depois, mas só começaria se desse para terminar até a hora
+combinada, e não deu.
+
+**O iPLS nas 24 partições (0 a 23), contra o PLS na mesma partição** (R² de
+teste; Wilcoxon pareado):
+
+| braço | R² mediano | ΔR² mediano | faixa do ΔR² | ≥ PLS | Wilcoxon p | bandas (mediana; faixa) | tempo mediano |
+|---|---|---|---|---|---|---|---|
+| iPLS | 0,8865 | +0,0032 | −0,0154 a +0,0072 | 16/24 | 0,12 | 748 (562 a 1.309) | 8.136 s |
+
+As três piores diferenças são nas partições 16 (−0,0154), 11 (−0,0113) e 7
+(−0,0086). Com as 4 primeiras, o ΔR² mediano era +0,0023; com 24, fica
++0,0032, e o Wilcoxon não separa o iPLS do PLS (p 0,12). Faltam as partições 24 a 29, duas
+levas (umas 5 h).
+
+## 2026-11-22
+
+### Bioprocess: o iPLS nas partições 24 a 29, e os seis braços completos
+
+Na madrugada de 22/11 rodei o iPLS do bioprocess nas `seed_split` 24 a 29:
+24 a 27 com quatro processos (2h16) e 28 e 29 com dois (2h02), uma thread
+por processo. Sem interrupção e sem erro. Cada partição levou de 5.135 a
+7.461 s. Piloto: decisão de método, nada daqui entra no texto.
+
+O CSV agora tem os seis braços nas 30 partições (180 linhas, nenhuma
+repetida). Os outros cinco braços não mudaram (tabela de 19/11).
+
+**O iPLS nas 30 partições, contra o PLS na mesma partição** (R² de teste;
+Wilcoxon pareado):
+
+| braço | R² mediano | ΔR² mediano | faixa do ΔR² | ≥ PLS | Wilcoxon p | bandas (mediana; faixa) | tempo mediano |
+|---|---|---|---|---|---|---|---|
+| iPLS | 0,8865 | +0,0028 | −0,0154 a +0,0081 | 21/30 | 0,07 | 748 (562 a 1.309) | 7.973 s |
+
+As três piores diferenças são nas partições 16 (−0,0154), 11 (−0,0113) e 26
+(−0,0093). Com 24 partições o ΔR² mediano era +0,0032; com as 30, +0,0028,
+e o Wilcoxon ainda não separa o iPLS do PLS (p 0,07).
+
+## 2026-11-23
+
+### A borda do iPLS no Mango: aqui a curva não é plana
+
+Na noite de 22 para 23/11 rodei no Mango o mesmo teste de 17/11 (o braço
+sem mudança, com 5 e 8 a mais embaixo da grade, gravando o erro médio e o
+erro-padrão de cada candidato), nas `seed_split` 0–29
+(`scripts/conferir_causa_borda_ipls_mango.py`, piloto, 2h34 com quatro
+processos, sem erro). Ficou de fora em 17/11 porque o iPLS leva ~18 min por
+partição no Mango.
+
+**Conferência.** O laço e a regra são os do script de 17/11, conferidos
+contra o braço em 60 partições. A conferência nova (R² igual à produção nas
+partições em que as duas grades escolhem o mesmo `int_num`) não cobriu
+nenhuma partição: a grade alargada escolheu 5 em todas. Fica só a de 17/11.
+
+- **Grade declarada:** escolha 10 e mínimo em 10 nas 30 partições.
+- **Grade alargada:** mínimo em 5 em 29 de 30 (em 10 na outra), escolha 5
+  nas 30.
+- **A curva não é plana, ao contrário do Tecator e do Gasoline:** o erro
+  médio (mediana nas 30) sobe de 0,881 em 10 para 0,904 em 15, 0,928 em 20
+  e 0,960 em 30; a distância entre o pior e o melhor candidato é, na
+  mediana, 7,1 erros-padrão (1,8 no Tecator e 3,2 no Gasoline). Só 5, 8 e
+  10 ficam dentro de um erro-padrão do mínimo (mediana de 3 candidatos);
+  de 10 para 5 o erro cai 1,2% na mediana (de −0,3% a 1,9%), menos de um
+  erro-padrão.
+- **Com o desempate invertido**, sobre o erro gravado, a escolha vai para
+  10 em 22 de 30 (8 em 7, 5 em 1), não para a borda de cima.
+
+Ou seja, no Mango a borda de baixo é onde está o ótimo: o erro cai até
+perto de 10 intervalos e fica quase igual entre 5 e 10. Alargar a grade
+leva a escolha para o 5 com ganho menor que um erro-padrão. A decisão
+continua com a orientação; não mudei nada.
