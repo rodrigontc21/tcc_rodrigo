@@ -51,7 +51,7 @@ FOLD = 0
 
 def fold_zero():
     """X, y do fold_train 0 e os segmentos internos, como `_fold_selections`."""
-    ds = load("bioprocess")
+    ds = load("bioprocess", drop_artifact_bands=False)
     split_seed, cv_seed = np.random.SeedSequence(0).spawn(2)
     train_idx, _ = _split_train_test(
         n=ds.X.shape[0], test_size=DEFAULT_TEST_SIZE,

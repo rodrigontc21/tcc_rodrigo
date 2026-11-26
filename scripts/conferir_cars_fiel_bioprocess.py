@@ -60,7 +60,7 @@ def uma(s):
             self.X_train, self.y_train = X_train, y_train
             return super().fit(X_train, y_train, cv_folds, rng_algo, budget)
 
-    ds = load("bioprocess")
+    ds = load("bioprocess", drop_artifact_bands=False)
     braco = Gravador(mode="fiel")
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")

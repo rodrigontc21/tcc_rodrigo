@@ -45,7 +45,7 @@ def particoes_com_a_linha():
     from tcc.data import load
     from tcc.protocol import DEFAULT_TEST_SIZE, _split_train_test
 
-    ds = load("bioprocess")
+    ds = load("bioprocess", drop_artifact_bands=False)
     fora = []
     for s in range(30):
         split_seed, _cv = np.random.SeedSequence(s).spawn(2)
@@ -70,7 +70,7 @@ def uma(s):
             self.fitted = super().fit(*a, **k)
             return self.fitted
 
-    ds = load("bioprocess")
+    ds = load("bioprocess", drop_artifact_bands=False)
     braco = Gravador(mode="fiel")
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")

@@ -16,7 +16,7 @@ import numpy as np
 from tcc.data import load
 from tcc.preprocessing import SNVPreprocessor
 
-ds = load("bioprocess")
+ds = load("bioprocess", drop_artifact_bands=False)
 R = ds.X
 X = SNVPreprocessor().fit(R).transform(R)
 g = ds.groups
@@ -67,7 +67,7 @@ print("3208 cru: maior excesso sobre a réplica na banda", j, "=", round(d[j]),
       "| típico |dif| cru:", round(np.median(np.abs(d))))
 
 # --- a altura crua da 663 é constante? ---
-ds = load("bioprocess"); R = ds.X; X = SNVPreprocessor().fit(R).transform(R); g = ds.groups
+ds = load("bioprocess", drop_artifact_bands=False); R = ds.X; X = SNVPreprocessor().fit(R).transform(R); g = ds.groups
 h_raw = R[:, 663] - (R[:, 661] + R[:, 665]) / 2
 h_snv = X[:, 663] - (X[:, 661] + X[:, 665]) / 2
 p = np.percentile(h_raw, [1, 25, 50, 75, 99])
@@ -88,7 +88,7 @@ print("diferença relativa da altura crua entre réplicas: mediana", round(np.me
       "p95", round(np.percentile(dif, 95), 3))
 
 # --- correlação crua com a glicose e os dois grupos de altura ---
-ds = load("bioprocess"); R = ds.X
+ds = load("bioprocess", drop_artifact_bands=False); R = ds.X
 h = R[:, 663] - (R[:, 661] + R[:, 665]) / 2
 print("correlação da altura CRUA com a glicose:", round(np.corrcoef(h, ds.y)[0, 1], 3))
 cont, bordas = np.histogram(h, bins=[0, 1000, 1400, 1600, 1800, 2500, 3000, 3100, 3300, 3500, 1e9])

@@ -14,12 +14,12 @@ ALL_DATASETS = ["gasoline", "tecator", "mango", "bioprocess"]
 # artigo; mango: CSV v3 traz 12.011 (safras 1-5), cortado para 11.691
 # (safras 1-4) pelo ADR 006, e 306 bandas menos 25 constantes (adendo de
 # 28/10 ao ADR 006); bioprocess: 6.960 espectros menos 488 sem rótulo de
-# glicose)
+# glicose, e 1.870 bandas menos a 663 (adendo de 25/11 ao ADR 007))
 EXPECTED = {
     "gasoline": (60, 401, "nm", 83.4, 89.6),
     "tecator": (215, 100, "nm", 0.9, 49.1),
     "mango": (11691, 281, "nm", 9.46, 24.58),
-    "bioprocess": (6472, 1870, "cm-1", 0.0, 19.99),
+    "bioprocess": (6472, 1869, "cm-1", 0.0, 19.99),
 }
 
 # Número de amostras físicas por conjunto (ADR 009), conferido na
@@ -79,6 +79,61 @@ def test_no_constant_band(any_dataset):
     # quebrou o iPLS no Mango (adendo de 28/10 ao ADR 006).
     X = any_dataset.X
     assert not np.any(np.all(X == X[0], axis=0))
+
+
+def test_bioprocess_drops_only_the_artifact_band_663():
+    # Adendo de 25/11/2026 ao ADR 007: a banda 663 (1.712,9 cm-1) sai; nenhuma
+    # outra muda, e a última (1.869, pico que acompanha a glicose) fica.
+    from tcc.data import BIOPROCESS_ARTIFACT_BAND, BIOPROCESS_ARTIFACT_SHIFT
+
+    full = load("bioprocess", drop_artifact_bands=False)
+    cut = load("bioprocess")
+    b = BIOPROCESS_ARTIFACT_BAND
+    assert full.X.shape[1] == 1870 and cut.X.shape[1] == 1869
+    assert abs(full.axis[b] - BIOPROCESS_ARTIFACT_SHIFT) < 0.1
+    assert not np.any(np.abs(cut.axis - BIOPROCESS_ARTIFACT_SHIFT) < 0.1)
+    keep = np.arange(1870) != b
+    np.testing.assert_array_equal(cut.X, full.X[:, keep])
+    np.testing.assert_array_equal(cut.axis, full.axis[keep])
+    assert cut.axis[-1] == full.axis[-1]  # a última banda fica
+    np.testing.assert_array_equal(cut.y, full.y)
+    np.testing.assert_array_equal(cut.groups, full.groups)
+    assert cut.sha256 != full.sha256
+
+
+def _synthetic_bioprocess(shift=1712.9, peak=3000.0):
+    from tcc.data import BIOPROCESS_ARTIFACT_BAND
+
+    rng = np.random.default_rng(0)
+    X = rng.normal(5000.0, 50.0, size=(20, 1870))
+    X[:, BIOPROCESS_ARTIFACT_BAND] += peak
+    axis = np.linspace(390.6, 3384.7, 1870)
+    axis[BIOPROCESS_ARTIFACT_BAND] = shift
+    return X, axis
+
+
+def test_artifact_band_lock_rejects_a_changed_axis():
+    from tcc.data import _drop_bioprocess_artifact_band
+
+    X, axis = _synthetic_bioprocess()
+    Xc, axc = _drop_bioprocess_artifact_band(X, axis)  # o caso válido passa
+    assert Xc.shape[1] == 1869 and len(axc) == 1869
+    with pytest.raises(ValueError, match="a fonte mudou"):
+        _drop_bioprocess_artifact_band(*_synthetic_bioprocess(shift=1714.6))
+    with pytest.raises(ValueError, match="a fonte mudou"):
+        _drop_bioprocess_artifact_band(X[:, :-1], axis[:-1])
+
+
+def test_artifact_band_lock_rejects_a_missing_peak():
+    from tcc.data import _drop_bioprocess_artifact_band
+
+    with pytest.raises(ValueError, match="não está mais na fonte"):
+        _drop_bioprocess_artifact_band(*_synthetic_bioprocess(peak=0.0))
+
+
+def test_full_axis_option_only_applies_to_bioprocess():
+    with pytest.raises(ValueError, match="só se aplica ao bioprocess"):
+        load("tecator", drop_artifact_bands=False)
 
 
 def test_load_is_deterministic(any_dataset):

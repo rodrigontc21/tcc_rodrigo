@@ -52,7 +52,7 @@ def main():
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        ds = load("bioprocess")
+        ds = load("bioprocess", drop_artifact_bands=False)
     X = SNVPreprocessor().fit(ds.X).transform(ds.X)
 
     linhas = []  # (linha, altura, largura, banda, grupo)

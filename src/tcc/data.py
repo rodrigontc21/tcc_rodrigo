@@ -115,7 +115,14 @@ def _composition_groups(targets: np.ndarray) -> np.ndarray:
     return inverse.ravel()
 
 
-def load(name: str) -> Dataset:
+def load(name: str, *, drop_artifact_bands: bool = True) -> Dataset:
+    """Carrega um conjunto pelo nome.
+
+    `drop_artifact_bands=False` só vale para o bioprocess: devolve o eixo
+    inteiro, com a banda 663 (adendo de 25/11/2026 ao ADR 007). Existe para os
+    scripts de conferência que indexam bandas pelo número continuarem
+    reproduzindo as saídas citadas no DIARIO; o protocolo usa o padrão.
+    """
     loaders = {
         "tecator": _load_tecator,
         "gasoline": _load_gasoline,
@@ -126,6 +133,10 @@ def load(name: str) -> Dataset:
         raise ValueError(
             f"dataset desconhecido: {name!r}. Disponíveis: {sorted(loaders)}."
         )
+    if name == "bioprocess":
+        return _load_bioprocess(drop_artifact_bands=drop_artifact_bands)
+    if not drop_artifact_bands:
+        raise ValueError(f"drop_artifact_bands=False só se aplica ao bioprocess, não a {name!r}")
     return loaders[name]()
 
 
@@ -373,7 +384,35 @@ def _load_mango() -> Dataset:
 # uniforme (associada a EnPump e fosfato total mais altos, ver ADR 007),
 # mas não se concentra num split nem num bloco de corrida — limitação
 # declarada, não corrigida no loader.
-def _load_bioprocess() -> Dataset:
+# Banda de artefato do bioprocess (adendo de 25/11/2026 ao ADR 007): pico de uma
+# banda só em 1.712,9 cm-1, presente em todos os espectros com altura quase
+# constante no cru e sem relação com a glicose; depois do SNV ela mede o fator
+# de escala do espectro, não a amostra. Decidido pela orientação antes de medir
+# o efeito. A última banda (1.869) tem pico fixo, mas acompanha a glicose, e
+# fica (pergunta em aberto à orientação).
+BIOPROCESS_ARTIFACT_BAND = 663
+BIOPROCESS_ARTIFACT_SHIFT = 1712.9  # cm-1, conferido na fonte em 25/11
+BIOPROCESS_N_BANDS_SOURCE = 1870
+
+
+def _drop_bioprocess_artifact_band(X: np.ndarray, axis: np.ndarray):
+    """Tira a banda 663, com trava: falha se o eixo da fonte mudar ou se o pico
+    deixar de existir, em vez de cortar outra banda calada (como os canais
+    mortos do Mango, adendo de 28/10 ao ADR 006)."""
+    b = BIOPROCESS_ARTIFACT_BAND
+    if X.shape[1] != BIOPROCESS_N_BANDS_SOURCE or abs(axis[b] - BIOPROCESS_ARTIFACT_SHIFT) > 0.1:
+        raise ValueError(
+            f"bioprocess: esperada a banda {b} em {BIOPROCESS_ARTIFACT_SHIFT} cm-1 num eixo de "
+            f"{BIOPROCESS_N_BANDS_SOURCE} bandas; a fonte mudou (rever o adendo de 25/11 do ADR 007)"
+        )
+    excess = X[:, b] - (X[:, b - 2] + X[:, b + 2]) / 2
+    if np.median(excess) < 1000:  # medido: 3.183 contagens; ruído típico, 99
+        raise ValueError("bioprocess: o pico da banda 663 não está mais na fonte; rever o ADR 007")
+    keep = np.arange(X.shape[1]) != b
+    return X[:, keep], axis[keep]
+
+
+def _load_bioprocess(drop_artifact_bands: bool = True) -> Dataset:
     import raman_data
 
     dataset = raman_data.raman_data(
@@ -388,6 +427,8 @@ def _load_bioprocess() -> Dataset:
 
     labeled = ~np.isnan(glucose)
     X, y = X_all[labeled], glucose[labeled]
+    if drop_artifact_bands:
+        X, axis = _drop_bioprocess_artifact_band(X, axis)
 
     digest = hashlib.sha256()
     digest.update(np.ascontiguousarray(X).tobytes())

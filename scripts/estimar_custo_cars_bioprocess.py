@@ -35,7 +35,7 @@ from tcc.protocol import DEFAULT_N_SPLITS, DEFAULT_TEST_SIZE, _make_cv_folds, _s
 A1_NCOMP = 7  # DIARIO de 28/10, bioprocess, seed_split 0
 RATIO = 0.9
 
-ds = load("bioprocess")
+ds = load("bioprocess", drop_artifact_bands=False)
 split_seed, cv_seed = np.random.SeedSequence(0).spawn(2)
 train_idx, _ = _split_train_test(
     n=ds.X.shape[0], test_size=DEFAULT_TEST_SIZE,

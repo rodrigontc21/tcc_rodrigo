@@ -114,3 +114,53 @@ EnPump e fosfato mais altos, que fica sub-representada no conjunto
 avaliado. As conclusões do trabalho para glicose no bioprocess valem para
 essa distribuição de condições, com a faixa de EnPump e fosfato altos
 sub-representada.
+
+## Adendo (25/11/2026): a banda 663 sai do eixo
+
+**A decisão (orientação, 25/11/2026), escrita antes de medir o efeito da
+retirada sobre qualquer métrica.** A banda 663 (1.712,9 cm⁻¹) sai do eixo do
+bioprocess, para todos os braços, na camada de dados.
+
+**O motivo, nas palavras da decisão.** Nos dados crus, o pico de uma banda só
+em 1.712,9 cm⁻¹ está em todos os 6.472 espectros, com altura quase constante
+(as duas réplicas da mesma mistura diferem 1,5% na mediana) e sem relação com
+a glicose. Depois do SNV, a altura dele é a altura crua dividida pelo desvio
+do próprio espectro: a banda passa a medir o fator de escala do espectro, e
+não a amostra. Seja pixel do detector, seja componente de concentração
+constante, a banda crua não carrega informação do analito, e o SNV a converte
+em indicador de intensidade, que em Raman depende de potência do laser, foco e
+turbidez: estado do instrumento, não química. A pergunta "pixel ou componente"
+não precisa ser resolvida para a decisão. Medidas de 19/11 no DIARIO e em
+`scripts/conferir_pico_663_cru.py`.
+
+**A ordem da decisão.** A retirada foi decidida pelo motivo acima. O efeito
+sobre o R² e o RMSEP é medido depois e reportado como informação, nunca como
+justificativa. Os números do piloto (`seed_split` 0–29) ficam como estão,
+rotulados "com a banda 663 presente".
+
+**As bandas da ponta do eixo (conferido em 25/11, antes de mexer).** A
+orientação mandou aplicar a mesma regra às bandas da ponta "se se comportarem
+igual". Medido nos dados crus com `scripts/conferir_bandas_ponta_bioprocess.py`
+(excesso = altura sobre a vizinhança; ruído típico de 99 contagens):
+
+| banda | cm⁻¹ | excesso mediano | espectros com pico (> 5× ruído) | diferença entre réplicas | correlação com a glicose |
+|---|---|---|---|---|---|
+| 600 (controle) | 1.602,2 | −99 | 0% | 0,340 | 0,015 |
+| 663 | 1.712,9 | 3.183 | 100% | 0,015 | −0,069 |
+| 0, 1, 2 | 390,6–395,2 | −74 a 49 | 0% | 0,81–1,87 | −0,05 a 0,03 |
+| 1.867, 1.868 | 3.382,5–3.383,6 | −1.904 e 176 | 0% | 0,05 e 0,19 | 0,25 e −0,05 |
+| 1.869 (última) | 3.384,7 | 3.422 | 96,2% | 0,057 | −0,249 |
+
+Só a última banda tem pico fixo como a 663, e ela **não** se comporta igual: a
+altura do pico acompanha a glicose (−0,25 pela diferença crua para a vizinha,
+contra 0,003 numa diferença de bandas interiores e −0,07 na 663). Pela regra da
+decisão, a 1.869 **fica**, e a pergunta vai à orientação. O que a correlação
+reflete (intensidade do sinal, saturação na borda do detector ou outra coisa)
+não foi medido. As bandas do início do eixo não têm pico.
+
+**Implementação.** `_load_bioprocess` tira a banda 663 antes do `sha256`, com
+uma trava que falha se o eixo da fonte mudar ou se o pico deixar de existir. O
+número de bandas vai de 1.870 a 1.869. `load("bioprocess",
+drop_artifact_bands=False)` devolve o eixo inteiro, para os scripts de
+conferência que indexam bandas pelo número (os de 19/11) continuarem
+reproduzindo as saídas citadas no DIARIO.
