@@ -201,3 +201,32 @@ ensaio da grade final (partição 0, três sementes do algoritmo), o Tecator
 escolheu (30, 50) nas três; o Gasoline, (30, 50) em duas e (50, 100) em
 uma; o Mango, (50, 100) em duas e (30, 50) em uma. A grade é pequena por
 custo (este ADR); o registro deixa isso visível, sem mudar nada.
+
+## O enquadramento da grade e da densidade (orientação, 25/11/2026)
+
+**(população, gerações) é uma checagem de sensibilidade de dois pontos, e não
+um hiperparâmetro ajustado.** Com dois candidatos, toda escolha cai numa borda
+por construção, e o aviso de borda não informa nada aqui. O que se corrige é o
+enquadramento, não a grade: os dois pontos são uma checagem de sensibilidade
+declarada, e a marca `ga_config_edge` não deve ser lida como defeito. O
+procedimento do braço não muda (a escolha entre os dois pela regra de um
+erro-padrão, com desempate pelo de menos bandas).
+
+**A densidade inicial de 0,1 fica, por custo, e é declarada com a
+consequência.** É o ponto levantado neste ADR em outubro ("Limitação que
+fica"): o número final de bandas fica perto da densidade inicial (10% no
+Gasoline, 9,9% no bioprocess), porque a mutação troca um bit por vez. Ou seja,
+o **tamanho da seleção do GA-PLS vem de uma constante declarada, e não dos
+dados**. A validação cruzada da densidade, que mediria isso, segue recusada
+por custo.
+
+**A consequência para a H5.** Um tamanho de seleção quase constante entre
+partições **infla o Jaccard por um motivo trivial**: conjuntos do mesmo
+tamanho, sorteados entre as mesmas bandas, já se sobrepõem por acaso numa
+proporção fixada pelo tamanho. Por isso o Jaccard do GA-PLS é lido sempre
+contra o Jaccard do acaso casado em tamanho (`expected_jaccard`, ADR 019), e
+não sozinho. Isso fecha o item 2 de "Em aberto" do ADR 019 com um motivo, e
+não só como proposta.
+
+Status: segue **proposto**. A orientação definiu o enquadramento, e não
+aprovou o ADR.

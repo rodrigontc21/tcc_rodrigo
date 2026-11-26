@@ -415,6 +415,24 @@ tabelas completas em `results/mean_baseline_<dataset>.md`):
   deste trabalho está no Mango e no bioprocess** (pisos de ~1,60% e
   ~1,25%). Equivalência declarada no Tecator e no Gasoline deve ser lida
   com essa ressalva.
+- **A métrica do δ (orientação, 25/11/2026; ADR 020).**
+  - **Principal: RMSEP relativo.** O RMSEP de cada braço dividido pelo RMSEP
+    médio do `MeanArm` daquele conjunto, na rodada de 100 partições (tabela
+    "Piso de ruído de partição": Gasoline 1,4772, Tecator 12,6753, Mango
+    2,4585, bioprocess 6,2422). É uma constante por conjunto, então os termos
+    da decomposição continuam exatamente aditivos. O δ é declarado nessas
+    unidades, que são as mesmas do piso de ruído (~11,8%, ~8,9%, ~1,60% e
+    ~1,25%), sem conversão. O piso continua sendo o limite inferior do δ.
+  - **Secundário, pré-declarado: o mesmo TOST em R²,** com o δ tirado do
+    desvio-padrão do R² do `MeanArm` na mesma tabela (Gasoline 0,1466, Tecator
+    0,0517, Mango 0,0023, bioprocess 0,0030). Os dois são reportados, dizendo
+    se concordam. Dois δ declarados tiram o peso da escolha de métrica.
+  - O piso do bioprocess foi medido com a banda 663 presente; não muda com a
+    retirada dela (adendo de 25/11 ao ADR 007), porque o `MeanArm` ignora X.
+- **O teste (orientação, 25/11/2026; ADR 020).** TOST por teste t sobre as
+  diferenças pareadas, como principal; bootstrap percentil ao lado; as células
+  de cauda pesada sinalizadas (dois colapsos em 30 partições dominam uma
+  média: ADR 016). α = 0,05.
 
 ---
 
@@ -686,21 +704,50 @@ partem da mesma porta inicial e enfrentam o mesmo começo de treino, então
 todo Δ e o TOST, que comparam braços no mesmo `c`, estão a salvo. O nível
 da curva entre valores de `c`, e o B4 contra o B3, não estão, por dois
 motivos:
-- **a parada interage com a concentração da porta.** No Tecator e no
-  Gasoline (`scripts/orientacao/verify_plateau_vs_gate.py`, 10 sementes,
-  com o desenho deste protocolo), o platô das épocas 1 a 20 aparece em todo
-  `c`, inclusive em `c` = 0: é propriedade da receita, não da porta. Mas a
-  melhor época cai dentro da janela da paciência em 0 de 10 sementes com
-  `c` = 1 e em 10 a 50% delas com `c` < 1, e no Tecator o ajuste de treino
-  piora quando a porta achata (R² de treino 0,918 em `c` = 1, de 0,41 a
-  0,85 abaixo), sem mecanismo isolado;
+- **a parada pode interagir com a concentração da porta, mas a interação não
+  é geral.** No Tecator e no Gasoline (`scripts/orientacao/verify_plateau_vs_gate.py`,
+  10 sementes, uma partição, com o desenho deste protocolo), o platô das
+  épocas 1 a 20 aparece em todo `c`, inclusive em `c` = 0: é propriedade da
+  receita, não da porta. Ali, a melhor época cai dentro da janela da
+  paciência em 0 de 10 sementes com `c` = 1 e em 10 a 50% delas com
+  `c` < 1, e no Tecator o ajuste de treino piora quando a porta achata (R² de
+  treino 0,918 em `c` = 1, de 0,41 a 0,85 abaixo), sem mecanismo isolado.
+  **Corrigido em 25/11/2026, a pedido da orientação:** no Mango, sob este
+  protocolo e com a receita do artigo, com 30 partições × 9 valores de `c`
+  (`results/varredura_c.csv`; DIARIO de 16/11), as paradas dentro da
+  paciência não dependem de `c` (qui-quadrado entre os nove `c`, p = 0,87) e
+  se concentram por partição (5 das 30 somam 84 das 127). A dependência de
+  `c` foi medida no Tecator e no Gasoline e está ausente no Mango com mais
+  partições: a interação não é geral, e é pequena perto da variação entre
+  partições. A redação anterior ("a parada interage com a concentração da
+  porta") afirmava mais do que as medidas sustentam;
 - **o `c` move duas coisas ao mesmo tempo.** O softmax soma 1 sobre as
   bandas, então a porta achatada divide toda entrada por `p` (a massa no
   topo em `c` = 0 é 0,0100 no Tecator e 0,0025 no Gasoline): o `c` muda a
   concentração e a amplitude por banda juntas, e sob a normalização softmax
   as duas não se separam.
 
-Declarado, e sem braço novo por isso.
+Declarado, e sem braço novo por isso. A segunda razão é estrutural (o
+softmax soma 1) e não depende de medida; ela fica intacta com a correção de
+25/11 à primeira.
+
+**As partições ruins do Mango ficam (orientação, 25/11/2026).** Com a receita
+do artigo, cinco partições do Mango (as `seed_split` 1, 3, 11, 19 e 23)
+somam 84 das 127 paradas precoces, e nelas todos os braços de rede treinam
+mal. As diferenças entre braços nessas partições ficam ruidosas em volta de
+zero, o que **alarga** o intervalo do TOST e torna a equivalência mais difícil
+de declarar: a direção é conservadora contra a tese deflacionária deste
+trabalho. Declaradas e **não retiradas**. A contagem é da receita do artigo e é
+reconferida com a receita escolhida.
+
+**Limitação declarada: a fold de parada única (orientação, 25/11/2026).** Uma
+só fold interna decide a melhor época e o `rmse_cv` de cada braço de rede. É a
+causa comum de dois problemas medidos: o reajuste no treino inteiro, que piorou
+a rede e foi retirado pela orientação em 25/11 (a seção do reajuste é
+atualizada junto com o código), e a concentração das paradas precoces por
+partição no Mango. Rodar a fold de parada entre as folds internas seria
+mudança grande demais para quem está perto de congelar o protocolo, e não
+entra. Fica escrito como a junta mais fraca do desenho.
 
 **A grade de `c` (declarada em 12/11/2026, antes de qualquer execução do
 B5 sob este protocolo).**

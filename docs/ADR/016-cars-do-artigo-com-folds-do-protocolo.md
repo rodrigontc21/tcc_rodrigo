@@ -308,3 +308,45 @@ texto como resultado, e nada do protocolo muda com base neles. "Não se
 distingue do PLS" no Wilcoxon não é equivalência; equivalência é o TOST
 com δ, na grade. Os Wilcoxon são cinco testes contra a mesma referência
 e, por serem piloto, não levam correção de multiplicidade.
+
+## O colapso do CARS fiel é resultado de robustez (orientação, 25/11/2026)
+
+**O que foi medido (piloto, DIARIO de 19/11).** No bioprocess, o CARS `fiel`
+tem R² de 0,129 na `seed_split` 10 e de 0,497 na 16, contra 0,83 a 0,89 nas
+outras 28. A causa é uma amostra: a linha 3208, um espectro com um pico estreito
+nas bandas 1.480 e 1.481, numa réplica só (a outra réplica, a linha 3207, é
+normal). Ela cai no teste em cinco partições (10, 11, 14, 16 e 26), e o `fiel`
+só desaba nas duas em que **selecionou a banda do pico**, com 19 e 23
+componentes contra 8 do PLS completo, prevendo −213,7 e −144,1 para um valor
+real de 0,71. Duas contraprovas, com o modelo entregue pelo braço sem mudança:
+- sem a linha 3208 no teste, o R² volta a 0,870 e 0,823;
+- trocando só as duas bandas do pico pelas da réplica, volta a 0,869 e 0,822.
+
+Os outros braços, nas mesmas partições, ficam entre 0,849 e 0,902.
+
+**A decisão.**
+- **A amostra fica.** Ela foi achada por causa do efeito dela. Retirá-la com
+  esse fundamento seria exclusão dirigida por resultado.
+- **O colapso é reportado como resultado de robustez, com todos os dados:** um
+  método de seleção que desaba por uma amostra, ao selecionar uma banda de
+  artefato e usar componentes demais, é um achado sobre fragilidade, na
+  direção deflacionária deste trabalho, e raramente é reportado. As duas
+  contraprovas entram como análise de sensibilidade declarada.
+
+**O que o colapso atinge e o que não atinge** (leitura da orientação):
+- **a decomposição, não:** os termos são B1 − A1, B2 − B1, B4 − B2 e B4 − B3, e
+  o CARS não entra neles;
+- **o Friedman, não:** ele é por postos e por isso robusto a dois valores
+  extremos;
+- **a H4, sim:** é a exposição dele, se o "melhor clássico" sair por
+  desempenho (e então o braço que desabou não será o melhor);
+- **o TOST pela média, sim:** dois colapsos em 30 partições dominariam uma
+  média. É o motivo concreto para o item 3 do ADR 020: teste t como principal,
+  bootstrap percentil ao lado e as células de cauda pesada sinalizadas.
+
+Os números acima são piloto e foram medidos **com a banda 663 presente** (ela
+saiu do eixo em 25/11, adendo do ADR 007). O pico da linha 3208 fica nas
+bandas 1.480 e 1.481, que não são atingidas pela retirada.
+
+Status: segue **proposto**. A orientação decidiu como tratar o colapso, e não
+o ADR.

@@ -92,3 +92,24 @@ e a meia largura das janelas (±10 nm) são ilustrativos.
 - Olhar as figuras do piloto já serviu para achar cinco erros de desenho e
   o da mediana na cascata (DIARIO, 13/11). Nenhum mudava número, mas o da
   cascata fazia a figura mostrar um B4 que não era o B4.
+
+## Resposta da orientação (25/11/2026)
+
+Os quatro itens de "Em aberto", decididos:
+- **A métrica das figuras 1, 2 e 7** segue a métrica principal do δ, que passou
+  a ser o **RMSEP relativo** (o RMSEP de cada braço dividido pelo RMSEP médio do
+  `MeanArm` do conjunto; ADR 020). A cor da cascata pelo sentido da métrica
+  (no RMSEP, termo positivo é piora), corrigida em 16/11, "já está certa".
+- **Vírgula decimal em tudo**, inclusive nos valores dos eixos lineares, que
+  hoje ainda saem com ponto.
+- **PDF vetorial** no manuscrito.
+- **A figura 3 pela média**, e não pela mediana. Ali não há exigência de
+  aditividade, mas a média é o que a cascata e o TOST usam, e fica uma
+  inconsistência a menos para explicar.
+
+**Falta no código** (`src/tcc/figures.py`): a vírgula nos eixos lineares, a
+figura 3 pela média e a gravação em PDF. Nada muda nos testes já existentes,
+que conferem o desenho e não o formato dos números do eixo.
+
+Status: segue **proposto**. A orientação decidiu os itens, e não escreveu
+"aceito".

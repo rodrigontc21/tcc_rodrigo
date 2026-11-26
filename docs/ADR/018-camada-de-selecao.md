@@ -79,3 +79,33 @@ conferido. Suíte inteira: 213 passaram, 1 pulado.
    diferentes. O pipeline aceita isso; a ressalva fica declarada.
 4. **Os fatores da faixa de sensibilidade** (0,5 a 1,5), que o pipeline
    dá só como exemplo.
+
+## Resposta da orientação (25/11/2026)
+
+1. **De onde sai o `k`: do piloto** (`seed_split` 0–29), declarado antes da
+   grade. A orientação desfez a própria frase de 12/11: a regra é que nada
+   muda com base em **resultado** de piloto, e **tamanho de seleção não é
+   resultado**. A faixa 0–29 existe exatamente para fixar parâmetro de método,
+   e o `k` é um. Tirar o `k` da grade final seria pior: faria o parâmetro da
+   métrica ser função dos dados que ela mede. A proposta deste ADR (tirar da
+   grade final) fica superada.
+2. **Média de todas as execuções juntas** (média agrupada): aprovado.
+3. **Os tamanhos explícitos não são `k`:** declarar, junto com o Jaccard do
+   acaso casado em tamanho (`expected_jaccard`, ADR 019).
+4. **Os fatores de 0,5 a 1,5:** aprovados. O critério de aceitação do
+   pipeline (as conclusões se mantêm na faixa de `k`, ou a falha é resultado)
+   é reportado de todo modo.
+
+**O valor do `k` ainda não sai dos CSVs do piloto atual.** O `k` é a média do
+tamanho das seleções do iPLS, do VIP, do GA-PLS e do CARS `protocolo`, e as
+decisões de 25/11 mudam essas seleções antes da grade: a banda 663 sai do
+bioprocess (ADR 007), o iPLS passa a desempatar pelo menor número de bandas e a
+selecionar com `scale = TRUE` (ADR 012), e os braços clássicos passam a
+entregar o modelo nas mesmas linhas das redes (ADR 017). Os CSVs de
+`results/bracos_*_30_particoes.csv` são de antes disso, e o VIP neles ainda é
+da grade antiga (ADR 014). Então o `k` é calculado depois de os braços
+clássicos rodarem de novo nas `seed_split` 0–29 com o código final, e é
+escrito no PROTOCOLO antes da grade. A regra da conta (`paired_k`) não muda.
+
+Status: segue **proposto**. A orientação decidiu os itens, e não escreveu
+"aceito".

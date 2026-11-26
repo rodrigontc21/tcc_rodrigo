@@ -85,3 +85,30 @@ mediana). Suíte inteira: 227 passaram, 1 pulado.
   o Jaccard do top-k do prior (0,835), como deve, por ser função monótona do
   prior. Tabela e leitura no DIARIO de 13/11.
 
+## Resposta da orientação (25/11/2026)
+
+Os quatro itens de "Em aberto":
+
+1. **A tabela de janelas químicas** está feita e decidida
+   (`docs/janelas_quimicas.md`, seção de 25/11): ±25 nm no NIR, ±10 cm⁻¹ no
+   Raman, só o alvo na métrica principal, interferente em coluna separada.
+2. **O Jaccard do acaso ao lado de cada Jaccard: aprovado.** E com um motivo
+   de desenho, além da proposta: no GA-PLS, o tamanho da seleção vem da
+   densidade inicial declarada, e não dos dados (ADR 015, seção de 25/11).
+   Tamanho quase constante infla o Jaccard por um motivo trivial, então ele
+   só é legível contra o acaso casado em tamanho (`expected_jaccard`).
+3. **A linha de base do prior para a H5:** já aprovada em 16/11, com as três
+   referências (o prior, a porta e o B3). Para a mesma função
+   (`reproducibility`) calcular o Jaccard do prior, o prior é **gravado como
+   um resultado com `band_scores`**, do mesmo jeito que os braços.
+4. **A agregação quando a semente fixa tem vários valores:** a média dos
+   grupos, **mais a dispersão**. A dispersão entre sementes do algoritmo é ela
+   mesma material da H6, e não só ruído a resumir.
+
+**Falta no código:** `reproducibility` devolver a dispersão junto da média, e
+o prior gravado como resultado com `band_scores` (hoje ele só é calculado
+dentro do braço de rede).
+
+Status: segue **proposto**. A orientação aprovou os itens um a um, e não
+escreveu "aceito".
+

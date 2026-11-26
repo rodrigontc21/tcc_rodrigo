@@ -5737,3 +5737,58 @@ vezes: o custo como resultado, o paralelismo e nada de cortar sementes em
 silêncio nas mensagens de 29/10 e 30/10; o OpenBLAS
 condicionado às seleções idênticas na resposta de 12/11. A conclusão de
 18/11 não muda.
+
+### A resposta à orientação, enviada (23/11)
+
+Mandei a resposta à mensagem de 16/11 em quatro mensagens, com o
+`PROTOCOLO.md`, os ADRs 012, 014, 015, 017, 018, 019, 020, 021 e 022 e o
+`docs/janelas_quimicas.md` em anexo, e os resultados por link fixado em
+`aa13527`:
+1. os ADRs 018 a 022 com a pergunta de cada um numa linha, como ela pediu,
+   e as outras perguntas abertas (11 ao todo);
+2. a rede e a receita: o reajuste no treino inteiro que piora a rede, a
+   receita declarada sem rodar, a previsão do platô no Mango e os pontos
+   da resposta de 16/11 já feitos;
+3. as bordas de grade: o VIP alargado, o aviso de borda no código e a causa
+   da borda do iPLS (curva plana no Tecator e no Gasoline, não plana no
+   Mango);
+4. o bioprocess nas 30 partições, o CARS fiel e os picos, e o OpenBLAS.
+
+Ficaram perguntados:
+- de onde sai o `k` (ADR 018), o Jaccard do acaso (ADR 019), RMSEP ou R²
+  no δ e no TOST e o bloco do Friedman (ADR 020), as figuras (ADR 022) e a
+  largura e o alcance das janelas químicas;
+- se a receita declarada (8 candidatos, limite de 5× na faixa de d/g) pode
+  rodar;
+- o reajuste: (b) como está, (c) a época de menor erro de treino, ou (a)
+  sem reajuste, com o handicap declarado;
+- a borda do iPLS: manter a regra e reportar, alargar a grade ou inverter
+  o desempate;
+- os picos do bioprocess: deixar e reportar, tirar picos antes do SNV, ou
+  tirar a banda 663 do eixo, para todos os braços.
+
+A ordem depois da resposta continua a de 16/11: receita, `c_TOST` dos
+quatro conjuntos, varredura, congelamento, grade final.
+
+### Conferência do repositório depois do envio
+
+Suíte inteira: 350 passaram, 1 pulado (os avisos são os de borda de grade
+que os próprios testes provocam). README: a faixa dos ADRs passou para 001
+a 022. Checklist de reprodutibilidade: a lista do que falta ficou na ordem
+de 16/11 (receita, `c_TOST` dos quatro, varredura, congelamento) e ganhou o
+ADR 022 e as perguntas de 23/11. O PROTOCOLO não mudou, porque acabou de
+ir anexado.
+
+### A revisão dirigida começa: fichas dos quatro seletores
+
+Conferindo o que a proposta pede para o primeiro semestre (seção 6.1), a
+revisão dirigida era o item que faltava, além do congelamento. Comecei
+`docs/revisao_dirigida.md`, no formato proposto em 20/08: uma ficha por
+método (iPLS, CARS, GA-PLS, VIP) e uma tabela comparativa. Só entra o que
+foi lido, com a fonte ao lado. Li hoje, inteiro, o artigo do CARS (Li et
+al., 2009) e a documentação do iPLS no `mdatools`; o resto vem dos registros
+de outubro nos ADRs 014 e 015 (Mehmood et al., 2020; Scrucca, 2013). Os
+originais do iPLS, do GA-PLS e do VIP não estão lidos: são de acesso
+fechado, e a ficha de cada um diz o que falta. O mais urgente é o do iPLS
+(Nørgaard et al., 2000), porque a grade de `int.num` do ADR 012 foi
+declarada sem ele.

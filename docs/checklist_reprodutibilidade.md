@@ -19,10 +19,13 @@ Situação em 13/11/2026 (commit `cd68ddb`).
 
 ## O que falta, em ordem
 
-1. **A receita de treino do Mango** (ADR 017, item 7), que destrava o
-   `c_TOST` do Mango.
-2. **As decisões dos ADRs 017 a 021** e das janelas químicas: o `k`, a
-   métrica do δ, os blocos do Friedman, a largura das janelas.
+1. **A receita de treino** (ADR 017; regra declarada no PROTOCOLO em
+   17/11, sem rodar), e depois o `c_TOST` dos quatro conjuntos e a
+   varredura de `c`, nessa ordem (orientação, 16/11). Antes, a decisão do
+   reajuste no treino inteiro.
+2. **As decisões dos ADRs 017 a 022** e das janelas químicas: o `k`, a
+   métrica do δ, os blocos do Friedman, as figuras, a largura das janelas;
+   e as perguntas de 23/11 sobre a borda do iPLS e os picos do bioprocess.
 3. **O δ final e o congelamento do protocolo** (item 2).
 4. **A grade final**, que fecha o item 9 (análise de sensibilidade do `k`).
 5. **A pergunta 11**, para o item 3: se a validação do iPLS, do VIP e do

@@ -85,3 +85,47 @@ Oito mutações, todas pegas. Suíte inteira: 241 passaram, 1 pulado.
   nas 10 partições; os termos e um TOST com δ só ilustrativo estão no
   DIARIO de 13/11.
 
+## Resposta da orientação (25/11/2026)
+
+Os cinco itens de "Em aberto":
+
+1. **A métrica do δ.**
+   - **Principal: RMSEP relativo**, o RMSEP de cada braço dividido pelo RMSEP
+     médio do `MeanArm` daquele conjunto (rodada de 100 partições). É uma
+     constante por conjunto, então os termos continuam exatamente aditivos, e
+     o δ fica nas unidades em que o piso de ruído já vive (8,9% no Tecator,
+     11,8% no Gasoline, 1,60% no Mango, 1,25% no bioprocess), sem conversão.
+   - **Secundário, pré-declarado: o mesmo TOST em R²,** com δ do desvio-padrão
+     do R² do `MeanArm`. Reportar os dois e dizer se concordam: dois δ
+     declarados custam nada e tiram o peso da escolha de métrica.
+
+   Isso resolve também a métrica das figuras 1, 2 e 7 (ADR 022). Os valores
+   estão no PROTOCOLO, seção do δ.
+2. **Vários `seed_algo` numa célula (pergunta 8): diagonal.** Um `seed_algo`
+   por (conjunto, `seed_split`), variando com a partição e **igual para todos
+   os braços dentro dela**, senão o pareamento quebra. O eixo `seed_algo` fica
+   separado, na partição fixa (ADR 021). A média sobre réplicas dentro da grade
+   principal misturaria duas fontes de variação num número e encolheria a
+   variância que o TOST tem de representar. O código continua recusando célula
+   repetida, e a diagonal faz com que ela não apareça.
+3. **O TOST:** teste t como principal (30 partições; convencional e esperado
+   pelo leitor), **bootstrap percentil ao lado**, e as células de cauda pesada
+   sinalizadas. O motivo concreto é o colapso do CARS fiel (ADR 016): dois
+   colapsos em 30 partições dominariam um TOST pela média.
+4. **Os blocos do Friedman: 4 blocos**, como o pipeline manda, reportado como
+   **descritivo**, dizendo que com 4 blocos nenhum pós-teste passa por Holm.
+   Usar (conjunto, `seed_split`) como bloco seria fabricar poder: partições do
+   mesmo conjunto compartilham dados, o n efetivo fica inflado e os p saem
+   anticonservadores. A inferência fica no TOST por conjunto, onde o δ está
+   declarado e o pareamento é honesto. O Friedman de 120 blocos também é
+   reportado, rotulado descritivo.
+5. **α = 0,05:** aprovado.
+
+**Falta no código** (`src/tcc/decomposition.py`): a decomposição em RMSEP
+relativo (dividir pela constante do `MeanArm` de cada conjunto), com teste de
+que a soma continua exata; e o bootstrap percentil ao lado do TOST, com a marca
+de cauda pesada. O `seed_algo` diagonal é do executor (ADR 021).
+
+Status: segue **proposto**. A orientação decidiu os itens, e não escreveu
+"aceito".
+

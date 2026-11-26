@@ -65,7 +65,7 @@ Depois do parecer da orientação (01/10/2026), o B4 se desdobrou em **B4-fiel**
 tcc_rodrigo/
 ├── 📁 docs/
 │   ├── fontes/                       proposta, pipeline e paper de referência
-│   ├── ADR/                          decisões de projeto registradas (001 a 021)
+│   ├── ADR/                          decisões de projeto registradas (001 a 022)
 │   ├── estudo_rodrigo/               material de estudo pessoal, inclui PERGUNTAS.md
 │   ├── DIARIO.md                     progresso dia a dia
 │   ├── PROTOCOLO.md                  protocolo pré-registrado (provisório até o congelamento)

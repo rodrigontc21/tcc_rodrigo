@@ -125,3 +125,43 @@ a rodar enquanto houver algum. Um ensaio na partição piloto 0
 (`scripts/rodar_grade_final.py ensaio`: Tecator, Gasoline e Mango, 243
 execuções) rodou sem erro e reproduziu os resultados já medidos. Detalhes
 no DIARIO de 16/11.
+
+## Resposta da orientação (25/11/2026)
+
+**Item 1, a configuração da grade final:**
+- **30 partições, `seed_split` de 100 a 129.** O número casa com as 30
+  partições do piloto e com a ancoragem do δ.
+- **Eixo `seed_algo`: 10 sementes na partição 100**, só nos braços
+  estocásticos.
+- **`seed_algo` da grade principal: diagonal** (pergunta 8, respondida no ADR
+  020). Um `seed_algo` por (conjunto, `seed_split`), que varia com a partição e
+  é **igual para todos os braços dentro dela**, senão o pareamento quebra.
+  Hoje o `final_grid.py` usa `SEED_ALGO = 0` fixo em todas as partições: isso
+  muda no código antes da grade.
+- **A estimativa de tempo é declarada antes de começar.** Pelos tempos do
+  piloto (1h26 a 3h09 por partição), só o iPLS no bioprocess leva de 45 a 95 h
+  em série, umas 15 a 25 h com quatro processos. Declarada na frente, nenhum
+  corte no meio precisa ser inventado.
+
+**Item 3, a tolerância de não determinismo:** declarar que os resultados são
+de uma thread por processo; se outra máquina divergir, declarar também.
+Aprovado.
+
+**A proveniência do ambiente (orientação, 25/11, a partir da conferência de
+23/11).** Com o iPLS rodando nos dois BLAS do R (o de referência e o
+OpenBLAS), nas `seed_split` 0 a 4 do Tecator, do Gasoline e do Mango, as
+seleções saíram idênticas e o R² igual até a última casa. Os braços de rede,
+ao contrário, mudam de resultado com o número de threads do torch (ADR 017,
+reprodução do B4). Esse contraste delimita onde o ambiente importa e entra na
+proveniência: **os braços clássicos são invariantes ao BLAS; os de rede são
+sensíveis ao número de threads**. O protocolo fica no BLAS de referência (o
+OpenBLAS não reduziu o custo do iPLS onde ele pesa) e registra a versão do
+BLAS e a contagem de threads junto das versões dos pacotes.
+
+**Falta no código:** a diagonal do `seed_algo` e os valores da grade no
+`final_grid.py` (`SEED_SPLITS`, `ALGO_AXIS_SPLIT`, `ALGO_AXIS_SEEDS`), e o
+registro do BLAS do R na proveniência, que hoje grava as threads mas não qual
+BLAS o R carregou.
+
+Status: segue **proposto**. A orientação decidiu os itens, e não escreveu
+"aceito".
