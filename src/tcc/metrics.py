@@ -90,8 +90,33 @@ def reproducibility(results: Iterable, k: int, axis: str) -> dict:
     Braços sem seleção (PLS completo, MLP sem porta) ficam de fora.
 
     Devolve {(conjunto, braço): Jaccard médio}, com a média dos grupos
-    quando há mais de um valor da semente fixa.
+    quando há mais de um valor da semente fixa. A dispersão entre os grupos
+    está em `reproducibility_spread`.
     """
+    return {key: float(np.mean(v)) for key, v in _jaccard_per_group(results, k, axis).items()}
+
+
+def reproducibility_spread(results: Iterable, k: int, axis: str) -> dict:
+    """Como `reproducibility`, mas com a dispersão entre os grupos.
+
+    Cada grupo é um valor da semente do outro eixo (no eixo `seed_algo`, uma
+    partição; no `seed_split`, uma semente do algoritmo). Orientação, 25/11/2026
+    (ADR 019, item 4): a média dos grupos **mais a dispersão**, porque a
+    dispersão entre sementes do algoritmo é ela mesma material da H6.
+
+    Devolve {(conjunto, braço): {"mean", "sd", "n_groups"}}; `sd` é o
+    desvio-padrão amostral entre os grupos, `nan` com um grupo só.
+    """
+    out = {}
+    for key, v in _jaccard_per_group(results, k, axis).items():
+        v = np.asarray(v, dtype=float)
+        sd = float(v.std(ddof=1)) if v.size >= 2 else float("nan")
+        out[key] = {"mean": float(v.mean()), "sd": sd, "n_groups": int(v.size)}
+    return out
+
+
+def _jaccard_per_group(results: Iterable, k: int, axis: str) -> dict:
+    """{(conjunto, braço): [Jaccard médio par a par de cada grupo]}."""
     if axis not in AXES:
         raise ValueError(f"eixo deve ser um de {AXES}")
     fixed = "seed_algo" if axis == "seed_split" else "seed_split"
@@ -109,7 +134,7 @@ def reproducibility(results: Iterable, k: int, axis: str) -> dict:
     for (dataset, arm, _), sels in groups.items():
         if len(sels) >= 2:
             per_arm[(dataset, arm)].append(mean_pairwise_jaccard(list(sels.values())))
-    return {key: float(np.mean(v)) for key, v in per_arm.items()}
+    return dict(per_arm)
 
 
 # --- plausibilidade química ------------------------------------------------------

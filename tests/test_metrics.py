@@ -17,6 +17,7 @@ from tcc.metrics import (
     mean_pairwise_jaccard,
     performance,
     reproducibility,
+    reproducibility_spread,
 )
 
 
@@ -154,6 +155,31 @@ def test_reproducibility_uses_the_selection_layer():
 def test_reproducibility_skips_arms_without_selection():
     rs = [R(arm_name="pls_full", seed_split=s) for s in range(3)]
     assert reproducibility(rs, k=2, axis="seed_split") == {}
+
+
+def test_reproducibility_spread_gives_mean_and_sd_between_groups():
+    # ADR 019, item 4 (25/11): média dos grupos mais a dispersão. No eixo
+    # seed_algo, cada partição é um grupo. Partições 0 e 2: as 3 sementes
+    # escolhem o mesmo conjunto (Jaccard 1). Partição 1: {1,2}, {1,3}, {1,4},
+    # Jaccard 1/3 em cada par. Grupos (1, 1/3, 1): média 7/9 e mediana 1, de
+    # propósito diferentes, para o teste pegar a troca de uma pela outra.
+    # Desvios da média: 2/9, −4/9, 2/9; soma dos quadrados 24/81; desvio
+    # amostral √(24/81 / 2) = 2√3/9.
+    rs = [R(seed_split=0, seed_algo=a, selection={1, 2}) for a in range(3)]
+    rs += [R(seed_split=1, seed_algo=a, selection={1, a + 2}) for a in range(3)]
+    rs += [R(seed_split=2, seed_algo=a, selection={5, 6}) for a in range(3)]
+    out = reproducibility_spread(rs, k=2, axis="seed_algo")[("d", "a")]
+    assert out["n_groups"] == 3
+    assert out["mean"] == pytest.approx(7 / 9)
+    assert out["sd"] == pytest.approx(2 * np.sqrt(3) / 9)
+    # a média é a mesma de `reproducibility`
+    assert reproducibility(rs, k=2, axis="seed_algo")[("d", "a")] == pytest.approx(out["mean"])
+
+
+def test_reproducibility_spread_is_nan_with_a_single_group():
+    rs = [R(seed_split=0, seed_algo=a, selection={1, a + 2}) for a in range(3)]
+    out = reproducibility_spread(rs, k=2, axis="seed_algo")[("d", "a")]
+    assert out["n_groups"] == 1 and np.isnan(out["sd"])
 
 
 def test_reproducibility_rejects_duplicates_and_unknown_axis():
