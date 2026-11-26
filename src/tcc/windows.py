@@ -2,8 +2,12 @@
 
 As bandas de `docs/janelas_quimicas.md`, cada uma com a fonte lida. Só a
 posição do pico vem da fonte; a **largura** da janela é escolha deste
-trabalho, ainda em aberto, e por isso entra como parâmetro obrigatório, sem
-valor padrão. O mesmo vale para quais papéis contam: o padrão é só o alvo.
+trabalho, decidida pela orientação em 25/11/2026 por modalidade
+(`HALF_WIDTH`): ±25 nm no NIR e no Vis-NIR (os ~50 nm de banda do Golic et
+al., 2003, cobrindo o maior deslocamento medido, −19 nm no Mango) e ±10 cm⁻¹
+no Raman (banda Raman é mais estreita; maior deslocamento medido, 5,9 cm⁻¹).
+Quais papéis contam: na métrica principal, só o alvo; o interferente é
+calculado à parte, nunca somado.
 
 Papéis:
 - `alvo`: bandas do constituinte medido (gordura, octanagem pelos grupos de
@@ -12,7 +16,8 @@ Papéis:
 - `pigmento`: clorofila e carotenoides no Mango, que não são matéria seca;
 - `outras`: outras bandas da glicose, fora da região de impressão digital.
 
-Uso: `fraction_in_windows(selection, dataset.axis, windows("tecator", 25))`.
+Uso: `fraction_in_windows(selection, dataset.axis, windows("tecator"))`, com a
+meia largura declarada; um número explícito só para análise de sensibilidade.
 """
 
 from __future__ import annotations
@@ -99,15 +104,26 @@ BANDS: dict[str, tuple[Band, ...]] = {
 
 ROLES = ("alvo", "agua", "pigmento", "outras")
 
+# Unidade do eixo de cada conjunto (a mesma de `tcc.data`) e a meia largura
+# declarada para cada unidade (orientação, 25/11/2026; docs/janelas_quimicas.md).
+# O mesmo número nas duas modalidades seria erro de unidade: ±25 cm⁻¹ é uma
+# janela larguíssima em Raman.
+DATASET_UNIT = {"tecator": "nm", "gasoline": "nm", "mango": "nm", "bioprocess": "cm-1"}
+HALF_WIDTH = {"nm": 25.0, "cm-1": 10.0}
 
-def windows(dataset: str, half_width: float, roles=("alvo",)) -> list[tuple[float, float]]:
+
+def windows(dataset: str, half_width: float | None = None,
+            roles=("alvo",)) -> list[tuple[float, float]]:
     """As janelas [pico − meia largura, pico + meia largura] do conjunto.
 
-    `half_width` vai na unidade do eixo do conjunto (nm no NIR, cm⁻¹ no
-    Raman) e não tem padrão: a largura ainda não foi decidida.
+    Sem `half_width`, vale a meia largura declarada para a unidade do eixo do
+    conjunto (`HALF_WIDTH`: 25 em nm, 10 em cm⁻¹). Um valor explícito, na
+    unidade do eixo, só para análise de sensibilidade.
     """
     if dataset not in BANDS:
         raise ValueError(f"conjunto sem janelas: {dataset}")
+    if half_width is None:
+        half_width = HALF_WIDTH[DATASET_UNIT[dataset]]
     if not half_width > 0:
         raise ValueError("a meia largura precisa ser positiva")
     unknown = set(roles) - set(ROLES)

@@ -254,7 +254,44 @@ duas fontes, não frase de nenhuma delas.
   (uma chama 960 nm de primeira, outra de segunda). Não entra sem a fonte
   revisada.
 
-## Em aberto, antes de virar código
+## Decidido pela orientação (25/11/2026)
+
+A largura são duas decisões, uma por modalidade, e não uma só:
+
+- **±25 nm no NIR e no Vis-NIR** (Tecator, Gasoline e Mango). A justificativa é
+  a única largura de banda com fonte lida, os ~50 nm do Golic et al. (2003)
+  para as bandas de onda curta, e ela cobre o maior deslocamento medido nos
+  nossos espectros (Mango, 910 → 891 nm, −19).
+- **±10 cm⁻¹ no Raman** (bioprocess). Banda Raman é muito mais estreita que
+  banda NIR, e o maior deslocamento medido entre a fonte e o nosso espectro foi
+  de 5,9 cm⁻¹ (1.336 → 1.341,9). Usar o mesmo número nas duas modalidades seria
+  erro de unidade disfarçado de consistência: ±25 cm⁻¹ é uma janela larguíssima
+  em Raman.
+- **Quais bandas contam: só as do alvo, na métrica principal.** As de
+  interferente (água no Tecator, pigmentos no Mango) são reportadas numa coluna
+  separada e rotulada, **sem somar** à principal. No Tecator, com gordura e
+  água a ρ = −0,988, um método que seleciona a banda de água é achado
+  interessante, e o protocolo já declara essa limitação.
+- **A banda de 1.040 nm do Tecator fica** (tem duas fontes), declarando que ela
+  não aparece no espectro médio e que a janela de ±25 nm pode encostar no vale
+  de 1.016 nm.
+
+Os itens 1, 2 e 4 abaixo ficam respondidos por esta seção; o 3 já estava
+fechado. **Fica uma dúvida que a decisão não cobre:** no bioprocess,
+`src/tcc/windows.py` separa as bandas da glicose fora da região de impressão
+digital no papel `outras` (1.462, 1.367, 1.336, 1.264 e 846 cm⁻¹). Elas são
+bandas do alvo, mas não estão no papel `alvo`. Se entram na métrica principal é
+pergunta à orientação.
+
+**Falta no código** (`src/tcc/windows.py`): a meia largura declarada por
+unidade (25 em nm, 10 em cm⁻¹), hoje um parâmetro obrigatório sem valor, e o
+interferente calculado à parte.
+
+O documento, nas palavras da orientação, "é a coisa mais bem fundamentada do
+TCC até agora": quatro textos completos lidos, com **posição** separada de
+**atribuição**.
+
+## Em aberto, antes de virar código (respondido em 25/11, seção acima)
 
 1. **Largura das janelas.** As fontes dão a posição do pico, não a
    largura. A largura é escolha deste trabalho e precisa ser declarada

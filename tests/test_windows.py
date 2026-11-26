@@ -7,7 +7,7 @@ import pytest
 
 from tcc.data import load
 from tcc.metrics import fraction_in_windows
-from tcc.windows import BANDS, ROLES, windows
+from tcc.windows import BANDS, DATASET_UNIT, HALF_WIDTH, ROLES, windows
 
 # As posições do alvo, como estão em docs/janelas_quimicas.md. Se alguém
 # mudar uma banda no código sem mudar o documento (ou o contrário), quebra.
@@ -50,6 +50,24 @@ def test_windows_follow_the_half_width_and_the_roles():
     assert windows("tecator", 10) == [(920, 940), (1030, 1050)]
     assert windows("tecator", 10, roles=("alvo", "agua")) == [(920, 940), (1030, 1050), (960, 980)]
     assert windows("mango", 5, roles=("pigmento",)) == [(675, 685), (470, 480), (430, 440)]
+
+
+def test_declared_half_width_is_25_nm_in_nir_and_10_cm1_in_raman():
+    # Orientação, 25/11/2026 (docs/janelas_quimicas.md): a largura são duas
+    # decisões, uma por modalidade.
+    assert HALF_WIDTH == {"nm": 25.0, "cm-1": 10.0}
+    assert windows("tecator") == [(905, 955), (1015, 1065)]
+    assert windows("mango") == [(885, 935)]
+    assert windows("gasoline")[0] == (1119, 1169)
+    assert windows("bioprocess")[0] == (1116, 1136)
+    assert windows("bioprocess") == windows("bioprocess", 10)
+    assert windows("tecator") == windows("tecator", 25)
+
+
+def test_dataset_unit_matches_the_loaded_axis(dataset):
+    # A unidade que escolhe a meia largura tem de ser a do eixo carregado; um
+    # conjunto em cm⁻¹ com janela de 25 seria o erro de unidade da decisão.
+    assert DATASET_UNIT[dataset.name] == dataset.unit
 
 
 @pytest.mark.parametrize("kw", [{"half_width": 0}, {"half_width": -5}])
